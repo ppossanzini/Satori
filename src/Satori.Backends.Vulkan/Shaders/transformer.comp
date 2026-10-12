@@ -29,4 +29,5 @@ void main() {
             v[p.c+i]=(x*sigmoid)*v[p.b+i];
         }
     }
+    if(p.op==3) for(uint i=lane;i<p.n;i+=64) v[p.c+i]=v[p.a+i]+v[p.b+i];
 }

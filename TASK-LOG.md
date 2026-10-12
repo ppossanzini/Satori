@@ -289,3 +289,9 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Added sign-stable FP32 SwiGLU and exact gate alias. Independent fixture, extreme signed gates and real feed-forward block pass unchanged tolerances. Three operator tests pass under SyncVal; build without warnings/errors. No activation approximation or intermediate readback in recording.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## T40 — Implement resident residual addition (completed)
+
+Elementwise residual recording allows exact aliases and retains explicit barriers. Critical cases cover both exact input aliases, partial-overlap rejection, one-element boundary and normalization chaining. Four operator tests pass with SyncVal; Release build without warnings/errors.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.

@@ -76,4 +76,18 @@ public sealed class VulkanTransformerTests
         actual=new float[288];expected=new float[288];dg.Execute(gate,actual);d.Execute(cg,expected);Compare(actual,expected);
         context.Dispose();Assert.Equal(0,context.ValidationErrorCount);
     }
+    [Fact]
+    public void ResidualAllowsExactAliasesRejectsPartialAndChainsIntoNormalization()
+    {
+        using var context=Create();float[] weights=Enumerable.Repeat(1f,288).ToArray();using var ops=new VulkanTransformerOperators(context,weights);
+        float[] left=Enumerable.Range(0,288).Select(i=>(i-144)/16f).ToArray(),right=Enumerable.Range(0,288).Select(i=>(i%7-3)/8f).ToArray();
+        float[] expected=new float[288];TransformerOps.Add(left,right,expected);
+        float[] actual=new float[288];ops.Add(left,right,actual);Assert.Equal(expected,actual);
+        var alias=left.ToArray();ops.Add(alias,right,alias);Assert.Equal(expected,alias);
+        alias=right.ToArray();ops.Add(left,alias,alias);Assert.Equal(expected,alias);
+        ops.RmsNorm(actual,actual);TransformerOps.RmsNorm(expected,weights,1e-5f,expected);Compare(actual,expected);
+        float[] partial=new float[289];Assert.Throws<ArgumentException>(()=>ops.Add(partial.AsSpan(0,288),right,partial.AsSpan(1,288)));
+        ops.Add([1],[2],actual.AsSpan(0,1));Assert.Equal(3,actual[0]);
+        context.Dispose();Assert.Equal(0,context.ValidationErrorCount);
+    }
 }

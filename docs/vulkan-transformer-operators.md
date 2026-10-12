@@ -9,3 +9,5 @@ Context owns the lifetime of registered graphs. Disposing a context releases des
 RoPE uses a host-double sin/cos table rounded to FP32, with disjoint in-place pairs and head dimension 48. Independent fixture position 37 and all 288 channels at positions 0/1/31/63/127 pass the unchanged operator tolerance; two operator tests pass with zero SyncVal errors. No components outside the uploaded/readback vector are exposed.
 
 SwiGLU uses exp(-abs(x)) for a sign-stable sigmoid, with exact gate alias supported. Independent fixture, zero and ±1000 gates, and the first real feed-forward block (GPU RMSNorm, gate/up projections, SwiGLU and down projection) pass unchanged tolerances. Three operator tests pass with zero SyncVal errors. Recording retains gate/up on device; standalone verification transfers are excluded from productive graph composition.
+
+Residual addition is elementwise FP32 with exact input/output aliases and no partial overlap. Distinct output, either exact alias, one-element boundary and normalization chaining pass. Four operator tests pass with zero SyncVal errors; build has no warnings/errors.

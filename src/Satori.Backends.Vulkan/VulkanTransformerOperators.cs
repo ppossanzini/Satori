@@ -46,6 +46,7 @@ public sealed class VulkanTransformerOperators : IDisposable
             _graph.Context.SubmitAndWait();_graph.Readback.Read(vector);
         }
     }
+    public void Add(ReadOnlySpan<float> left,ReadOnlySpan<float> right,Span<float> output) => Binary(3,left,right,output);
     public void SwiGlu(ReadOnlySpan<float> gate,ReadOnlySpan<float> up,Span<float> output) => Binary(2,gate,up,output);
     private void Binary(uint op,ReadOnlySpan<float> left,ReadOnlySpan<float> right,Span<float> output)
     {

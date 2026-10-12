@@ -1,0 +1,7 @@
+- id: ADR-0001
+  title: Sessione Stories15M residente su Vulkan
+  date: 2026-10-12
+  status: accepted
+  domain: vulkan-resident
+  scope: [stories15m, vulkan]
+  file: records/ADR-0001-vulkan-resident-session.md

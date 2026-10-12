@@ -5,7 +5,7 @@ using Satori.Formats.Gguf;
 namespace Satori.Backends.Vulkan;
 
 /// <summary>Shared compressed Stories15M weights and immutable FP32 operator tables.</summary>
-public sealed class VulkanResidentModel : IDisposable
+public sealed class VulkanResidentModel : IDisposable, IStoriesSessionExecutionFactory
 {
     internal readonly VulkanContext Context;
     internal readonly List<VulkanResidentMatrix> Matrices=[];
@@ -13,6 +13,7 @@ public sealed class VulkanResidentModel : IDisposable
     internal VulkanFloatPipeline FloatPipeline=null!;
     private VulkanQ8Pipeline? _row,_cooperative;
     private readonly HashSet<VulkanResidentLayerSession> _sessions=[];
+    private readonly HashSet<VulkanResidentExecution> _executions=[];
     private bool _disposed;
     private long _appends,_transfers,_matvecs;
     internal const uint RopeTable=13*288;
@@ -56,18 +57,24 @@ public sealed class VulkanResidentModel : IDisposable
     {
         lock(Context.Sync){EnsureReady();if((uint)layer>=6)throw new ArgumentOutOfRangeException(nameof(layer));var session=new VulkanResidentLayerSession(this,layer);_sessions.Add(session);return session;}
     }
+    public IStoriesSessionExecution CreateSession()
+    {
+        lock(Context.Sync){EnsureReady();var execution=new VulkanResidentExecution(this);_executions.Add(execution);return execution;}
+    }
+    internal void Forget(VulkanResidentExecution execution)=>_executions.Remove(execution);
     internal void Forget(VulkanResidentLayerSession session)=>_sessions.Remove(session);
     internal void Commit(int outputWords,int matvecs){_appends++;_transfers+=(288L+outputWords)*4;_matvecs+=matvecs;}
     public VulkanResidentStatistics Statistics
     {
         get {lock(Context.Sync){EnsureReady();return new(Matrices.Count,Matrices.Aggregate(0UL,(sum,m)=>sum+m.Weights.AllocationBytes),Tables.AllocationBytes,
-            _sessions.Count,_sessions.Aggregate(0UL,(sum,s)=>sum+s.AllocatedBytes),_appends,_appends,_appends,_transfers,_matvecs);}}
+            _sessions.Count+_executions.Count,_sessions.Aggregate(0UL,(sum,s)=>sum+s.AllocatedBytes)+_executions.Aggregate(0UL,(sum,s)=>sum+s.AllocatedBytes),_appends,_appends,_appends,_transfers,_matvecs);}}
     }
     public void Dispose()
     {
         lock(Context.Sync)
         {
             if(_disposed)return;_disposed=true;Context.CompletePendingForDisposal();
+            foreach(var execution in _executions.ToArray())execution.Dispose();_executions.Clear();
             foreach(var session in _sessions.ToArray())session.Dispose();_sessions.Clear();
             foreach(var matrix in Matrices)matrix.Weights.Dispose();Matrices.Clear();
             Tables?.Dispose();FloatPipeline?.Dispose();_row?.Dispose();_cooperative?.Dispose();Context.Unregister(this);

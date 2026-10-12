@@ -7,6 +7,8 @@ namespace Satori.Backends.Vulkan;
 public sealed class VulkanStoriesRuntime : IDisposable
 {
     private readonly VulkanContext? _context;
+    private readonly VulkanResidentModel? _resident;
+    public VulkanResidentStatistics? ResidentStatistics => _resident?.Statistics;
     /// <summary>Candidate allocations and completed work before returning the selected model.</summary>
     public VulkanDeviceInfo? CandidateDevice { get; }
     public VulkanOffloadStatistics? CandidateStatistics { get; }
@@ -24,6 +26,8 @@ public sealed class VulkanStoriesRuntime : IDisposable
     {
         options ??= new();
         if(options.Mode==StoriesBackendMode.Auto && options.MatVec is not null) throw new ArgumentException("Custom measurement options require explicit Vulkan selection.",nameof(options));
+        if(!Enum.IsDefined(options.Path))throw new ArgumentOutOfRangeException(nameof(options));
+        if(options.Path==StoriesVulkanPath.Resident && (options.Mode==StoriesBackendMode.Auto || options.MatVec is not null))throw new ArgumentException("Resident execution requires explicit Vulkan selection without MatVec diagnostics.");
         if (!Enum.IsDefined(options.Mode)) throw new ArgumentOutOfRangeException(nameof(options));
         if (options.Mode==StoriesBackendMode.Cpu) { Model=new(path); return; }
         if (!VulkanContext.TryCreate(options.Vulkan??new(),out var context,out var availability))
@@ -52,7 +56,11 @@ public sealed class VulkanStoriesRuntime : IDisposable
             }
             catch { context!.Dispose();throw; }
         }
-        try { Model=new(path,options.MatVec is null?context:new VulkanMatrixFactory(context!,options.MatVec)); }
+        try
+        {
+            if(options.Path==StoriesVulkanPath.Resident){_resident=new(path,context!);Model=new(path,sessionFactory:_resident);}
+            else Model=new(path,options.MatVec is null?context:new VulkanMatrixFactory(context!,options.MatVec));
+        }
         catch(VulkanException error) when(error.Result==Result.ErrorOutOfDeviceMemory && options.Mode==StoriesBackendMode.Auto)
         {
             context!.Dispose();
@@ -89,6 +97,7 @@ public sealed class VulkanStoriesRuntime : IDisposable
     public void Dispose()
     {
         Model.Dispose();
+        _resident?.Dispose();
         _context?.Dispose();
     }
 }

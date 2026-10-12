@@ -33,6 +33,11 @@ if (args.Length > 0)
                     backend=backend with {Mode=value switch {"cpu"=>StoriesBackendMode.Cpu,"auto"=>StoriesBackendMode.Auto,"vulkan"=>StoriesBackendMode.VulkanRequired,_=>throw new ArgumentException("Expected backend cpu, auto or vulkan.")}};
                     continue;
                 }
+                if(flag=="--vulkan-path")
+                {
+                    backend=backend with {Path=value switch {"matvec"=>StoriesVulkanPath.MatVec,"resident"=>StoriesVulkanPath.Resident,_=>throw new ArgumentException("Expected matvec or resident.")}};
+                    continue;
+                }
                 if(flag=="--plan-cache")
                 {
                     backend=backend with {Planner=new StoriesPlannerOptions(value)};

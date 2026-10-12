@@ -52,18 +52,23 @@ internal sealed unsafe class VulkanResidentGraph : IDisposable
         context.Api.CmdDispatch(context.Command,pipeline.Kernel==VulkanQ8Kernel.Cooperative64?(uint)matrix.Shape.Rows:((uint)matrix.Shape.Rows+63)/64,1,1);
         context.Barrier(PipelineStageFlags.ComputeShaderBit,AccessFlags.ShaderReadBit|AccessFlags.ShaderWriteBit,PipelineStageFlags.ComputeShaderBit,AccessFlags.ShaderReadBit|AccessFlags.ShaderWriteBit);
     }
-    internal void Layer(int layer,int position)
+    internal void Layer(int layer,int position,VulkanResidentCapture? capture=null)
     {
         int first=layer*7;uint key=Keys+(uint)(layer*128*288),value=Values+(uint)(layer*128*288),current=(uint)(position*288);
         Float.Record(0,X,(uint)(layer*576),Norm,288);
+        if(layer==0)capture?.Record("attn_norm-0",Norm,288);
         MatVec(first,Norm,Q);MatVec(first+1,Norm,key+current);MatVec(first+2,Norm,value+current);
         Float.Record(1,Q,0,0,288,(uint)position,table:VulkanResidentModel.RopeTable);
         Float.Record(1,key+current,0,0,288,(uint)position,table:VulkanResidentModel.RopeTable);
+        if(layer==0){capture?.Record("Qcur-0",Q,288);capture?.Record("Kcur-0",key+current,288);capture?.Record("Vcur-0",value+current,288);}
         Float.Record(4,Q,key,Attention,288,(uint)(position+1),value);
-        MatVec(first+3,Attention,Projected);Float.Record(3,X,Projected,X,288);
+        MatVec(first+3,Attention,Projected);if(layer==0)capture?.Record("attn_out-0",Projected,288);
+        Float.Record(3,X,Projected,X,288);if(layer==0)capture?.Record("ffn_inp-0",X,288);
         Float.Record(0,X,(uint)(layer*576+288),Norm,288);
+        if(layer==0)capture?.Record("ffn_norm-0",Norm,288);
         MatVec(first+4,Norm,Gate);MatVec(first+5,Norm,Up);Float.Record(2,Gate,Up,Gate,768);
-        MatVec(first+6,Gate,Projected);Float.Record(3,X,Projected,X,288);
+        MatVec(first+6,Gate,Projected);if(layer==0)capture?.Record("ffn_out-0",Projected,288);
+        Float.Record(3,X,Projected,X,288);capture?.Record($"l_out-{layer}",X,288);
     }
     internal void Finish(uint source,Span<float> output,int matvecs)
     {

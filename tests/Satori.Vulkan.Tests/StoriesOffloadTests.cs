@@ -12,11 +12,13 @@ public sealed class StoriesOffloadTests
     private static string Root => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../../"));
     private static string Model => Path.Combine(Root,".temp/gguf-corpus/stories15M-q8_0.gguf");
 
-    [Fact]
-    public void OffloadedCacheReachesContextLimitAndGeneratorBorrowsModel()
+    [Theory]
+    [InlineData(StoriesVulkanPath.MatVec)]
+    [InlineData(StoriesVulkanPath.Resident)]
+    public void OffloadedCacheReachesContextLimitAndGeneratorBorrowsModel(StoriesVulkanPath path)
     {
         Assert.Equal("1",Environment.GetEnvironmentVariable("VK_VALIDATION_VALIDATE_SYNC"));
-        using var runtime=new VulkanStoriesRuntime(Model,new(StoriesBackendMode.VulkanRequired,new(Validation:true)));
+        using var runtime=new VulkanStoriesRuntime(Model,new(StoriesBackendMode.VulkanRequired,new(Validation:true),Path:path));
         using var cpu=new StoriesModel(Model);
         using var gpuSession=runtime.Model.CreateSession();
         using var cpuSession=cpu.CreateSession();
@@ -35,7 +37,8 @@ public sealed class StoriesOffloadTests
             }
             Assert.True(Math.Sqrt(squared/actual.Length)<=1e-4);
         }
-        Assert.Equal(128*43,runtime.Statistics!.CompletedDispatches);
+        if(path==StoriesVulkanPath.MatVec)Assert.Equal(128*43,runtime.Statistics!.CompletedDispatches);
+        else {Assert.Equal(128,runtime.ResidentStatistics!.SubmissionCount);Assert.Equal(128*129152,runtime.ResidentStatistics.TransferBytes);Assert.Equal(128*43,runtime.ResidentStatistics.MatVecDispatches);}
         float[] saved=actual.ToArray();
         Assert.False(gpuSession.TryAppend(1,actual));Assert.Equal(saved,actual);
         gpuSession.Reset();Assert.True(gpuSession.TryAppend(1,actual));
@@ -50,13 +53,15 @@ public sealed class StoriesOffloadTests
         runtime.Dispose();Assert.Equal(0,runtime.ValidationErrorCount);
     }
 
-    [Fact]
-    public void OffloadedForwardAndIncrementalLogitsMatchIndependentOracleAndGreedySequences()
+    [Theory]
+    [InlineData(StoriesVulkanPath.MatVec)]
+    [InlineData(StoriesVulkanPath.Resident)]
+    public void OffloadedForwardAndIncrementalLogitsMatchIndependentOracleAndGreedySequences(StoriesVulkanPath path)
     {
         Assert.Equal("1",Environment.GetEnvironmentVariable("VK_VALIDATION_VALIDATE_SYNC"));
-        using var runtime=new VulkanStoriesRuntime(Model,new(StoriesBackendMode.VulkanRequired,new(Validation:true)));
+        using var runtime=new VulkanStoriesRuntime(Model,new(StoriesBackendMode.VulkanRequired,new(Validation:true),Path:path));
         Assert.False(runtime.Device!.Software);
-        Assert.Equal(43,runtime.Statistics!.ResidentMatrices);
+        Assert.Equal(43,path==StoriesVulkanPath.MatVec?runtime.Statistics!.ResidentMatrices:runtime.ResidentStatistics!.Matrices);
         string directory=Path.Combine(Root,"fixtures/models/stories15m-q8-v1/numpy");
         using var reference=JsonDocument.Parse(File.ReadAllText(Path.Combine(directory,"reference.json")));
         foreach(var item in reference.RootElement.GetProperty("forward_cases").EnumerateArray())
@@ -81,9 +86,9 @@ public sealed class StoriesOffloadTests
                 Assert.True(session.TryAppend(token,incremental));
             }
         }
-        long before=runtime.Statistics.CompletedDispatches;
+        long before=path==StoriesVulkanPath.MatVec?runtime.Statistics!.CompletedDispatches:runtime.ResidentStatistics!.MatVecDispatches;
         runtime.Model.Forward([1],new float[32000],scalar:true);
-        Assert.Equal(before,runtime.Statistics.CompletedDispatches);
+        Assert.Equal(before,path==StoriesVulkanPath.MatVec?runtime.Statistics!.CompletedDispatches:runtime.ResidentStatistics!.MatVecDispatches);
         runtime.Dispose();
         Assert.Equal(0,runtime.ValidationErrorCount);
 

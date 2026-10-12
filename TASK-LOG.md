@@ -307,3 +307,9 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Added shared compressed weights/tables, private KV/activation arenas and immutable per-session matrix descriptors with offset-aware Q8 shaders. Complete layers record without intermediate host transfer. Layer 0 at three independent prefixes and all six fixed-input layer boundaries pass the model gates, with one submission/fence, seven MatVecs and 2304 transfer bytes. SyncVal zero errors; build without warnings. docs/vulkan-resident-layers.md records buffers and ownership.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## T43 — Integrate single-submission resident model sessions (completed)
+
+Integrated a backend-independent session factory into Formats and complete resident execution into explicit Vulkan runtime/generation. Productive append transfers 129152 bytes, records 43 MatVecs and submits/waits once. Fifteen independent states/logits, official greedy sequences, streaming, 128-token context, reset, session isolation, zero hot allocations and concurrent disposal pass. All 22 GPU/policy tests pass with zero SyncVal errors; all 116 CPU tests pass separately; build has no warnings/errors. Diagnostic captures are excluded from productive counters. docs/stories15m-vulkan-resident.md documents ownership and use.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.

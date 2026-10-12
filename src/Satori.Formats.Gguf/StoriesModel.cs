@@ -14,10 +14,13 @@ public sealed class StoriesModel : IDisposable
     private readonly GgufFloatVector _outputNorm;
     private readonly object _sync = new();
     private bool _disposed;
+    private readonly IStoriesSessionExecutionFactory? _sessionFactory;
     private readonly Dictionary<string,IQuantizedMatrix> _offloaded = new(StringComparer.Ordinal);
 
-    public StoriesModel(string path, IQuantizedMatrixFactory? matrixFactory = null)
+    public StoriesModel(string path, IQuantizedMatrixFactory? matrixFactory = null, IStoriesSessionExecutionFactory? sessionFactory = null)
     {
+        _sessionFactory=sessionFactory;
+        if(matrixFactory is not null && sessionFactory is not null)throw new ArgumentException("Choose matrix or session execution.");
         using (var source = File.OpenRead(path))
         {
             if (source.Length != 26671328 || !SHA256.HashData(source).AsSpan().SequenceEqual(
@@ -86,6 +89,16 @@ public sealed class StoriesModel : IDisposable
             foreach (int token in tokens) if ((uint)token >= VocabularySize) throw new ArgumentOutOfRangeException(nameof(tokens));
             if (System.Runtime.InteropServices.MemoryMarshal.AsBytes(tokens).Overlaps(System.Runtime.InteropServices.MemoryMarshal.AsBytes(logits)))
                 throw new ArgumentException("Token input overlaps logits.");
+            if(_sessionFactory is not null && !scalar)
+            {
+                using var execution=_sessionFactory.CreateSession();float[] embedding=new float[Width];
+                for(int position=0;position<tokens.Length;position++)
+                {
+                    _embedding.ReadRow(tokens[position],embedding);
+                    execution.Append(embedding,position,logits,position==tokens.Length-1?observer:null);
+                }
+                return;
+            }
             float[] keys = new float[6*tokens.Length*Width], values = new float[keys.Length];
             float[] x = new float[Width], norm = new float[Width], query = new float[Width], attention = new float[Width], projected = new float[Width];
             float[] gate = new float[768], up = new float[768];
@@ -143,6 +156,11 @@ public sealed class StoriesModel : IDisposable
         }
     }
 
+    internal IStoriesSessionExecution? CreateExecution(bool scalar) => scalar?null:_sessionFactory?.CreateSession();
+    internal void ComputeResidentNext(IStoriesSessionExecution execution,Span<float> embedding,int token,int position,Span<float> logits)
+    {
+        lock(_sync){ObjectDisposedException.ThrowIf(_disposed,this);_embedding.ReadRow(token,embedding);execution.Append(embedding,position,logits);}
+    }
     internal void ComputeNext(StoriesWorkspace workspace, int token, int position, Span<float> logits, bool scalar)
     {
         lock (_sync)

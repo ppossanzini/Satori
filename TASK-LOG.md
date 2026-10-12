@@ -259,3 +259,9 @@ Skills retained: phase-development-project-conventions, phase-development-task-e
 Pinned ownership, isolated KV/scratch, one submission per append, immutable recording descriptors, buffer budget, workgroup reduction, FP32 numerical gates and failure/reset/disposal transitions. Reviewed all operator dependencies and the six-layer token diagram against the CPU implementation. Documentation-only task; no runtime changes or tests. Contract: docs/adr/current/vulkan-resident.md.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## T35 — Add cooperative Q8 workgroup reduction (completed)
+
+Both kernels pass 148 FP64-bound workloads including all 44 real matrices, with zero SyncVal errors. Thirteen GPU/policy tests pass; Release build has zero warnings/errors. Three unvalidated process reports show faster small-matrix device times but a regression for 32000-row output; Row64 remains the default. Evidence: docs/benchmarks/q8-cooperative-2026-10-12. No numerical bounds relaxed.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.

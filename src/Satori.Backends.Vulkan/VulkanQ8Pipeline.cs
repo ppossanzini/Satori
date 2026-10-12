@@ -9,10 +9,11 @@ internal sealed unsafe class VulkanQ8Pipeline : IDisposable
     internal DescriptorSetLayout SetLayout;
     internal PipelineLayout Layout;
     internal Pipeline Handle;
+    internal VulkanQ8Kernel Kernel { get; }
 
-    internal VulkanQ8Pipeline(VulkanContext context)
+    internal VulkanQ8Pipeline(VulkanContext context, VulkanQ8Kernel kernel = VulkanQ8Kernel.Row64)
     {
-        _context=context;
+        _context=context; Kernel=kernel;
         ShaderModule shader=default;
         try
         {
@@ -24,7 +25,7 @@ internal sealed unsafe class VulkanQ8Pipeline : IDisposable
             var push=new PushConstantRange {StageFlags=ShaderStageFlags.ComputeBit,Offset=0,Size=8};
             var createLayout=new PipelineLayoutCreateInfo {SType=StructureType.PipelineLayoutCreateInfo,SetLayoutCount=1,PSetLayouts=&set,PushConstantRangeCount=1,PPushConstantRanges=&push};
             context.Check(context.Api.CreatePipelineLayout(context.Device,in createLayout,null,out Layout),"Create Q8 pipeline layout");
-            byte[] bytes=VulkanShader.Load("q8_matvec");
+            byte[] bytes=VulkanShader.Load(kernel==VulkanQ8Kernel.Cooperative64?"q8_cooperative":"q8_matvec");
             fixed(byte* code=bytes)
             {
                 var createShader=new ShaderModuleCreateInfo {SType=StructureType.ShaderModuleCreateInfo,CodeSize=(nuint)bytes.Length,PCode=(uint*)code};

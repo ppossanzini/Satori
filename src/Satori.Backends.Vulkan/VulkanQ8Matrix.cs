@@ -95,7 +95,7 @@ public sealed unsafe class VulkanQ8Matrix : IQuantizedMatrix
             uint* dimensions=stackalloc uint[2] {(uint)Shape.Rows,(uint)Shape.Columns};
             _context.Api.CmdPushConstants(_context.Command,_pipeline.Layout,ShaderStageFlags.ComputeBit,0,8,dimensions);
             if(_queries.Handle!=0) _context.Api.CmdWriteTimestamp(_context.Command,PipelineStageFlags.ComputeShaderBit,_queries,0);
-            _context.Api.CmdDispatch(_context.Command,((uint)Shape.Rows+63)/64,1,1);
+            _context.Api.CmdDispatch(_context.Command,_pipeline.Kernel==VulkanQ8Kernel.Cooperative64?(uint)Shape.Rows:((uint)Shape.Rows+63)/64,1,1);
             if(_queries.Handle!=0) _context.Api.CmdWriteTimestamp(_context.Command,PipelineStageFlags.ComputeShaderBit,_queries,1);
             _context.Barrier(PipelineStageFlags.ComputeShaderBit,AccessFlags.ShaderWriteBit,PipelineStageFlags.TransferBit,AccessFlags.TransferReadBit);
             copy.Size=(ulong)Shape.Rows*4;

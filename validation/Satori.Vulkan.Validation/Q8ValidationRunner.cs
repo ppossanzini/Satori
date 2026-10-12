@@ -9,11 +9,11 @@ using Satori.Validation;
 
 internal static class Q8ValidationRunner
 {
-    internal static int Run(string modelPath)
+    internal static int Run(string modelPath, bool validation=true, bool compareKernels=false)
     {
-        if(Environment.GetEnvironmentVariable("VK_VALIDATION_VALIDATE_SYNC")!="1")
+        if(validation && Environment.GetEnvironmentVariable("VK_VALIDATION_VALIDATE_SYNC")!="1")
             throw new InvalidOperationException("Set VK_VALIDATION_VALIDATE_SYNC=1.");
-        if(!VulkanContext.TryCreate(new(Validation:true),out var created,out var availability))
+        if(!VulkanContext.TryCreate(new(Validation:validation),out var created,out var availability))
             throw new InvalidOperationException(availability.ToString());
         using var context=created!;
         if(context.Info.Software) throw new InvalidOperationException("Hardware GPU required.");
@@ -43,8 +43,10 @@ internal static class Q8ValidationRunner
 
         void Check(string name,byte[] payload,QuantizedMatrixShape shape,float[] input,bool measure)
         {
+            foreach(var selectedKernel in compareKernels?Enum.GetValues<VulkanQ8Kernel>():[VulkanQ8Kernel.Row64])
+            {
             long start=Stopwatch.GetTimestamp();
-            using var matrix=context.CreateQ8Matrix(payload,shape,new(true));
+            using var matrix=context.CreateQ8Matrix(payload,shape,new(true,Kernel:selectedKernel));
             double creationMs=Stopwatch.GetElapsedTime(start).TotalMilliseconds;
             float[] output=new float[shape.Rows],scalar=new float[shape.Rows],auto=new float[shape.Rows];
             matrix.Execute(input,output);
@@ -68,9 +70,10 @@ internal static class Q8ValidationRunner
                     start=Stopwatch.GetTimestamp();QuantizedMatVec.Execute(payload,shape,input,auto);cpuAuto.Add(Stopwatch.GetElapsedTime(start).TotalMilliseconds);
                 }
             }
-            cases.Add(new {Name=name,shape.Rows,shape.Columns,RealModel=measure,PayloadBytes=payload.Length,CreationAndWeightUploadMs=creationMs,
+            cases.Add(new {Name=name,Kernel=selectedKernel.ToString(),shape.Rows,shape.Columns,RealModel=measure,PayloadBytes=payload.Length,CreationAndWeightUploadMs=creationMs,
                 matrix.WeightAllocationBytes,matrix.AllocatedBytes,TransferBytesPerCall=(shape.Rows+shape.Columns)*4,
                 GpuError=gpuError,ScalarError=scalarError,AutoError=autoError,HostSamplesMs=host,KernelSamplesMs=kernel,CpuScalarSamplesMs=cpuScalar,CpuAutoSamplesMs=cpuAuto,ManagedAllocatedBytes=allocations});
+            }
         }
     }
 }

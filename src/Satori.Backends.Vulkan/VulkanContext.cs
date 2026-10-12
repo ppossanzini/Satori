@@ -12,7 +12,7 @@ public sealed unsafe class VulkanContext : IDisposable, IQuantizedMatrixFactory
 {
     private readonly object _sync = new();
     private readonly HashSet<VulkanQ8Matrix> _q8Matrices = [];
-    private VulkanQ8Pipeline? _q8Pipeline;
+    private VulkanQ8Pipeline? _q8Pipeline, _q8CooperativePipeline;
     private uint _allocationCount;
     private readonly ConcurrentQueue<string> _messages = new();
     private int _validationErrors, _generalErrors;
@@ -395,8 +395,11 @@ public sealed unsafe class VulkanContext : IDisposable, IQuantizedMatrixFactory
                 || (ulong)shape.Rows*4>Info.MaxStorageBufferRange || ((ulong)shape.Rows+63)/64>Info.MaxDispatchGroups)
                 throw new ArgumentOutOfRangeException(nameof(shape),"Matrix exceeds Vulkan buffer or dispatch limits.");
             if(Info.MaxStorageDescriptors<3 || Info.MaxPushConstantsSize<8) throw new NotSupportedException("Q8_0 requires three storage descriptors and eight push-constant bytes.");
-            _q8Pipeline ??= new(this);
-            var matrix=new VulkanQ8Matrix(this,_q8Pipeline,payload,shape,options??new());
+            options ??= new();
+            if(!Enum.IsDefined(options.Kernel)) throw new ArgumentOutOfRangeException(nameof(options));
+            if(options.Kernel==VulkanQ8Kernel.Cooperative64 && (ulong)shape.Rows>Info.MaxDispatchGroups) throw new ArgumentOutOfRangeException(nameof(shape));
+            var pipeline=options.Kernel==VulkanQ8Kernel.Cooperative64?(_q8CooperativePipeline ??= new(this,options.Kernel)):(_q8Pipeline ??= new(this));
+            var matrix=new VulkanQ8Matrix(this,pipeline,payload,shape,options);
             try { _q8Matrices.Add(matrix); return matrix; }
             catch { matrix.DisposeCore(); throw; }
         }
@@ -458,6 +461,7 @@ public sealed unsafe class VulkanContext : IDisposable, IQuantizedMatrixFactory
                 foreach(var matrix in _q8Matrices) matrix.DisposeCore();
                 _q8Matrices.Clear();
                 _q8Pipeline?.Dispose();
+                _q8CooperativePipeline?.Dispose();
                 if(_commandPool.Handle!=0) Api.DestroyCommandPool(_device,_commandPool,null);
                 if(_descriptorPool.Handle!=0) Api.DestroyDescriptorPool(_device,_descriptorPool,null);
                 if(_pipeline.Handle!=0) Api.DestroyPipeline(_device,_pipeline,null);

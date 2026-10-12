@@ -22,8 +22,9 @@ public sealed class VulkanQ8Tests
     {
         using var context=Create();
         foreach(var sample in Q8Validation.CriticalCases())
+        foreach(var kernel in Enum.GetValues<VulkanQ8Kernel>())
         {
-            using var gpu=context.CreateQ8Matrix(sample.Payload,sample.Shape,new(MeasureKernelTime:true));
+            using var gpu=context.CreateQ8Matrix(sample.Payload,sample.Shape,new(MeasureKernelTime:true,Kernel:kernel));
             float[] output=new float[sample.Shape.Rows],scalar=new float[output.Length],auto=new float[output.Length];
             QuantizedMatVec.ExecuteScalar(sample.Payload,sample.Shape,sample.Input,scalar);
             QuantizedMatVec.Execute(sample.Payload,sample.Shape,sample.Input,auto);

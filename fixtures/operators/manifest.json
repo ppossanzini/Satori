@@ -1,6 +1,8 @@
 {
   "files": {
     "tools/transformer_reference.py": "6368723868fe7e81e3c0a603693760142fffa000fc94f9e2224f2be0c545fa97",
-    "fixtures/operators/transformer-v1.json": "00829721123d78a10f77637f95a8721bd6734757349d11ce92cfe1fb27c32af0"
+    "fixtures/operators/transformer-v1.json": "00829721123d78a10f77637f95a8721bd6734757349d11ce92cfe1fb27c32af0",
+    "tools/attention_reference.py": "6917b6edc9550cdfb9070d16c9f270ba6ab7fa325bdcd07933844a9d2f71b020",
+    "fixtures/operators/attention-boundaries-v1.json": "24eedd5aa85e010a456608f5b9d5feaf9e24cc65a1cf5e7815f65153bdfd4bed"
   }
 }

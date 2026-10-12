@@ -295,3 +295,9 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Elementwise residual recording allows exact aliases and retains explicit barriers. Critical cases cover both exact input aliases, partial-overlap rejection, one-element boundary and normalization chaining. Four operator tests pass with SyncVal; Release build without warnings/errors.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## T41 — Implement incremental GPU attention and private KV (completed)
+
+Added stable FP32 causal attention recording and private synchronous attention sessions. Independent Python binary64 fixtures at 1,2,32,64,128 tokens pass unchanged operator bounds. Isolation, reset, full-context rejection, cache budget and context lifetime pass. Five operator/attention tests pass with zero SyncVal errors; build without warnings/errors. No FP64 or subgroup requirement.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.

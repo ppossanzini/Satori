@@ -60,9 +60,9 @@ internal sealed unsafe class VulkanFloatGraph : IDisposable
     }
 
     internal void EnsureReady() { ObjectDisposedException.ThrowIf(_disposed,this);Context.EnsureReady(); }
-    internal void RecordUpload(uint destination,uint words)
+    internal void RecordUpload(uint destination,uint words,uint source=0)
     {
-        var copy=new BufferCopy {DstOffset=destination*4UL,Size=words*4UL};
+        var copy=new BufferCopy {SrcOffset=source*4UL,DstOffset=destination*4UL,Size=words*4UL};
         Context.Api.CmdCopyBuffer(Context.Command,Upload.Handle,Arena.Handle,1,in copy);
         Context.Barrier(PipelineStageFlags.TransferBit,AccessFlags.TransferWriteBit,PipelineStageFlags.ComputeShaderBit,AccessFlags.ShaderReadBit|AccessFlags.ShaderWriteBit);
     }
@@ -72,7 +72,7 @@ internal sealed unsafe class VulkanFloatGraph : IDisposable
         var set=_set;Context.Api.CmdBindDescriptorSets(Context.Command,PipelineBindPoint.Compute,Pipeline.Layout,0,1,in set,0,null);
         uint* push=stackalloc uint[8] {op,a,b,c,length,position,layer,table};
         Context.Api.CmdPushConstants(Context.Command,Pipeline.Layout,ShaderStageFlags.ComputeBit,0,32,push);
-        Context.Api.CmdDispatch(Context.Command,1,1,1);
+        Context.Api.CmdDispatch(Context.Command,op==4?length/48:1,1,1);
         Context.Barrier(PipelineStageFlags.ComputeShaderBit,AccessFlags.ShaderReadBit|AccessFlags.ShaderWriteBit,PipelineStageFlags.ComputeShaderBit,AccessFlags.ShaderReadBit|AccessFlags.ShaderWriteBit);
     }
     internal void RecordDownload(uint source,uint words)
@@ -81,6 +81,12 @@ internal sealed unsafe class VulkanFloatGraph : IDisposable
         var copy=new BufferCopy {SrcOffset=source*4UL,Size=words*4UL};
         Context.Api.CmdCopyBuffer(Context.Command,Arena.Handle,Readback.Handle,1,in copy);
         Context.Barrier(PipelineStageFlags.TransferBit,AccessFlags.TransferWriteBit,PipelineStageFlags.HostBit,AccessFlags.HostReadBit);
+    }
+    internal void Clear()
+    {
+        EnsureReady();Context.BeginCommands();Context.Api.CmdFillBuffer(Context.Command,Arena.Handle,0,Vk.WholeSize,0);
+        Context.Barrier(PipelineStageFlags.TransferBit,AccessFlags.TransferWriteBit,PipelineStageFlags.ComputeShaderBit,AccessFlags.ShaderReadBit|AccessFlags.ShaderWriteBit);
+        Context.SubmitAndWait();
     }
     public void Dispose()
     {

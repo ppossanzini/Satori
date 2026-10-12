@@ -43,6 +43,20 @@ internal sealed unsafe class VulkanBuffer : IDisposable
         catch { Dispose(); throw; }
     }
 
+    internal static VulkanBuffer UploadDevice(VulkanContext context,ReadOnlySpan<byte> bytes)
+    {
+        int padded=checked((bytes.Length+3)&~3);
+        var buffer=new VulkanBuffer(context,(ulong)padded,BufferUsageFlags.StorageBufferBit|BufferUsageFlags.TransferDstBit,MemoryPropertyFlags.DeviceLocalBit);
+        try
+        {
+            using var staging=new VulkanBuffer(context,(ulong)padded,BufferUsageFlags.TransferSrcBit,MemoryPropertyFlags.HostVisibleBit);
+            staging.WriteBytes(bytes,padded-bytes.Length);context.BeginCommands();
+            var copy=new BufferCopy {Size=(ulong)padded};context.Api.CmdCopyBuffer(context.Command,staging.Handle,buffer.Handle,1,in copy);
+            context.Barrier(PipelineStageFlags.TransferBit,AccessFlags.TransferWriteBit,PipelineStageFlags.ComputeShaderBit,AccessFlags.ShaderReadBit);
+            context.SubmitAndWait();return buffer;
+        }
+        catch {buffer.Dispose();throw;}
+    }
     internal void Write(ReadOnlySpan<float> input) => WriteBytes(MemoryMarshal.AsBytes(input));
 
     internal void WriteBytes(ReadOnlySpan<byte> input, int padding = 0)

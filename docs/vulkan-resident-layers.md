@@ -1,0 +1,7 @@
+# Resident Stories15M layers
+
+Shared immutable weights occupy 16,137,216 bytes, compressed Q8_0 throughout. Thirteen norm vectors and the RoPE table share 39,552 bytes. Every session has a private 1,909,376-byte device arena and 129,152-byte staging allocation; driver padding is reported through Statistics. Matrix descriptors are immutable per session and reference common weights plus that session's arena. They use push-constant element offsets, so no descriptor-offset alignment assumption is added.
+
+One layer records RMSNorm, Q/K/V MatVec, in-place RoPE, causal attention, attention projection/residual, feed-forward norm/gate/up/SwiGLU/down/residual, with compute read/write barriers at every edge. Small matrices use Cooperative64; output Row64 remains available for complete integration. One synchronous submission/fence returns the layer boundary. Only the 288-channel input and final layer output cross the host boundary (2,304 bytes); no intermediate transfer.
+
+Critical hardware verification compares layer 0 on all three independent prefixes and each of six layers with fixed first-token reference inputs. Every layer boundary passes the unchanged elementwise/RMS model gates. Resource counters confirm seven MatVec dispatches, one submission/wait and 2,304 transferred bytes per layer append. Reset, shared weight count and exact weight allocation are checked. SyncVal: zero errors, Release build: zero warnings/errors. Standalone layer sessions are diagnostic/composition APIs; full-model integration follows separately.

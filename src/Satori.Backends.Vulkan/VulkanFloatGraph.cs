@@ -37,6 +37,11 @@ internal sealed unsafe class VulkanFloatGraph : IDisposable
         }
     }
 
+    internal VulkanFloatGraph(VulkanContext context,int words,VulkanBuffer tables,VulkanFloatPipeline pipeline,int uploadWords,int readbackWords)
+    {
+        Context=context;Tables=tables;Pipeline=pipeline;
+        lock(context.Sync) {context.EnsureReady();try {Initialize(words,uploadWords,readbackWords);}catch {Dispose();throw;}}
+    }
     private void Initialize(int words,int uploadWords,int readbackWords)
     {
         Arena=new(Context,(ulong)words*4,BufferUsageFlags.StorageBufferBit|BufferUsageFlags.TransferSrcBit|BufferUsageFlags.TransferDstBit,MemoryPropertyFlags.DeviceLocalBit);

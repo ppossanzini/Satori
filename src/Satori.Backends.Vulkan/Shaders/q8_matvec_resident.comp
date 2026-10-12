@@ -1,0 +1,25 @@
+#version 450
+layout(local_size_x=64) in;
+layout(set=0,binding=0,std430) readonly buffer Weights { uint packed[]; };
+layout(set=0,binding=1,std430) readonly buffer Input { float x[]; };
+layout(set=0,binding=2,std430) writeonly buffer Output { float y[]; };
+layout(push_constant) uniform Params { uint rows; uint columns; uint inputOffset; uint outputOffset; } p;
+uint byteAt(uint offset) { return (packed[offset>>2]>>((offset&3)*8))&255; }
+void main() {
+    uint row=gl_GlobalInvocationID.x;
+    if(row>=p.rows) return;
+    uint blocks=p.columns/32;
+    precise float total=0;
+    for(uint block=0;block<blocks;block++) {
+        uint offset=(row*blocks+block)*34;
+        float scale=unpackHalf2x16(byteAt(offset)|(byteAt(offset+1)<<8)).x;
+        precise float sum=0;
+        for(uint j=0;j<32;j++) {
+            int q=int(byteAt(offset+2+j));
+            if(q>=128) q-=256;
+            sum+=float(q)*x[p.inputOffset+block*32+j];
+        }
+        total+=scale*sum;
+    }
+    y[p.outputOffset+row]=total;
+}

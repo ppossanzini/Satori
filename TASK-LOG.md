@@ -271,3 +271,9 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Mapped host-visible allocations once for their lifetime; whole-allocation flush/invalidate retained and unmap follows pending-work completion. Nine critical hardware tests pass with SyncVal, including distinct repeated vectors, allocation and concurrent lifetime cases. Build succeeds without warnings. Three timestamp-off whole-model phase reports published in docs/benchmarks/staging-2026-10-12; no mapping-only speedup claimed; noncoherent hardware not exercised.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## T37 — Implement resident RMSNorm recording (completed)
+
+Added immutable FP32 pipeline descriptors, owned arena/staging with context lifetime registration, and RMSNorm recording plus synchronous facade. Independent fixture, zeros, profile ranges and RMSNorm-to-Q8 FP64 checks pass with SyncVal; build has zero warnings/errors. Operator tolerance unchanged. docs/vulkan-transformer-operators.md documents scope and lifecycle.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.

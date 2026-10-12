@@ -1,0 +1,17 @@
+#version 450
+layout(local_size_x=64) in;
+layout(set=0,binding=0,std430) buffer Arena { float v[]; };
+layout(set=0,binding=1,std430) readonly buffer Tables { float t[]; };
+layout(push_constant) uniform Params { uint op; uint a; uint b; uint c; uint n; uint position; uint layer; uint table; } p;
+shared float sums[64];
+void main() {
+    uint lane=gl_LocalInvocationID.x;
+    if(p.op==0) {
+        precise float sum=0;
+        for(uint i=lane;i<p.n;i+=64) { precise float sq=v[p.a+i]*v[p.a+i]; sum+=sq; }
+        sums[lane]=sum; barrier();
+        for(uint stride=32;stride>0;stride>>=1) { if(lane<stride) sums[lane]+=sums[lane+stride]; barrier(); }
+        float scale=inversesqrt(sums[0]/float(p.n)+1e-5);
+        for(uint i=lane;i<p.n;i+=64) v[p.c+i]=(v[p.a+i]*scale)*t[p.b+i];
+    }
+}

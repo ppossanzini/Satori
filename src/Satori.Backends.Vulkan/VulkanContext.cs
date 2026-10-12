@@ -12,6 +12,9 @@ public sealed unsafe class VulkanContext : IDisposable, IQuantizedMatrixFactory
 {
     private readonly object _sync = new();
     private readonly HashSet<VulkanQ8Matrix> _q8Matrices = [];
+    private readonly HashSet<IDisposable> _resources = [];
+    internal void Register(IDisposable resource) => _resources.Add(resource);
+    internal void Unregister(IDisposable resource) => _resources.Remove(resource);
     private VulkanQ8Pipeline? _q8Pipeline, _q8CooperativePipeline;
     private uint _allocationCount;
     private readonly ConcurrentQueue<string> _messages = new();
@@ -458,6 +461,8 @@ public sealed unsafe class VulkanContext : IDisposable, IQuantizedMatrixFactory
             if(_device.Handle!=0)
             {
                 CompletePendingForDisposal();
+                foreach(var resource in _resources.ToArray()) resource.Dispose();
+                _resources.Clear();
                 foreach(var matrix in _q8Matrices) matrix.DisposeCore();
                 _q8Matrices.Clear();
                 _q8Pipeline?.Dispose();

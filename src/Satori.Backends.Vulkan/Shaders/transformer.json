@@ -1,0 +1,11 @@
+{
+  "target": "vulkan1.1",
+  "spirv": "1.3",
+  "local_size": [
+    64,
+    1,
+    1
+  ],
+  "source_sha256": "d2be8fabd58d8b2a926b0262c92b7f21fba12beb5699e21c8f5d80170ecfef1a",
+  "binary_sha256": "41df7defffbe461f7585984cb02846e3b86619371b9540ead4560aeedff92e35"
+}

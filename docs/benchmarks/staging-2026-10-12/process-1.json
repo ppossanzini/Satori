@@ -1,0 +1,692 @@
+{
+  "TimestampUtc": "2026-10-12T20:36:15.2867171+00:00",
+  "Runtime": ".NET 10.0.12",
+  "Options": {
+    "Validation": false,
+    "Warmups": 3,
+    "Samples": 7,
+    "DecodeTokens": 8,
+    "MeasureKernelTime": false,
+    "MeasureHostPhases": true
+  },
+  "ModelSha256": "2eda49203f2f044f3dddf29a7dd7cc861ef5a0340f518a19613d73ba6d9c06b6",
+  "Scope": "Synchronous session prefill [1,9038,2501], then eight teacher-forced token 9038 appends; no tokenization, sampling or text decoding. Reset and array allocation excluded. Statistics include correctness, warmups and measured calls; kernel excludes CPU operators and transfers. Host total includes all CPU operators and GPU vector transfers. Sequential CPU then GPU.",
+  "Reports": [
+    {
+      "Backend": "CPU",
+      "ColdInitializationAndWeightsMs": 71.5168,
+      "Device": null,
+      "Statistics": null,
+      "CacheBytes": 1769472,
+      "Samples": [
+        {
+          "PrefillMs": 13.6284,
+          "DecodeSamplesMs": [
+            4.4257,
+            4.3845,
+            6.3191,
+            5.6267,
+            3.7853,
+            4.5093,
+            4.2141,
+            4.0709
+          ],
+          "TotalMs": 50.9715,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": null,
+          "StatisticsAfter": null
+        },
+        {
+          "PrefillMs": 13.148,
+          "DecodeSamplesMs": [
+            3.7403,
+            4.2513,
+            4.4976,
+            3.9095,
+            4.4954,
+            3.9287,
+            3.9431,
+            3.4682
+          ],
+          "TotalMs": 45.3894,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": null,
+          "StatisticsAfter": null
+        },
+        {
+          "PrefillMs": 12.2215,
+          "DecodeSamplesMs": [
+            3.902,
+            4.1811,
+            3.8491,
+            3.527,
+            3.5642,
+            4.0851,
+            4.7188,
+            3.4983
+          ],
+          "TotalMs": 43.5675,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": null,
+          "StatisticsAfter": null
+        },
+        {
+          "PrefillMs": 11.9366,
+          "DecodeSamplesMs": [
+            4.5357,
+            3.6234,
+            3.6758,
+            3.8713,
+            3.5588,
+            3.5158,
+            3.9219,
+            3.8299
+          ],
+          "TotalMs": 42.4739,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": null,
+          "StatisticsAfter": null
+        },
+        {
+          "PrefillMs": 11.6454,
+          "DecodeSamplesMs": [
+            3.8052,
+            4.6315,
+            4.6035,
+            3.6665,
+            3.6807,
+            3.7498,
+            3.8164,
+            4.6343
+          ],
+          "TotalMs": 44.2356,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": null,
+          "StatisticsAfter": null
+        },
+        {
+          "PrefillMs": 13.5906,
+          "DecodeSamplesMs": [
+            4.2345,
+            4.4293,
+            4.4274,
+            4.2364,
+            3.9653,
+            4.2338,
+            4.0178,
+            4.4119
+          ],
+          "TotalMs": 47.5502,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": null,
+          "StatisticsAfter": null
+        },
+        {
+          "PrefillMs": 12.5356,
+          "DecodeSamplesMs": [
+            3.9282,
+            3.8592,
+            4.1117,
+            4.5649,
+            4.6504,
+            4.1039,
+            4.3092,
+            4.3181
+          ],
+          "TotalMs": 46.3976,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": null,
+          "StatisticsAfter": null
+        }
+      ],
+      "Comparison": [],
+      "ValidationErrors": 0,
+      "ValidationMessages": null
+    },
+    {
+      "Backend": "Vulkan",
+      "ColdInitializationAndWeightsMs": 309.8226,
+      "Device": {
+        "Index": 0,
+        "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+        "Uuid": "8680557d080000000002000000000000",
+        "VendorId": 32902,
+        "DeviceId": 32085,
+        "ApiVersion": 4211042,
+        "DriverVersion": 109060100,
+        "Software": false,
+        "QueueFamily": 0,
+        "TimestampValidBits": 36,
+        "TimestampPeriod": 52.083332,
+        "MaxStorageBufferRange": 4294967295,
+        "MaxDispatchGroups": 2147483647,
+        "MaxWorkgroupInvocations": 1024,
+        "MaxPushConstantsSize": 256,
+        "MaxStorageDescriptors": 33554432,
+        "MaxMemoryAllocations": 4294967295,
+        "MaxAllocationBytes": 24804756480,
+        "StorageOffsetAlignment": 4,
+        "NonCoherentAtomSize": 64,
+        "MemoryTypeFlags": [
+          7,
+          11,
+          33,
+          7,
+          11
+        ]
+      },
+      "Statistics": {
+        "ResidentMatrices": 43,
+        "AllocatedBytes": 16658176,
+        "WeightAllocationBytes": 16137216,
+        "CompletedDispatches": 5203,
+        "TransferBytes": 31518080,
+        "HostMilliseconds": 19353.167600000008,
+        "KernelMilliseconds": null,
+        "HostPhases": {
+          "UploadMs": 2.183200000000001,
+          "RecordingMs": 172.38660000000004,
+          "SubmissionPreparationMs": 21.483099999999993,
+          "QueueSubmitMs": 643.2796000000002,
+          "FenceWaitMs": 18372.313399999995,
+          "PostWaitValidationMs": 0.04520000000000002,
+          "QueryMs": 0.49269999999999964,
+          "ReadbackMs": 135.96700000000007,
+          "OtherMs": 5.016799999999726
+        },
+        "PhaseSamples": 5203,
+        "SubmissionCount": 5203,
+        "FenceWaitCount": 5203
+      },
+      "CacheBytes": 1769472,
+      "Samples": [
+        {
+          "PrefillMs": 544.3775,
+          "DecodeSamplesMs": [
+            191.6689,
+            193.9188,
+            177.1218,
+            132.6731,
+            142.5737,
+            135.5874,
+            174.9779,
+            194.0793
+          ],
+          "TotalMs": 1886.9811,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 1892,
+            "TransferBytes": 11461120,
+            "HostMilliseconds": 7013.290800000001,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 0.9182000000000002,
+              "RecordingMs": 61.42050000000001,
+              "SubmissionPreparationMs": 7.472599999999999,
+              "QueueSubmitMs": 227.22809999999996,
+              "FenceWaitMs": 6667.719500000002,
+              "PostWaitValidationMs": 0.020700000000000003,
+              "QueryMs": 0.3299999999999997,
+              "ReadbackMs": 46.30000000000002,
+              "OtherMs": 1.8811999999998938
+            },
+            "PhaseSamples": 1892,
+            "SubmissionCount": 1892,
+            "FenceWaitCount": 1892
+          },
+          "StatisticsAfter": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 2365,
+            "TransferBytes": 14326400,
+            "HostMilliseconds": 8893.890100000002,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.1211,
+              "RecordingMs": 77.85260000000001,
+              "SubmissionPreparationMs": 9.610899999999999,
+              "QueueSubmitMs": 289.638,
+              "FenceWaitMs": 8451.732800000002,
+              "PostWaitValidationMs": 0.02670000000000001,
+              "QueryMs": 0.3507999999999997,
+              "ReadbackMs": 61.21330000000001,
+              "OtherMs": 2.3438999999998607
+            },
+            "PhaseSamples": 2365,
+            "SubmissionCount": 2365,
+            "FenceWaitCount": 2365
+          }
+        },
+        {
+          "PrefillMs": 605.4948,
+          "DecodeSamplesMs": [
+            196.1387,
+            169.338,
+            139.8281,
+            188.9869,
+            149.1788,
+            148.1227,
+            142.8875,
+            144.8973
+          ],
+          "TotalMs": 1884.8755,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 2365,
+            "TransferBytes": 14326400,
+            "HostMilliseconds": 8893.890100000002,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.1211,
+              "RecordingMs": 77.85260000000001,
+              "SubmissionPreparationMs": 9.610899999999999,
+              "QueueSubmitMs": 289.638,
+              "FenceWaitMs": 8451.732800000002,
+              "PostWaitValidationMs": 0.02670000000000001,
+              "QueryMs": 0.3507999999999997,
+              "ReadbackMs": 61.21330000000001,
+              "OtherMs": 2.3438999999998607
+            },
+            "PhaseSamples": 2365,
+            "SubmissionCount": 2365,
+            "FenceWaitCount": 2365
+          },
+          "StatisticsAfter": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 2838,
+            "TransferBytes": 17191680,
+            "HostMilliseconds": 10772.911900000003,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.276000000000001,
+              "RecordingMs": 93.7298,
+              "SubmissionPreparationMs": 11.5053,
+              "QueueSubmitMs": 347.5928,
+              "FenceWaitMs": 10242.771399999998,
+              "PostWaitValidationMs": 0.02760000000000001,
+              "QueryMs": 0.3750999999999997,
+              "ReadbackMs": 72.84980000000002,
+              "OtherMs": 2.78409999999983
+            },
+            "PhaseSamples": 2838,
+            "SubmissionCount": 2838,
+            "FenceWaitCount": 2838
+          }
+        },
+        {
+          "PrefillMs": 471.4863,
+          "DecodeSamplesMs": [
+            157.589,
+            144.7613,
+            148.1905,
+            150.3298,
+            151.6909,
+            160.5483,
+            163.2165,
+            163.346
+          ],
+          "TotalMs": 1711.1611,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 2838,
+            "TransferBytes": 17191680,
+            "HostMilliseconds": 10772.911900000003,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.276000000000001,
+              "RecordingMs": 93.7298,
+              "SubmissionPreparationMs": 11.5053,
+              "QueueSubmitMs": 347.5928,
+              "FenceWaitMs": 10242.771399999998,
+              "PostWaitValidationMs": 0.02760000000000001,
+              "QueryMs": 0.3750999999999997,
+              "ReadbackMs": 72.84980000000002,
+              "OtherMs": 2.78409999999983
+            },
+            "PhaseSamples": 2838,
+            "SubmissionCount": 2838,
+            "FenceWaitCount": 2838
+          },
+          "StatisticsAfter": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 3311,
+            "TransferBytes": 20056960,
+            "HostMilliseconds": 12478.246900000002,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.4457,
+              "RecordingMs": 109.38239999999998,
+              "SubmissionPreparationMs": 13.492300000000002,
+              "QueueSubmitMs": 406.7488,
+              "FenceWaitMs": 11858.933300000002,
+              "PostWaitValidationMs": 0.029100000000000008,
+              "QueryMs": 0.4000999999999996,
+              "ReadbackMs": 84.59080000000002,
+              "OtherMs": 3.224399999999813
+            },
+            "PhaseSamples": 3311,
+            "SubmissionCount": 3311,
+            "FenceWaitCount": 3311
+          }
+        },
+        {
+          "PrefillMs": 615.6261,
+          "DecodeSamplesMs": [
+            199.6936,
+            197.8501,
+            183.6607,
+            137.371,
+            155.7976,
+            146.933,
+            149.7994,
+            135.2571
+          ],
+          "TotalMs": 1921.991,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 3311,
+            "TransferBytes": 20056960,
+            "HostMilliseconds": 12478.246900000002,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.4457,
+              "RecordingMs": 109.38239999999998,
+              "SubmissionPreparationMs": 13.492300000000002,
+              "QueueSubmitMs": 406.7488,
+              "FenceWaitMs": 11858.933300000002,
+              "PostWaitValidationMs": 0.029100000000000008,
+              "QueryMs": 0.4000999999999996,
+              "ReadbackMs": 84.59080000000002,
+              "OtherMs": 3.224399999999813
+            },
+            "PhaseSamples": 3311,
+            "SubmissionCount": 3311,
+            "FenceWaitCount": 3311
+          },
+          "StatisticsAfter": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 3784,
+            "TransferBytes": 22922240,
+            "HostMilliseconds": 14394.822500000002,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.6276000000000008,
+              "RecordingMs": 124.2518,
+              "SubmissionPreparationMs": 15.382500000000004,
+              "QueueSubmitMs": 462.5197999999999,
+              "FenceWaitMs": 13691.1566,
+              "PostWaitValidationMs": 0.0315,
+              "QueryMs": 0.42169999999999946,
+              "ReadbackMs": 95.77920000000006,
+              "OtherMs": 3.6517999999997803
+            },
+            "PhaseSamples": 3784,
+            "SubmissionCount": 3784,
+            "FenceWaitCount": 3784
+          }
+        },
+        {
+          "PrefillMs": 447.7608,
+          "DecodeSamplesMs": [
+            124.4582,
+            147.5648,
+            146.5051,
+            133.9927,
+            143.9147,
+            159.6337,
+            136.2945,
+            159.5214
+          ],
+          "TotalMs": 1599.6484,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 3784,
+            "TransferBytes": 22922240,
+            "HostMilliseconds": 14394.822500000002,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.6276000000000008,
+              "RecordingMs": 124.2518,
+              "SubmissionPreparationMs": 15.382500000000004,
+              "QueueSubmitMs": 462.5197999999999,
+              "FenceWaitMs": 13691.1566,
+              "PostWaitValidationMs": 0.0315,
+              "QueryMs": 0.42169999999999946,
+              "ReadbackMs": 95.77920000000006,
+              "OtherMs": 3.6517999999997803
+            },
+            "PhaseSamples": 3784,
+            "SubmissionCount": 3784,
+            "FenceWaitCount": 3784
+          },
+          "StatisticsAfter": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 4257,
+            "TransferBytes": 25787520,
+            "HostMilliseconds": 15988.840199999999,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.7873000000000008,
+              "RecordingMs": 139.8764,
+              "SubmissionPreparationMs": 17.386300000000006,
+              "QueueSubmitMs": 521.1551,
+              "FenceWaitMs": 15195.743599999998,
+              "PostWaitValidationMs": 0.0342,
+              "QueryMs": 0.4432999999999995,
+              "ReadbackMs": 108.31750000000007,
+              "OtherMs": 4.096499999999769
+            },
+            "PhaseSamples": 4257,
+            "SubmissionCount": 4257,
+            "FenceWaitCount": 4257
+          }
+        },
+        {
+          "PrefillMs": 482.2458,
+          "DecodeSamplesMs": [
+            200.5676,
+            203.8329,
+            198.426,
+            200.0746,
+            175.0947,
+            149.9007,
+            131.9702,
+            154.4879
+          ],
+          "TotalMs": 1896.603,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 4257,
+            "TransferBytes": 25787520,
+            "HostMilliseconds": 15988.840199999999,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.7873000000000008,
+              "RecordingMs": 139.8764,
+              "SubmissionPreparationMs": 17.386300000000006,
+              "QueueSubmitMs": 521.1551,
+              "FenceWaitMs": 15195.743599999998,
+              "PostWaitValidationMs": 0.0342,
+              "QueryMs": 0.4432999999999995,
+              "ReadbackMs": 108.31750000000007,
+              "OtherMs": 4.096499999999769
+            },
+            "PhaseSamples": 4257,
+            "SubmissionCount": 4257,
+            "FenceWaitCount": 4257
+          },
+          "StatisticsAfter": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 4730,
+            "TransferBytes": 28652800,
+            "HostMilliseconds": 17878.886199999997,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.9965000000000008,
+              "RecordingMs": 157.97159999999997,
+              "SubmissionPreparationMs": 19.759100000000004,
+              "QueueSubmitMs": 588.154,
+              "FenceWaitMs": 16982.5639,
+              "PostWaitValidationMs": 0.04310000000000002,
+              "QueryMs": 0.47619999999999946,
+              "ReadbackMs": 123.35270000000008,
+              "OtherMs": 4.569099999999739
+            },
+            "PhaseSamples": 4730,
+            "SubmissionCount": 4730,
+            "FenceWaitCount": 4730
+          }
+        },
+        {
+          "PrefillMs": 463.5897,
+          "DecodeSamplesMs": [
+            97.3904,
+            143.3427,
+            141.8189,
+            146.1828,
+            133.5132,
+            155.277,
+            90.6788,
+            108.1761
+          ],
+          "TotalMs": 1479.9727,
+          "ManagedAllocatedBytes": 0,
+          "StatisticsBefore": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 4730,
+            "TransferBytes": 28652800,
+            "HostMilliseconds": 17878.886199999997,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 1.9965000000000008,
+              "RecordingMs": 157.97159999999997,
+              "SubmissionPreparationMs": 19.759100000000004,
+              "QueueSubmitMs": 588.154,
+              "FenceWaitMs": 16982.5639,
+              "PostWaitValidationMs": 0.04310000000000002,
+              "QueryMs": 0.47619999999999946,
+              "ReadbackMs": 123.35270000000008,
+              "OtherMs": 4.569099999999739
+            },
+            "PhaseSamples": 4730,
+            "SubmissionCount": 4730,
+            "FenceWaitCount": 4730
+          },
+          "StatisticsAfter": {
+            "ResidentMatrices": 43,
+            "AllocatedBytes": 16658176,
+            "WeightAllocationBytes": 16137216,
+            "CompletedDispatches": 5203,
+            "TransferBytes": 31518080,
+            "HostMilliseconds": 19353.167600000008,
+            "KernelMilliseconds": null,
+            "HostPhases": {
+              "UploadMs": 2.183200000000001,
+              "RecordingMs": 172.38660000000004,
+              "SubmissionPreparationMs": 21.483099999999993,
+              "QueueSubmitMs": 643.2796000000002,
+              "FenceWaitMs": 18372.313399999995,
+              "PostWaitValidationMs": 0.04520000000000002,
+              "QueryMs": 0.49269999999999964,
+              "ReadbackMs": 135.96700000000007,
+              "OtherMs": 5.016799999999726
+            },
+            "PhaseSamples": 5203,
+            "SubmissionCount": 5203,
+            "FenceWaitCount": 5203
+          }
+        }
+      ],
+      "Comparison": [
+        {
+          "Position": 0,
+          "MaxAbsoluteError": 4.76837158203125E-06,
+          "RmsError": 8.156020053298278E-07
+        },
+        {
+          "Position": 1,
+          "MaxAbsoluteError": 6.67572021484375E-06,
+          "RmsError": 1.4811247051273707E-06
+        },
+        {
+          "Position": 2,
+          "MaxAbsoluteError": 9.655952453613281E-06,
+          "RmsError": 1.1264787016452463E-06
+        },
+        {
+          "Position": 3,
+          "MaxAbsoluteError": 6.556510925292969E-06,
+          "RmsError": 2.7518613458689674E-06
+        },
+        {
+          "Position": 4,
+          "MaxAbsoluteError": 6.4373016357421875E-06,
+          "RmsError": 1.387219186034682E-06
+        },
+        {
+          "Position": 5,
+          "MaxAbsoluteError": 7.152557373046875E-06,
+          "RmsError": 3.5535197744434843E-06
+        },
+        {
+          "Position": 6,
+          "MaxAbsoluteError": 6.4373016357421875E-06,
+          "RmsError": 1.5044030888165926E-06
+        },
+        {
+          "Position": 7,
+          "MaxAbsoluteError": 5.7220458984375E-06,
+          "RmsError": 1.7401229050970205E-06
+        },
+        {
+          "Position": 8,
+          "MaxAbsoluteError": 9.5367431640625E-06,
+          "RmsError": 4.662462420923892E-06
+        },
+        {
+          "Position": 9,
+          "MaxAbsoluteError": 6.198883056640625E-06,
+          "RmsError": 9.90486001243015E-07
+        },
+        {
+          "Position": 10,
+          "MaxAbsoluteError": 7.152557373046875E-06,
+          "RmsError": 3.643934913798672E-06
+        }
+      ],
+      "ValidationErrors": 0,
+      "ValidationMessages": []
+    }
+  ]
+}

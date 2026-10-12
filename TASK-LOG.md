@@ -265,3 +265,9 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Both kernels pass 148 FP64-bound workloads including all 44 real matrices, with zero SyncVal errors. Thirteen GPU/policy tests pass; Release build has zero warnings/errors. Three unvalidated process reports show faster small-matrix device times but a regression for 32000-row output; Row64 remains the default. Evidence: docs/benchmarks/q8-cooperative-2026-10-12. No numerical bounds relaxed.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## T36 — Keep staging buffers persistently mapped (completed)
+
+Mapped host-visible allocations once for their lifetime; whole-allocation flush/invalidate retained and unmap follows pending-work completion. Nine critical hardware tests pass with SyncVal, including distinct repeated vectors, allocation and concurrent lifetime cases. Build succeeds without warnings. Three timestamp-off whole-model phase reports published in docs/benchmarks/staging-2026-10-12; no mapping-only speedup claimed; noncoherent hardware not exercised.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.

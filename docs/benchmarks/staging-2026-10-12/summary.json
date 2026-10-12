@@ -1,0 +1,23 @@
+[
+  {
+    "Process": "process-1.json",
+    "DecodeMedianMs": 152.7985,
+    "UploadMs": 0.016536363636363714,
+    "ReadbackMs": 1.139845454545455,
+    "FenceWaitMs": 162.18302727272723
+  },
+  {
+    "Process": "process-2.json",
+    "DecodeMedianMs": 154.43795,
+    "UploadMs": 0.01458181818181817,
+    "ReadbackMs": 1.0901181818181775,
+    "FenceWaitMs": 151.96580909090898
+  },
+  {
+    "Process": "process-3.json",
+    "DecodeMedianMs": 149.22625,
+    "UploadMs": 0.014272727272727336,
+    "ReadbackMs": 1.0563090909090869,
+    "FenceWaitMs": 143.38818181818186
+  }
+]

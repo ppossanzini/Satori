@@ -13,10 +13,12 @@ internal sealed unsafe class VulkanBuffer : IDisposable
     internal ulong AllocationBytes;
     internal bool Coherent;
     private bool _reserved;
+    private void* _mapped;
+    private readonly ulong _bytes;
 
     internal VulkanBuffer(VulkanContext context, ulong bytes, BufferUsageFlags usage, MemoryPropertyFlags required)
     {
-        _context = context;
+        _context = context; _bytes=bytes;
         try
         {
             var info = new BufferCreateInfo { SType=StructureType.BufferCreateInfo, Size=bytes, Usage=usage, SharingMode=SharingMode.Exclusive };
@@ -31,6 +33,12 @@ internal sealed unsafe class VulkanBuffer : IDisposable
             context.ReserveAllocation(); _reserved=true;
             context.Check(context.Api.AllocateMemory(context.Device,in allocation,null,out Memory),"AllocateMemory");
             context.Check(context.Api.BindBufferMemory(context.Device,Handle,Memory,0),"BindBufferMemory");
+            if((required&MemoryPropertyFlags.HostVisibleBit)!=0)
+            {
+                void* pointer;
+                context.Check(context.Api.MapMemory(context.Device,Memory,0,AllocationBytes,0,&pointer),"Map persistent staging");
+                _mapped=pointer;
+            }
         }
         catch { Dispose(); throw; }
     }
@@ -39,42 +47,35 @@ internal sealed unsafe class VulkanBuffer : IDisposable
 
     internal void WriteBytes(ReadOnlySpan<byte> input, int padding = 0)
     {
-        void* pointer;
-        _context.Check(_context.Api.MapMemory(_context.Device,Memory,0,AllocationBytes,0,&pointer),"MapMemory upload");
-        try
+        if(_mapped is null) throw new InvalidOperationException("Buffer is not host mapped.");
+        if(padding<0 || (ulong)input.Length+(ulong)padding>_bytes) throw new ArgumentOutOfRangeException(nameof(input));
+        input.CopyTo(new Span<byte>(_mapped,input.Length));
+        new Span<byte>((byte*)_mapped+input.Length,padding).Clear();
+        if (!Coherent)
         {
-            input.CopyTo(new Span<byte>(pointer,input.Length));
-            new Span<byte>((byte*)pointer+input.Length,padding).Clear();
-            if (!Coherent)
-            {
-                var range = new MappedMemoryRange {SType=StructureType.MappedMemoryRange,Memory=Memory,Offset=0,Size=Vk.WholeSize};
-                _context.Check(_context.Api.FlushMappedMemoryRanges(_context.Device,1,in range),"FlushMappedMemoryRanges");
-            }
+            var range = new MappedMemoryRange {SType=StructureType.MappedMemoryRange,Memory=Memory,Offset=0,Size=Vk.WholeSize};
+            _context.Check(_context.Api.FlushMappedMemoryRanges(_context.Device,1,in range),"FlushMappedMemoryRanges");
         }
-        finally { _context.Api.UnmapMemory(_context.Device,Memory); }
     }
 
     internal void Read(Span<float> output)
     {
-        void* pointer;
-        _context.Check(_context.Api.MapMemory(_context.Device,Memory,0,AllocationBytes,0,&pointer),"MapMemory readback");
-        try
+        if(_mapped is null) throw new InvalidOperationException("Buffer is not host mapped.");
+        if((ulong)output.Length*4>_bytes) throw new ArgumentOutOfRangeException(nameof(output));
+        if (!Coherent)
         {
-            if (!Coherent)
-            {
-                var range = new MappedMemoryRange {SType=StructureType.MappedMemoryRange,Memory=Memory,Offset=0,Size=Vk.WholeSize};
-                _context.Check(_context.Api.InvalidateMappedMemoryRanges(_context.Device,1,in range),"InvalidateMappedMemoryRanges");
-            }
-            _context.ThrowIfValidationFailed();
-            new ReadOnlySpan<float>(pointer,output.Length).CopyTo(output);
+            var range = new MappedMemoryRange {SType=StructureType.MappedMemoryRange,Memory=Memory,Offset=0,Size=Vk.WholeSize};
+            _context.Check(_context.Api.InvalidateMappedMemoryRanges(_context.Device,1,in range),"InvalidateMappedMemoryRanges");
         }
-        finally { _context.Api.UnmapMemory(_context.Device,Memory); }
+        _context.ThrowIfValidationFailed();
+        new ReadOnlySpan<float>(_mapped,output.Length).CopyTo(output);
     }
 
     public void Dispose()
     {
         _context.CompletePendingForDisposal();
         if (Handle.Handle!=0) { _context.Api.DestroyBuffer(_context.Device,Handle,null); Handle=default; }
+        if (_mapped is not null) { _context.Api.UnmapMemory(_context.Device,Memory); _mapped=null; }
         if (Memory.Handle!=0) { _context.Api.FreeMemory(_context.Device,Memory,null); Memory=default; }
         if (_reserved) { _context.ReleaseAllocation(); _reserved=false; }
     }

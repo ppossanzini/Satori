@@ -1,0 +1,114 @@
+{
+  "on": [
+    {
+      "Process": 1,
+      "CpuDecodeMedianMs": 3.97455,
+      "GpuDecodeMedianMs": 157.6008,
+      "GpuTotalPerAppendMedianMs": 171.68988181818182,
+      "PhasesPerAppendMedianMs": {
+        "UploadMs": 0.3757727272727271,
+        "RecordingMs": 1.557645454545456,
+        "SubmissionPreparationMs": 0.1677454545454549,
+        "QueueSubmitMs": 5.312690909090903,
+        "FenceWaitMs": 161.14091818181805,
+        "PostWaitValidationMs": 0.00011818181818181779,
+        "QueryMs": 0.07929090909090895,
+        "ReadbackMs": 2.2643090909090877,
+        "OtherMs": 0.0378090909090908
+      },
+      "KernelPerAppendMedianMs": 35.899042684164506
+    },
+    {
+      "Process": 2,
+      "CpuDecodeMedianMs": 3.7226,
+      "GpuDecodeMedianMs": 156.0993,
+      "GpuTotalPerAppendMedianMs": 164.85856363636364,
+      "PhasesPerAppendMedianMs": {
+        "UploadMs": 0.3618727272727282,
+        "RecordingMs": 1.4506636363636394,
+        "SubmissionPreparationMs": 0.1607818181818186,
+        "QueueSubmitMs": 5.095645454545454,
+        "FenceWaitMs": 155.4493272727273,
+        "PostWaitValidationMs": 0.00010000000000000097,
+        "QueryMs": 0.07316363636363638,
+        "ReadbackMs": 2.1543727272727256,
+        "OtherMs": 0.0364181818181839
+      },
+      "KernelPerAppendMedianMs": 35.319535122555244
+    },
+    {
+      "Process": 3,
+      "CpuDecodeMedianMs": 3.7462999999999997,
+      "GpuDecodeMedianMs": 158.1121,
+      "GpuTotalPerAppendMedianMs": 167.3606090909091,
+      "PhasesPerAppendMedianMs": {
+        "UploadMs": 0.38280909090909143,
+        "RecordingMs": 1.542972727272725,
+        "SubmissionPreparationMs": 0.1715272727272725,
+        "QueueSubmitMs": 5.369590909090923,
+        "FenceWaitMs": 156.85789090909094,
+        "PostWaitValidationMs": 0.0001454545454545452,
+        "QueryMs": 0.07771818181818123,
+        "ReadbackMs": 2.2558727272727337,
+        "OtherMs": 0.037627272727274175
+      },
+      "KernelPerAppendMedianMs": 35.47972924743201
+    }
+  ],
+  "off": [
+    {
+      "Process": 1,
+      "CpuDecodeMedianMs": 3.72025,
+      "GpuDecodeMedianMs": 153.99349999999998,
+      "GpuTotalPerAppendMedianMs": 161.92256363636363,
+      "PhasesPerAppendMedianMs": {
+        "UploadMs": 0.4000636363636374,
+        "RecordingMs": 1.3883363636363653,
+        "SubmissionPreparationMs": 0.16771818181818207,
+        "QueueSubmitMs": 5.127127272727271,
+        "FenceWaitMs": 152.09428181818194,
+        "PostWaitValidationMs": 0.00010000000000000003,
+        "QueryMs": 0.005145454545454534,
+        "ReadbackMs": 2.203627272727276,
+        "OtherMs": 0.03816363636363607
+      },
+      "KernelPerAppendMedianMs": null
+    },
+    {
+      "Process": 2,
+      "CpuDecodeMedianMs": 5.6459,
+      "GpuDecodeMedianMs": 157.9671,
+      "GpuTotalPerAppendMedianMs": 158.38905454545454,
+      "PhasesPerAppendMedianMs": {
+        "UploadMs": 0.4092454545454545,
+        "RecordingMs": 1.4080363636363635,
+        "SubmissionPreparationMs": 0.1709363636363638,
+        "QueueSubmitMs": 5.206054545454554,
+        "FenceWaitMs": 147.9655454545452,
+        "PostWaitValidationMs": 0.00013636363636363713,
+        "QueryMs": 0.0029090909090909167,
+        "ReadbackMs": 2.3389636363636375,
+        "OtherMs": 0.0369181818181806
+      },
+      "KernelPerAppendMedianMs": null
+    },
+    {
+      "Process": 3,
+      "CpuDecodeMedianMs": 4.04955,
+      "GpuDecodeMedianMs": 149.78275000000002,
+      "GpuTotalPerAppendMedianMs": 154.9272090909091,
+      "PhasesPerAppendMedianMs": {
+        "UploadMs": 0.40598181818181894,
+        "RecordingMs": 1.4324727272727271,
+        "SubmissionPreparationMs": 0.16699090909090877,
+        "QueueSubmitMs": 5.289490909090902,
+        "FenceWaitMs": 145.43183636363622,
+        "PostWaitValidationMs": 0.0002909090909090904,
+        "QueryMs": 0.006163636363636321,
+        "ReadbackMs": 2.2820636363636386,
+        "OtherMs": 0.03798181818181803
+      },
+      "KernelPerAppendMedianMs": null
+    }
+  ]
+}

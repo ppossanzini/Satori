@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 using Satori.Core;
@@ -339,23 +340,32 @@ public sealed unsafe class VulkanContext : IDisposable, IQuantizedMatrixFactory
         Check(Api.BeginCommandBuffer(_command,in begin),"BeginCommandBuffer");
     }
 
-    internal void SubmitAndWait()
+    internal VulkanSubmissionTiming SubmitAndWait(bool measure = false)
     {
+        long start=measure?Stopwatch.GetTimestamp():0;
         Check(Api.EndCommandBuffer(_command),"EndCommandBuffer");
         ThrowIfValidationFailed();
         var fence=_fence;
         Check(Api.ResetFences(_device,1,in fence),"ResetFences");
         var command=_command;
         var submit=new SubmitInfo {SType=StructureType.SubmitInfo,CommandBufferCount=1,PCommandBuffers=&command};
+        long ready=measure?Stopwatch.GetTimestamp():0;
+        long submitted=0,finished=0;
         try
         {
             Check(Api.QueueSubmit(_queue,1,in submit,_fence),"QueueSubmit");
             _submitted=true;
+            submitted=measure?Stopwatch.GetTimestamp():0;
             Check(Api.WaitForFences(_device,1,in fence,true,ulong.MaxValue),"WaitForFences");
             _submitted=false;
+            finished=measure?Stopwatch.GetTimestamp():0;
         }
         catch { _faulted=true; throw; }
         ThrowIfValidationFailed();
+        if(!measure) return default;
+        long end=Stopwatch.GetTimestamp();
+        return new(Stopwatch.GetElapsedTime(start,ready).TotalMilliseconds,Stopwatch.GetElapsedTime(ready,submitted).TotalMilliseconds,
+            Stopwatch.GetElapsedTime(submitted,finished).TotalMilliseconds,Stopwatch.GetElapsedTime(finished,end).TotalMilliseconds);
     }
 
     IQuantizedMatrix IQuantizedMatrixFactory.Create(ReadOnlySpan<byte> payload, QuantizedMatrixShape shape) =>
@@ -368,7 +378,8 @@ public sealed unsafe class VulkanContext : IDisposable, IQuantizedMatrixFactory
             return new(_q8Matrices.Count,_q8Matrices.Aggregate(0UL,(sum,m)=>sum+m.AllocatedBytes),
                 _q8Matrices.Aggregate(0UL,(sum,m)=>sum+m.WeightAllocationBytes),
                 _q8Matrices.Sum(m=>m.CompletedDispatches),_q8Matrices.Sum(m=>m.TransferBytes),
-                _q8Matrices.Sum(m=>m.HostMilliseconds),_q8Matrices.Sum(m=>m.CompletedDispatches)>0 && _q8Matrices.Sum(m=>m.KernelSamples)==_q8Matrices.Sum(m=>m.CompletedDispatches)?_q8Matrices.Sum(m=>m.KernelMilliseconds):null);
+                _q8Matrices.Sum(m=>m.HostMilliseconds),_q8Matrices.Sum(m=>m.CompletedDispatches)>0 && _q8Matrices.Sum(m=>m.KernelSamples)==_q8Matrices.Sum(m=>m.CompletedDispatches)?_q8Matrices.Sum(m=>m.KernelMilliseconds):null,
+                _q8Matrices.Aggregate(default(VulkanHostPhases),(sum,m)=>sum+m.HostPhases),_q8Matrices.Sum(m=>m.PhaseSamples));
         }
     }
 

@@ -6,7 +6,7 @@ Il supporto fino a 27B è un obiettivo condizionato da modello, quantizzazione, 
 
 ## Regole di esecuzione
 
-Stato: **T01–T25 completati**. GGUF Q8_0/Q4_0 su mapping e kernel scalar/AVX2 verificati anche su pesi pubblici reali; TernaryBitplane convertibile senza perdita e confrontato con Ternary2. Il bitplane non mostra un vantaggio generale su Ternary2 AVX2. T04 è ridotto al contratto concreto CPU descritto sotto. Profilo del primo modello: [Stories15M Q8_0](docs/stories15m-profile-v1.md), con fixture indipendenti di tokenizer, logits e stati intermedi. Operatori CPU del profilo implementati e verificati singolarmente: [contratto](docs/stories15m-operators.md). Tokenizer del profilo verificato sui sedici casi ufficiali. Forward sul prefisso verificato contro stati e logits indipendenti: [evidenze](docs/stories15m-forward.md). Cache incrementale con reset e limite 128 verificata contro il ricalcolo completo: [contratto](docs/stories15m-cache.md). Generazione greedy da console conforme alle sequenze ufficiali: [avvio e contratto](docs/stories15m-generation.md). Sampling con temperature, top-k/top-p e seed verificato. Prossimo: **T26 — benchmark del primo modello**. Evidenze in [TASK-LOG.md](TASK-LOG.md).
+Stato: **T01–T32 completati**. GGUF Q8_0/Q4_0 su mapping e kernel scalar/AVX2 verificati anche su pesi pubblici reali; TernaryBitplane convertibile senza perdita e confrontato con Ternary2. Il bitplane non mostra un vantaggio generale su Ternary2 AVX2. T04 è ridotto al contratto concreto CPU descritto sotto. Profilo del primo modello: [Stories15M Q8_0](docs/stories15m-profile-v1.md), con fixture indipendenti di tokenizer, logits e stati intermedi. Operatori CPU del profilo implementati e verificati singolarmente: [contratto](docs/stories15m-operators.md). Tokenizer del profilo verificato sui sedici casi ufficiali. Forward sul prefisso verificato contro stati e logits indipendenti: [evidenze](docs/stories15m-forward.md). Cache incrementale con reset e limite 128 verificata contro il ricalcolo completo: [contratto](docs/stories15m-cache.md). Generazione greedy da console conforme alle sequenze ufficiali: [avvio e contratto](docs/stories15m-generation.md). Sampling con temperature, top-k/top-p e seed verificato. Baseline CPU/Vulkan e planner completati; [diagnostica T32](docs/vulkan-call-phases.md). Prossimo: **T33 — riuso del piano CPU prima degli upload GPU**. Evidenze in [TASK-LOG.md](TASK-LOG.md).
 
 Politica di verifica aggiornata: niente test per bootstrap, configurazione o passaggi semplici; usare build e demo. Aggiungere test soltanto per invarianti critiche di formato, correttezza numerica, memoria/lifetime, SIMD, GPU e inferenza.
 
@@ -78,6 +78,10 @@ Contesto: CPU verificata come riferimento; disponibilità di una GPU compatibile
 | T31 | Implementa il planner misurato | Scelta di kernel/layout/backend basata su capacità e misure; cache invalidabile per hardware, driver e versione kernel | Scelte riproducibili, cache invalida respinta, confronto con CPU-only | Promessa di vantaggio GPU su ogni hardware |
 
 Traguardo D: accelerazione Vulkan utilizzabile con vantaggi e limiti documentati sull'hardware provato.
+
+## D2 — Ottimizzazioni Vulkan
+
+T32 completato; T33–T45 pianificati. [Piano con dipendenze e verifiche](docs/vulkan-optimization-plan.md). Ogni task completato viene registrato in un commit separato.
 
 ## E — Estensioni dopo la baseline
 

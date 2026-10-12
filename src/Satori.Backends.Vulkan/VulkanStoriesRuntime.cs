@@ -20,6 +20,7 @@ public sealed class VulkanStoriesRuntime : IDisposable
     public VulkanStoriesRuntime(string path, StoriesBackendOptions? options = null)
     {
         options ??= new();
+        if(options.Mode==StoriesBackendMode.Auto && options.MatVec is not null) throw new ArgumentException("Custom measurement options require explicit Vulkan selection.",nameof(options));
         if (!Enum.IsDefined(options.Mode)) throw new ArgumentOutOfRangeException(nameof(options));
         if (options.Mode==StoriesBackendMode.Cpu) { Model=new(path); return; }
         if (!VulkanContext.TryCreate(options.Vulkan??new(),out var context,out var availability))
@@ -29,7 +30,7 @@ public sealed class VulkanStoriesRuntime : IDisposable
             Model=new(path);
             return;
         }
-        try { Model=new(path,context); }
+        try { Model=new(path,options.MatVec is null?context:new VulkanMatrixFactory(context!,options.MatVec)); }
         catch(VulkanException error) when(error.Result==Result.ErrorOutOfDeviceMemory && options.Mode==StoriesBackendMode.Auto)
         {
             context!.Dispose();

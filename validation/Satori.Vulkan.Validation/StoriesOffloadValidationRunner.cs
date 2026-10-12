@@ -15,7 +15,7 @@ internal static class StoriesOffloadValidationRunner
         foreach(var mode in new[] {StoriesBackendMode.Cpu,StoriesBackendMode.VulkanRequired})
         {
             long start=Stopwatch.GetTimestamp();
-            using var runtime=new VulkanStoriesRuntime(path,new(mode,new(Validation:options.Validation)));
+            using var runtime=new VulkanStoriesRuntime(path,new(mode,new(Validation:options.Validation),MatVec:mode==StoriesBackendMode.Cpu?null:new(options.MeasureKernelTime,options.MeasureHostPhases)));
             double coldMs=Stopwatch.GetElapsedTime(start).TotalMilliseconds;
             if(runtime.Device?.Software==true) throw new InvalidOperationException("Hardware GPU required.");
             float[] logits=new float[32000];
@@ -47,6 +47,7 @@ internal static class StoriesOffloadValidationRunner
             {
                 session.Reset();
                 double[] decode=new double[options.DecodeTokens];
+                var statisticsBefore=options.MeasureHostPhases?runtime.Statistics:null;
                 long before=GC.GetAllocatedBytesForCurrentThread();
                 long totalStart=Stopwatch.GetTimestamp();
                 foreach(int token in prompt) session.TryAppend(token,logits);
@@ -57,7 +58,7 @@ internal static class StoriesOffloadValidationRunner
                 }
                 double total=Stopwatch.GetElapsedTime(totalStart).TotalMilliseconds;
                 long bytes=GC.GetAllocatedBytesForCurrentThread()-before;
-                if(iteration>=options.Warmups) samples.Add(new {PrefillMs=prefill,DecodeSamplesMs=decode,TotalMs=total,ManagedAllocatedBytes=bytes});
+                if(iteration>=options.Warmups) samples.Add(new {PrefillMs=prefill,DecodeSamplesMs=decode,TotalMs=total,ManagedAllocatedBytes=bytes,StatisticsBefore=statisticsBefore,StatisticsAfter=options.MeasureHostPhases?runtime.Statistics:null});
             }
             var statistics=runtime.Statistics;
             runtime.Dispose();
@@ -70,7 +71,7 @@ internal static class StoriesOffloadValidationRunner
             ModelSha256="2eda49203f2f044f3dddf29a7dd7cc861ef5a0340f518a19613d73ba6d9c06b6",
             Scope="Synchronous session prefill [1,9038,2501], then eight teacher-forced token 9038 appends; no tokenization, sampling or text decoding. Reset and array allocation excluded. Statistics include correctness, warmups and measured calls; kernel excludes CPU operators and transfers. Host total includes all CPU operators and GPU vector transfers. Sequential CPU then GPU.",Reports=reports};
         Directory.CreateDirectory("reports/vulkan");
-        string name=options.Validation?"offload-validation.json":"offload-benchmark.json";
+        string name=options.MeasureHostPhases?$"offload-profile-timestamps-{(options.MeasureKernelTime?"on":"off")}.json":options.Validation?"offload-validation.json":"offload-benchmark.json";
         File.WriteAllText(Path.Combine("reports/vulkan",name),JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));
         Console.WriteLine($"Offload verified; report: reports/vulkan/{name}");
         return 0;

@@ -1,3 +1,3 @@
 namespace Satori.Backends.Vulkan;
 
-public sealed record VulkanQ8Options(bool MeasureKernelTime = false);
+public sealed record VulkanQ8Options(bool MeasureKernelTime = false, bool MeasureHostPhases = false);

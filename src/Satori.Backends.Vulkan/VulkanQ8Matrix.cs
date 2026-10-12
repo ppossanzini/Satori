@@ -14,6 +14,9 @@ public sealed unsafe class VulkanQ8Matrix : IQuantizedMatrix
     private DescriptorSet _set;
     private QueryPool _queries;
     private bool _disposed;
+    private readonly bool _measureHostPhases;
+    internal VulkanHostPhases HostPhases { get; private set; }
+    internal long PhaseSamples { get; private set; }
     internal long CompletedDispatches { get; private set; }
     internal long TransferBytes { get; private set; }
     internal double HostMilliseconds { get; private set; }
@@ -26,7 +29,7 @@ public sealed unsafe class VulkanQ8Matrix : IQuantizedMatrix
 
     internal VulkanQ8Matrix(VulkanContext context, VulkanQ8Pipeline pipeline, ReadOnlySpan<byte> payload, QuantizedMatrixShape shape, VulkanQ8Options options)
     {
-        _context=context; _pipeline=pipeline; Shape=shape;
+        _context=context; _pipeline=pipeline; Shape=shape; _measureHostPhases=options.MeasureHostPhases;
         try
         {
             int padded=checked((payload.Length+3)&~3);
@@ -80,6 +83,7 @@ public sealed unsafe class VulkanQ8Matrix : IQuantizedMatrix
             foreach(float value in input) if(!float.IsFinite(value)) throw new ArgumentException("Expected finite FP32 input.",nameof(input));
             long start=Stopwatch.GetTimestamp();
             _buffers[3].Write(input);
+            long uploaded=_measureHostPhases?Stopwatch.GetTimestamp():0;
             _context.BeginCommands();
             if(_queries.Handle!=0) _context.Api.CmdResetQueryPool(_context.Command,_queries,0,2);
             var copy=new BufferCopy {Size=(ulong)Shape.Columns*4};
@@ -97,10 +101,24 @@ public sealed unsafe class VulkanQ8Matrix : IQuantizedMatrix
             copy.Size=(ulong)Shape.Rows*4;
             _context.Api.CmdCopyBuffer(_context.Command,_buffers[2].Handle,_buffers[4].Handle,1,in copy);
             _context.Barrier(PipelineStageFlags.TransferBit,AccessFlags.TransferWriteBit,PipelineStageFlags.HostBit,AccessFlags.HostReadBit);
-            _context.SubmitAndWait();
+            long recorded=_measureHostPhases?Stopwatch.GetTimestamp():0;
+            var submission=_context.SubmitAndWait(_measureHostPhases);
+            long waited=_measureHostPhases?Stopwatch.GetTimestamp():0;
             double? kernel=ReadKernelTime();
+            long queried=_measureHostPhases?Stopwatch.GetTimestamp():0;
             _buffers[4].Read(output);
-            double host=Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            long end=Stopwatch.GetTimestamp();
+            double host=Stopwatch.GetElapsedTime(start,end).TotalMilliseconds;
+            if(_measureHostPhases)
+            {
+                double upload=Stopwatch.GetElapsedTime(start,uploaded).TotalMilliseconds;
+                double recording=Stopwatch.GetElapsedTime(uploaded,recorded).TotalMilliseconds;
+                double query=Stopwatch.GetElapsedTime(waited,queried).TotalMilliseconds;
+                double readback=Stopwatch.GetElapsedTime(queried,end).TotalMilliseconds;
+                double other=host-upload-recording-query-readback-submission.PreparationMs-submission.SubmitMs-submission.WaitMs-submission.ValidationMs;
+                HostPhases+=new VulkanHostPhases(upload,recording,submission.PreparationMs,submission.SubmitMs,submission.WaitMs,submission.ValidationMs,query,readback,other);
+                PhaseSamples++;
+            }
             CompletedDispatches++;
             TransferBytes+=((long)Shape.Columns+Shape.Rows)*4;
             HostMilliseconds+=host;

@@ -1,0 +1,122 @@
+[
+  {
+    "Case": "fresh",
+    "Stderr": "Backend: CPU\nMeasured selection: CPU; cache: False\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true,
+    "Plan": {
+      "Identity": "91476CD73DFE1F88036E65704AC16E7DB478665D48D5ADA91259F5CE7123FA20",
+      "CpuSamplesMs": [
+        8.3231,
+        8.5856,
+        8.9972,
+        8.9208,
+        8.8993
+      ],
+      "VulkanSamplesMs": [
+        312.7563,
+        308.8865,
+        300.9572,
+        320.6919,
+        299.0385
+      ],
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    }
+  },
+  {
+    "Case": "reuse",
+    "Stderr": "Backend: CPU\nMeasured selection: CPU; cache: True\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true,
+    "Plan": {
+      "Identity": "91476CD73DFE1F88036E65704AC16E7DB478665D48D5ADA91259F5CE7123FA20",
+      "CpuSamplesMs": [
+        8.3231,
+        8.5856,
+        8.9972,
+        8.9208,
+        8.8993
+      ],
+      "VulkanSamplesMs": [
+        312.7563,
+        308.8865,
+        300.9572,
+        320.6919,
+        299.0385
+      ],
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    }
+  },
+  {
+    "Case": "identity-change",
+    "Stderr": "Backend: CPU\nMeasured selection: CPU; cache: False\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true,
+    "Plan": {
+      "Identity": "91476CD73DFE1F88036E65704AC16E7DB478665D48D5ADA91259F5CE7123FA20",
+      "CpuSamplesMs": [
+        9.3321,
+        8.5589,
+        9.1975,
+        8.3023,
+        10.2249
+      ],
+      "VulkanSamplesMs": [
+        318.8625,
+        309.6298,
+        315.4707,
+        306.8968,
+        300.1472
+      ],
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    }
+  },
+  {
+    "Case": "bad-samples",
+    "Stderr": "Backend: CPU\nMeasured selection: CPU; cache: False\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true,
+    "Plan": {
+      "Identity": "91476CD73DFE1F88036E65704AC16E7DB478665D48D5ADA91259F5CE7123FA20",
+      "CpuSamplesMs": [
+        8.4067,
+        8.5914,
+        8.263,
+        8.4949,
+        8.2818
+      ],
+      "VulkanSamplesMs": [
+        291.9722,
+        331.2997,
+        297.28,
+        318.1672,
+        305.5333
+      ],
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    }
+  },
+  {
+    "Case": "malformed-json",
+    "Stderr": "Backend: CPU\nMeasured selection: CPU; cache: False\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true,
+    "Plan": {
+      "Identity": "91476CD73DFE1F88036E65704AC16E7DB478665D48D5ADA91259F5CE7123FA20",
+      "CpuSamplesMs": [
+        10.0257,
+        9.894,
+        8.1459,
+        9.1441,
+        8.2375
+      ],
+      "VulkanSamplesMs": [
+        402.8244,
+        305.4129,
+        315.2748,
+        277.3234,
+        296.4551
+      ],
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    }
+  }
+]

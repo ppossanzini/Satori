@@ -1,0 +1,37 @@
+[
+  {
+    "Name": "cpu-no-icd",
+    "ExitCode": 0,
+    "Stdout": "Once\n",
+    "Stderr": "Backend: CPU\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true
+  },
+  {
+    "Name": "auto-no-icd",
+    "ExitCode": 0,
+    "Stdout": "Once\n",
+    "Stderr": "Backend: CPU\nVulkan unavailable: InitializationFailed (CreateInstance)\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true
+  },
+  {
+    "Name": "required-no-icd",
+    "ExitCode": 1,
+    "Stdout": "",
+    "Stderr": "Vulkan required: InitializationFailed (CreateInstance).\n",
+    "Passed": true
+  },
+  {
+    "Name": "auto-invalid-device",
+    "ExitCode": 0,
+    "Stdout": "Once\n",
+    "Stderr": "Backend: CPU\nVulkan unavailable: UnsupportedDevice (Device index not enumerated)\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true
+  },
+  {
+    "Name": "required-invalid-device",
+    "ExitCode": 1,
+    "Stdout": "",
+    "Stderr": "Vulkan required: UnsupportedDevice (Device index not enumerated).\n",
+    "Passed": true
+  }
+]

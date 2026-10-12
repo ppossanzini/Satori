@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../src/Satori.Backends.Vulkan/Satori.Backends.Vulkan.csproj" />    <ProjectReference Include="../../validation/Satori.Validation/Satori.Validation.csproj" />
+    <ProjectReference Include="../../src/Satori.Formats.Gguf/Satori.Formats.Gguf.csproj" />
+  </ItemGroup>
+</Project>

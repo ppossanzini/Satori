@@ -1,0 +1,340 @@
+{
+  "TimestampUtc": "2026-10-12T19:48:00.9188782+00:00",
+  "Runtime": ".NET 10.0.12",
+  "Options": {
+    "Validation": true,
+    "Warmups": 3,
+    "Samples": 7,
+    "DecodeTokens": 8
+  },
+  "ModelSha256": "2eda49203f2f044f3dddf29a7dd7cc861ef5a0340f518a19613d73ba6d9c06b6",
+  "Scope": "Synchronous session prefill [1,9038,2501], then eight teacher-forced token 9038 appends; no tokenization, sampling or text decoding. Reset and array allocation excluded. Statistics include correctness, warmups and measured calls; kernel excludes CPU operators and transfers. Host total includes all CPU operators and GPU vector transfers. Sequential CPU then GPU.",
+  "Reports": [
+    {
+      "Backend": "CPU",
+      "ColdInitializationAndWeightsMs": 70.5389,
+      "Device": null,
+      "Statistics": null,
+      "CacheBytes": 1769472,
+      "Samples": [
+        {
+          "PrefillMs": 13.0747,
+          "DecodeSamplesMs": [
+            5.9395,
+            5.5126,
+            4.1363,
+            4.1637,
+            4.6593,
+            4.4686,
+            4.6737,
+            4.2699
+          ],
+          "TotalMs": 50.9065,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 11.4822,
+          "DecodeSamplesMs": [
+            3.8567,
+            4.5858,
+            4.4028,
+            4.0187,
+            3.5629,
+            3.3519,
+            3.8057,
+            3.8508
+          ],
+          "TotalMs": 42.9238,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 11.9034,
+          "DecodeSamplesMs": [
+            3.6856,
+            3.7764,
+            3.6018,
+            3.9236,
+            3.9226,
+            3.895,
+            4.2477,
+            4.415
+          ],
+          "TotalMs": 43.3802,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 10.7987,
+          "DecodeSamplesMs": [
+            3.3484,
+            3.825,
+            3.6963,
+            3.837,
+            3.713,
+            3.5454,
+            3.4929,
+            3.6749
+          ],
+          "TotalMs": 39.9353,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 11.5197,
+          "DecodeSamplesMs": [
+            3.7526,
+            3.6607,
+            3.7238,
+            3.5382,
+            4.3434,
+            4.1065,
+            3.6621,
+            3.6589
+          ],
+          "TotalMs": 41.9699,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 11.2011,
+          "DecodeSamplesMs": [
+            3.565,
+            3.5193,
+            3.7812,
+            3.7847,
+            3.548,
+            3.5918,
+            3.7446,
+            3.988
+          ],
+          "TotalMs": 40.7272,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 11.6161,
+          "DecodeSamplesMs": [
+            4.0167,
+            3.9143,
+            4.441,
+            4.0927,
+            4.5027,
+            4.6976,
+            4.1851,
+            4.0178
+          ],
+          "TotalMs": 45.49,
+          "ManagedAllocatedBytes": 0
+        }
+      ],
+      "Comparison": [],
+      "ValidationErrors": 0,
+      "ValidationMessages": null
+    },
+    {
+      "Backend": "Vulkan",
+      "ColdInitializationAndWeightsMs": 322.4897,
+      "Device": {
+        "Index": 0,
+        "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+        "Uuid": "8680557d080000000002000000000000",
+        "VendorId": 32902,
+        "DeviceId": 32085,
+        "ApiVersion": 4211042,
+        "DriverVersion": 109060100,
+        "Software": false,
+        "QueueFamily": 0,
+        "TimestampValidBits": 36,
+        "TimestampPeriod": 52.083332,
+        "MaxStorageBufferRange": 4294967295,
+        "MaxDispatchGroups": 2147483647,
+        "MaxWorkgroupInvocations": 1024,
+        "MaxPushConstantsSize": 256,
+        "MaxStorageDescriptors": 33554432,
+        "MaxMemoryAllocations": 4294967295,
+        "MaxAllocationBytes": 24804756480,
+        "StorageOffsetAlignment": 4,
+        "NonCoherentAtomSize": 64,
+        "MemoryTypeFlags": [
+          7,
+          11,
+          33,
+          7,
+          11
+        ]
+      },
+      "Statistics": {
+        "ResidentMatrices": 43,
+        "AllocatedBytes": 16658176,
+        "WeightAllocationBytes": 16137216,
+        "CompletedDispatches": 5203,
+        "TransferBytes": 31518080,
+        "HostMilliseconds": 20244.7949,
+        "KernelMilliseconds": 4238.120000696937
+      },
+      "CacheBytes": 1769472,
+      "Samples": [
+        {
+          "PrefillMs": 469.1392,
+          "DecodeSamplesMs": [
+            155.7136,
+            139.753,
+            147.0943,
+            161.7864,
+            150.1905,
+            147.9155,
+            160.9702,
+            153.7472
+          ],
+          "TotalMs": 1686.3126,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 507.644,
+          "DecodeSamplesMs": [
+            206.158,
+            209.5668,
+            210.6371,
+            218.0958,
+            218.5325,
+            208.4538,
+            161.4571,
+            152.3996
+          ],
+          "TotalMs": 2092.9475,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 469.1951,
+          "DecodeSamplesMs": [
+            144.6418,
+            157.679,
+            150.2512,
+            148.2978,
+            163.2719,
+            151.0027,
+            148.2002,
+            155.9252
+          ],
+          "TotalMs": 1688.4677,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 459.8784,
+          "DecodeSamplesMs": [
+            181.5068,
+            198.8483,
+            203.1194,
+            212.3291,
+            195.3101,
+            203.146,
+            206.13,
+            169.8337
+          ],
+          "TotalMs": 2030.1049,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 494.7751,
+          "DecodeSamplesMs": [
+            153.1674,
+            158.6783,
+            148.4042,
+            156.1902,
+            160.5511,
+            173.5865,
+            180.1255,
+            159.9153
+          ],
+          "TotalMs": 1785.3962,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 466.9683,
+          "DecodeSamplesMs": [
+            159.6461,
+            187.1285,
+            210.1008,
+            218.7687,
+            222.3567,
+            200.9861,
+            207.0236,
+            191.8254
+          ],
+          "TotalMs": 2064.807,
+          "ManagedAllocatedBytes": 0
+        },
+        {
+          "PrefillMs": 471.201,
+          "DecodeSamplesMs": [
+            181.6297,
+            167.651,
+            160.1656,
+            159.1176,
+            148.8213,
+            157.3949,
+            154.9532,
+            151.0393
+          ],
+          "TotalMs": 1751.9764,
+          "ManagedAllocatedBytes": 0
+        }
+      ],
+      "Comparison": [
+        {
+          "Position": 0,
+          "MaxAbsoluteError": 4.76837158203125E-06,
+          "RmsError": 8.156020053298278E-07
+        },
+        {
+          "Position": 1,
+          "MaxAbsoluteError": 6.67572021484375E-06,
+          "RmsError": 1.4811247051273707E-06
+        },
+        {
+          "Position": 2,
+          "MaxAbsoluteError": 9.655952453613281E-06,
+          "RmsError": 1.1264787016452463E-06
+        },
+        {
+          "Position": 3,
+          "MaxAbsoluteError": 6.556510925292969E-06,
+          "RmsError": 2.7518613458689674E-06
+        },
+        {
+          "Position": 4,
+          "MaxAbsoluteError": 6.4373016357421875E-06,
+          "RmsError": 1.387219186034682E-06
+        },
+        {
+          "Position": 5,
+          "MaxAbsoluteError": 7.152557373046875E-06,
+          "RmsError": 3.5535197744434843E-06
+        },
+        {
+          "Position": 6,
+          "MaxAbsoluteError": 6.4373016357421875E-06,
+          "RmsError": 1.5044030888165926E-06
+        },
+        {
+          "Position": 7,
+          "MaxAbsoluteError": 5.7220458984375E-06,
+          "RmsError": 1.7401229050970205E-06
+        },
+        {
+          "Position": 8,
+          "MaxAbsoluteError": 9.5367431640625E-06,
+          "RmsError": 4.662462420923892E-06
+        },
+        {
+          "Position": 9,
+          "MaxAbsoluteError": 6.198883056640625E-06,
+          "RmsError": 9.90486001243015E-07
+        },
+        {
+          "Position": 10,
+          "MaxAbsoluteError": 7.152557373046875E-06,
+          "RmsError": 3.643934913798672E-06
+        }
+      ],
+      "ValidationErrors": 0,
+      "ValidationMessages": []
+    }
+  ]
+}

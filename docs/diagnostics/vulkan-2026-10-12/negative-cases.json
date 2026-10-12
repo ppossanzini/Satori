@@ -1,0 +1,44 @@
+[
+  {
+    "case": "cpu-without-ICD",
+    "exit_code": 0,
+    "expected_reason": null,
+    "stdout": "CPU: 6 workloads verified; validation errors: not enabled",
+    "stderr": ""
+  },
+  {
+    "case": "auto-without-ICD",
+    "exit_code": 0,
+    "expected_reason": 5,
+    "stdout": "CPU: 6 workloads verified; validation errors: not enabled\nCPU fallback: InitializationFailed (CreateInstance)",
+    "stderr": ""
+  },
+  {
+    "case": "required-without-ICD",
+    "exit_code": 1,
+    "expected_reason": 5,
+    "stdout": "",
+    "stderr": "{\"Reason\":5,\"Operation\":\"CreateInstance\",\"NativeResult\":-9,\"Diagnostics\":[\"ErrorBitExt/GeneralBitExt: loader_get_json: Failed to open JSON file /home/paolo/Work/archer/Satori/.temp/t28/no-driver.json\",\"ErrorBitExt/GeneralBitExt: vkCreateInstance: Found no drivers!\"]}"
+  },
+  {
+    "case": "required-without-layer",
+    "exit_code": 1,
+    "expected_reason": 4,
+    "stdout": "",
+    "stderr": "{\"Reason\":4,\"Operation\":\"Khronos validation layer/debug utils absent\",\"NativeResult\":null,\"Diagnostics\":[]}"
+  },
+  {
+    "case": "auto-without-layer",
+    "exit_code": 0,
+    "expected_reason": 4,
+    "stdout": "CPU: 6 workloads verified; validation errors: not enabled\nCPU fallback: ValidationUnavailable (Khronos validation layer/debug utils absent)",
+    "stderr": ""
+  },
+  {
+    "case": "required-unsupported-device",
+    "exit_code": 1,
+    "expected_reason": 3,
+    "stdout": "",
+    "stderr": "{\"Reason\":3,\"Operation\":\"Device index not enumerated\",\"NativeResult\":null,\"Diagnostics\":[]}"
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "Mode": "vulkan",
+    "Budget": 12,
+    "ExitCode": 0,
+    "Stdout": "Once upon a time, there was a little girl named L\n",
+    "Stderr": "Backend: Vulkan\nTokenLimit; prompt: 1; generated: 12\n",
+    "Passed": true
+  },
+  {
+    "Mode": "auto",
+    "Budget": 1,
+    "ExitCode": 0,
+    "Stdout": "Once\n",
+    "Stderr": "Backend: Vulkan\nTokenLimit; prompt: 1; generated: 1\n",
+    "Passed": true
+  }
+]

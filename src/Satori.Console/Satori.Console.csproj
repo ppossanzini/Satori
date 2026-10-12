@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="../Satori.Backends.Vulkan/Satori.Backends.Vulkan.csproj" />
     <ProjectReference Include="..\Satori.Core\Satori.Core.csproj" />
     <ProjectReference Include="..\Satori.Formats.Gguf\Satori.Formats.Gguf.csproj" />
   </ItemGroup>

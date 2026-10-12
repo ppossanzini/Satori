@@ -1,0 +1,210 @@
+{
+  "TimestampUtc": "2026-10-12T19:17:17.3461171+00:00",
+  "Runtime": ".NET 10.0.12",
+  "Mode": "required",
+  "Options": {
+    "DeviceIndex": null,
+    "Validation": true
+  },
+  "ActualBackend": "Vulkan",
+  "Availability": {
+    "Reason": "Ready",
+    "Operation": "Ready",
+    "NativeResult": null,
+    "Diagnostics": null
+  },
+  "Device": {
+    "Index": 0,
+    "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+    "Uuid": "8680557d080000000002000000000000",
+    "VendorId": 32902,
+    "DeviceId": 32085,
+    "ApiVersion": 4211042,
+    "DriverVersion": 109060100,
+    "Software": false,
+    "QueueFamily": 0,
+    "TimestampValidBits": 36,
+    "TimestampPeriod": 52.083332,
+    "MaxStorageBufferRange": 4294967295,
+    "MaxDispatchGroups": 2147483647,
+    "MaxWorkgroupInvocations": 1024,
+    "MaxPushConstantsSize": 256,
+    "MaxAllocationBytes": 24804756480,
+    "StorageOffsetAlignment": 4,
+    "NonCoherentAtomSize": 64,
+    "MemoryTypeFlags": [
+      7,
+      11,
+      33,
+      7,
+      11
+    ]
+  },
+  "LoaderApiVersion": 4211051,
+  "KhronosLayerApiVersion": 4211051,
+  "InitializationMs": 119.3863,
+  "DeviceScratchAllocationBytes": 65552,
+  "ValidationSync": "1",
+  "ValidationErrors": 0,
+  "ValidationMessages": [],
+  "GpuKernelDurationMs": null,
+  "TimingScope": "Host synchronous upload/dispatch/fence/readback; first call per size excluded; no GPU timestamp measurement. Scratch peak sampled before disposal.",
+  "Cases": [
+    {
+      "Count": 0,
+      "Iterations": 8,
+      "HostSamplesMs": [
+        0.0002,
+        0.0004,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "AllocatedBytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "TransferBytesPerCall": 0,
+      "MatchesCpu": true
+    },
+    {
+      "Count": 1,
+      "Iterations": 8,
+      "HostSamplesMs": [
+        1.2702,
+        1.3639,
+        1.2324,
+        1.9054,
+        1.8414,
+        1.2626,
+        1.2532,
+        1.425
+      ],
+      "AllocatedBytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "TransferBytesPerCall": 8,
+      "MatchesCpu": true
+    },
+    {
+      "Count": 63,
+      "Iterations": 8,
+      "HostSamplesMs": [
+        1.3211,
+        1.9046,
+        2.7536,
+        2.8659,
+        2.2355,
+        2.3784,
+        2.7099,
+        3.1063
+      ],
+      "AllocatedBytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "TransferBytesPerCall": 504,
+      "MatchesCpu": true
+    },
+    {
+      "Count": 64,
+      "Iterations": 8,
+      "HostSamplesMs": [
+        2.5707,
+        1.2992,
+        1.9067,
+        1.9422,
+        1.421,
+        1.6328,
+        1.8461,
+        1.4054
+      ],
+      "AllocatedBytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "TransferBytesPerCall": 512,
+      "MatchesCpu": true
+    },
+    {
+      "Count": 65,
+      "Iterations": 8,
+      "HostSamplesMs": [
+        3.4701,
+        2.7566,
+        2.6435,
+        2.4683,
+        1.9326,
+        4.9053,
+        1.5215,
+        4.982
+      ],
+      "AllocatedBytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "TransferBytesPerCall": 520,
+      "MatchesCpu": true
+    },
+    {
+      "Count": 4097,
+      "Iterations": 8,
+      "HostSamplesMs": [
+        2.8631,
+        3.2637,
+        3.8465,
+        2.9566,
+        2.6997,
+        2.1283,
+        2.9072,
+        4.7792
+      ],
+      "AllocatedBytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "TransferBytesPerCall": 32776,
+      "MatchesCpu": true
+    }
+  ]
+}

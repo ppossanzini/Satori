@@ -3,7 +3,7 @@ using Satori.Core;
 
 namespace Satori.Formats.Gguf;
 
-/// <summary>Exact Stories15M Q8_0 model. Forward recomputes a prefix without retaining sequence state.</summary>
+/// <summary>Exact Stories15M Q8_0 model with optional owned MatVec executions. Forward recomputes a prefix without retaining sequence state.</summary>
 public sealed class StoriesModel : IDisposable
 {
     public const int Width = 288, ContextLength = 128, VocabularySize = 32000;
@@ -14,8 +14,9 @@ public sealed class StoriesModel : IDisposable
     private readonly GgufFloatVector _outputNorm;
     private readonly object _sync = new();
     private bool _disposed;
+    private readonly Dictionary<string,IQuantizedMatrix> _offloaded = new(StringComparer.Ordinal);
 
-    public StoriesModel(string path)
+    public StoriesModel(string path, IQuantizedMatrixFactory? matrixFactory = null)
     {
         using (var source = File.OpenRead(path))
         {
@@ -31,8 +32,16 @@ public sealed class StoriesModel : IDisposable
             _output = new(_file,"output.weight");
             _outputNorm = new(_file,"output_norm.weight");
             _layers = Enumerable.Range(0,6).Select(i=>new StoriesLayer(_file,i)).ToArray();
+            if (matrixFactory is not null)
+                foreach (var tensor in _file.Tensors.Values.Where(t=>t.Type==8 && t.Name!="token_embd.weight"))
+                {
+                    var matrix = new GgufQuantizedMatrix(_file,tensor.Name);
+                    var execution = matrix.CreateExecution(matrixFactory);
+                    try { _offloaded.Add(tensor.Name,execution); }
+                    catch { execution.Dispose(); throw; }
+                }
         }
-        catch { _file.Dispose(); throw; }
+        catch { foreach(var matrix in _offloaded.Values) matrix.Dispose(); _file.Dispose(); throw; }
     }
 
     private void ValidateProfile()
@@ -83,7 +92,9 @@ public sealed class StoriesModel : IDisposable
             double[] scores = new double[tokens.Length];
             void MatVec(GgufQuantizedMatrix matrix, ReadOnlySpan<float> input, Span<float> output)
             {
-                if (scalar) matrix.ExecuteScalar(input,output); else matrix.Execute(input,output);
+                if (scalar) matrix.ExecuteScalar(input,output);
+                else if (_offloaded.TryGetValue(matrix.Name,out var gpu)) gpu.Execute(input,output);
+                else matrix.Execute(input,output);
             }
             for (int position = 0; position < tokens.Length; position++)
             {
@@ -139,7 +150,9 @@ public sealed class StoriesModel : IDisposable
             ObjectDisposedException.ThrowIf(_disposed,this);
             void MatVec(GgufQuantizedMatrix matrix, ReadOnlySpan<float> input, Span<float> output)
             {
-                if (scalar) matrix.ExecuteScalar(input,output); else matrix.Execute(input,output);
+                if (scalar) matrix.ExecuteScalar(input,output);
+                else if (_offloaded.TryGetValue(matrix.Name,out var gpu)) gpu.Execute(input,output);
+                else matrix.Execute(input,output);
             }
             var x = workspace.Hidden;
             var norm = workspace.Norm;
@@ -171,6 +184,6 @@ public sealed class StoriesModel : IDisposable
 
     public void Dispose()
     {
-        lock (_sync) { if (_disposed) return; _disposed = true; _file.Dispose(); }
+        lock (_sync) { if (_disposed) return; _disposed = true; foreach(var matrix in _offloaded.Values) matrix.Dispose(); _offloaded.Clear(); _file.Dispose(); }
     }
 }

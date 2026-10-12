@@ -1,0 +1,31 @@
+{
+  "compiler": "Glslang Version: 11:16.6.0\nESSL Version: OpenGL ES GLSL 3.20 glslang Khronos. 16.6.0\nGLSL Version: 4.60 glslang Khronos. 16.6.0\nSPIR-V Version 0x00010600, Revision 1\nGLSL.std.450 Version 100, Revision 1\nKhronos Tool ID 8\nSPIR-V Generator Version 11\nGL_KHR_vulkan_glsl version 100\nARB_GL_gl_spirv version 100",
+  "validator": "SPIRV-Tools v2026.4 v2026.4.rc2-0-gef96ed763\nTargets:\n  SPIR-V 1.0\n  SPIR-V 1.1\n  SPIR-V 1.2\n  SPIR-V 1.3\n  SPIR-V 1.4\n  SPIR-V 1.5\n  SPIR-V 1.6\n  SPIR-V 1.2 (under OpenCL 2.2 Full Profile semantics)\n  SPIR-V 1.0 (under Vulkan 1.0 semantics)\n  SPIR-V 1.3 (under Vulkan 1.1 semantics)\n  SPIR-V 1.4 (under Vulkan 1.1 semantics)\n  SPIR-V 1.5 (under Vulkan 1.2 semantics)\n  SPIR-V 1.6 (under Vulkan 1.3 semantics) SPIR-V 1.6 (under Vulkan 1.4 semantics)",
+  "target": "vulkan1.1",
+  "spirv": "1.3",
+  "entry": "main",
+  "local_size": [
+    64,
+    1,
+    1
+  ],
+  "bindings": {
+    "0": "readonly packed Q8_0 uint words",
+    "1": "readonly FP32 input",
+    "2": "writeonly FP32 output"
+  },
+  "push_constants": {
+    "rows": {
+      "offset": 0,
+      "bytes": 4
+    },
+    "columns": {
+      "offset": 4,
+      "bytes": 4
+    }
+  },
+  "source_sha256": "c07de372b03068524ebee7e26d637eaa49533fbde73416c8e60bdad204d7460e",
+  "binary_sha256": "0c9bccd8cba536b406121ea86a4ccec55d9111ecaf17ad1234fc4f4ace2eb11b",
+  "compile_command": "glslangValidator -V --target-env vulkan1.1 -S comp -e main -o q8_matvec.spv q8_matvec.comp",
+  "validate_command": "spirv-val --target-env vulkan1.1 q8_matvec.spv"
+}

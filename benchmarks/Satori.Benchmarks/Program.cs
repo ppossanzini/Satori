@@ -9,6 +9,8 @@ using Perfolizer.Horology;
 using Satori.Benchmarks;
 using Satori.Validation;
 
+if (args.FirstOrDefault() == "--stories") return StoriesBenchmarkRunner.Run(args);
+
 if (args.FirstOrDefault() == "--layouts") return TernaryLayoutBenchmarkRunner.Run(args);
 if (args.FirstOrDefault() == "--gguf") return GgufBenchmarkRunner.Run(args);
 

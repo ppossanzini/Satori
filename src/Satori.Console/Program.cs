@@ -1,4 +1,5 @@
 using Satori.Core;
+using Satori.Backends.Vulkan;
 using System.Runtime.Intrinsics.X86;
 using Satori.Formats.Gguf;
 using System.Globalization;
@@ -11,11 +12,12 @@ if (args.Length > 0)
         {
             if (args.Length < 3)
             {
-                Console.Error.WriteLine("Usage: Satori.Console generate <model.gguf> <prompt> [max-new-tokens] [--temperature N] [--top-k N] [--top-p N] [--seed N]");
+                Console.Error.WriteLine("Usage: Satori.Console generate <model.gguf> <prompt> [max-new-tokens] [--temperature N] [--top-k N] [--top-p N] [--seed N] [--backend cpu|auto|vulkan] [--device N] [--plan-cache path]");
                 return 1;
             }
             var options = new StoriesGenerationOptions();
             var sampling = new SamplingOptions();
+            var backend = new StoriesBackendOptions();
             int cursor = 3;
             if (cursor < args.Length && !args[cursor].StartsWith("--",StringComparison.Ordinal))
             {
@@ -26,6 +28,21 @@ if (args.Length > 0)
                 string flag = args[cursor++];
                 if (cursor == args.Length) throw new ArgumentException($"Missing value for {flag}.");
                 string value = args[cursor++];
+                if (flag=="--backend")
+                {
+                    backend=backend with {Mode=value switch {"cpu"=>StoriesBackendMode.Cpu,"auto"=>StoriesBackendMode.Auto,"vulkan"=>StoriesBackendMode.VulkanRequired,_=>throw new ArgumentException("Expected backend cpu, auto or vulkan.")}};
+                    continue;
+                }
+                if(flag=="--plan-cache")
+                {
+                    backend=backend with {Planner=new StoriesPlannerOptions(value)};
+                    continue;
+                }
+                if(flag=="--device")
+                {
+                    backend=backend with {Vulkan=(backend.Vulkan??new()) with {DeviceIndex=int.Parse(value,CultureInfo.InvariantCulture)}};
+                    continue;
+                }
                 sampling = flag switch
                 {
                     "--temperature" => sampling with { Temperature = double.Parse(value,CultureInfo.InvariantCulture) },
@@ -37,7 +54,12 @@ if (args.Length > 0)
             }
             sampling.Validate();
             options = options with { Sampling = sampling };
-            using var generator = new StoriesGenerator(args[1]);
+            using var runtime = new VulkanStoriesRuntime(args[1],backend);
+            Console.Error.WriteLine($"Backend: {runtime.ActualBackend}");
+            if(runtime.Plan is not null) Console.Error.WriteLine($"Measured selection: {runtime.Plan.SelectedBackend}; cache: {runtime.PlanFromCache}");
+            if(runtime.Availability is {Reason:not VulkanAvailabilityReason.Ready} unavailable)
+                Console.Error.WriteLine($"Vulkan unavailable: {unavailable.Reason} ({unavailable.Operation})");
+            using var generator = new StoriesGenerator(args[1],runtime.Model);
             var result = generator.Generate(args[2],options,Console.Write);
             Console.WriteLine();
             Console.Error.WriteLine($"{result.StopReason}; prompt: {result.PromptTokenCount}; generated: {result.Tokens.Count}");
@@ -63,7 +85,7 @@ if (args.Length > 0)
         Console.WriteLine($"Shape: {mapped.Rows} x {mapped.Columns}; payload: {mapped.ByteLength} bytes");
         return 0;
     }
-    catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException or FormatException or OverflowException)
+    catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException or FormatException or OverflowException or VulkanException or InvalidOperationException)
     {
         Console.Error.WriteLine(exception.Message);
         return 1;

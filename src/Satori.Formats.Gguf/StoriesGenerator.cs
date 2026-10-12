@@ -10,16 +10,23 @@ public sealed class StoriesGenerator : IDisposable
     private readonly StoriesTokenizer _tokenizer;
     private readonly object _sync = new();
     private bool _disposed;
+    private readonly bool _ownsModel;
 
-    public StoriesGenerator(string path)
+    public StoriesGenerator(string path) : this(path,new StoriesModel(path),true) { }
+
+    /// <summary>Borrows an externally configured model; its owner must outlive the generator.</summary>
+    public StoriesGenerator(string path, StoriesModel model) : this(path,model,false) { }
+
+    private StoriesGenerator(string path, StoriesModel model, bool ownsModel)
     {
-        _model = new(path);
+        _model = model;
+        _ownsModel = ownsModel;
         try
         {
             using var file = new GgufFile(path);
             _tokenizer = new(file);
         }
-        catch { _model.Dispose(); throw; }
+        catch { if (_ownsModel) _model.Dispose(); throw; }
     }
 
     /// <summary>Emits only continuation text. Callback failures propagate; the session is always released.</summary>
@@ -66,6 +73,6 @@ public sealed class StoriesGenerator : IDisposable
 
     public void Dispose()
     {
-        lock (_sync) { if (_disposed) return; _disposed = true; _model.Dispose(); }
+        lock (_sync) { if (_disposed) return; _disposed = true; if (_ownsModel) _model.Dispose(); }
     }
 }

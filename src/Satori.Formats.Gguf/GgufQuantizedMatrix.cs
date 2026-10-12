@@ -7,6 +7,7 @@ public sealed class GgufQuantizedMatrix
 {
     private readonly GgufFile _file;
     private readonly string _name;
+    public string Name => _name;
     public QuantizedMatrixShape Shape { get; }
 
     public GgufQuantizedMatrix(GgufFile file, string name)
@@ -19,6 +20,13 @@ public sealed class GgufQuantizedMatrix
         _file = file;
         _name = name;
         file.ReadTensor(name, 0, Shape.ByteLength, static (bytes, shape) => QuantizedMatVec.ValidatePayload(bytes, shape), Shape);
+    }
+
+    public IQuantizedMatrix CreateExecution(IQuantizedMatrixFactory factory)
+    {
+        IQuantizedMatrix? execution = null;
+        _file.ReadTensor(_name,0,Shape.ByteLength,(bytes,owner)=>execution=owner.Create(bytes,Shape),factory);
+        return execution!;
     }
 
     public void Execute(ReadOnlySpan<float> input, Span<float> output) =>

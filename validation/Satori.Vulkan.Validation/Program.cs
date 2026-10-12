@@ -6,6 +6,7 @@ using Satori.Backends.Vulkan;
 
 try
 {
+    if(args.Length==2 && args[0]=="--path-contexts") return StoriesPathContextRunner.Run(args[1]);
     if(args.Length==2 && args[0]=="--q8-compare") return Q8ValidationRunner.Run(args[1],false,true);
     if(args.Length==2 && args[0]=="--q8-compare-validation") return Q8ValidationRunner.Run(args[1],true,true);
     if(args.Length==3 && args[0]=="--planner-startup") return StoriesPlannerStartupRunner.Run(args[1],args[2]);

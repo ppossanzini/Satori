@@ -25,4 +25,16 @@ public sealed class StoriesPlanTests
         Assert.False(JsonSerializer.Deserialize<StoriesExecutionPlan>("{\"Identity\":\"key\"}")!.IsValidFor("key"));
         Assert.Equal(good.SelectedBackend,JsonSerializer.Deserialize<StoriesExecutionPlan>(JsonSerializer.Serialize(good))!.SelectedBackend);
     }
+    [Fact]
+    public void ResidentCompetesWithLegacyAndCpuWithoutRelaxingMarginOrCacheValidity()
+    {
+        var cpu=new double[] {10,10,10,10,1000};var legacy=new double[] {9,9,9,9,10000};
+        var resident=new double[] {8,8,8,8,10000};var plan=new StoriesExecutionPlan("key",cpu,legacy,resident);
+        Assert.Equal(StoriesVulkanPath.Resident,plan.SelectedPath);Assert.True(plan.IsValidFor("key"));
+        Assert.Equal(StoriesVulkanPath.MatVec,(plan with {ResidentSamplesMs=[9.1,9.1,9.1,9.1,9.1]}).SelectedPath);
+        Assert.Null((plan with {VulkanSamplesMs=[9.5,9.5,9.5,9.5,9.5],ResidentSamplesMs=[9.5,9.5,9.5,9.5,9.5]}).SelectedPath);
+        Assert.False((plan with {ResidentSamplesMs=[1,1,1,1,double.NaN]}).IsValidFor("key"));
+        Assert.False((plan with {ResidentSamplesMs=[]}).IsValidFor("key"));
+        Assert.Equal(plan.SelectedPath,JsonSerializer.Deserialize<StoriesExecutionPlan>(JsonSerializer.Serialize(plan))!.SelectedPath);
+    }
 }

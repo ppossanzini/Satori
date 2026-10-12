@@ -22,82 +22,71 @@ public sealed class VulkanStoriesRuntime : IDisposable
     public IReadOnlyList<string>? ValidationMessages => _context?.ValidationMessages;
     public VulkanOffloadStatistics? Statistics => _context?.GetOffloadStatistics();
 
-    public VulkanStoriesRuntime(string path, StoriesBackendOptions? options = null)
+    public StoriesVulkanPath? ActualPath=>_context is null?null:_resident is null?StoriesVulkanPath.MatVec:StoriesVulkanPath.Resident;
+    public VulkanResidentStatistics? CandidateResidentStatistics {get;}
+
+    public VulkanStoriesRuntime(string path,StoriesBackendOptions? options=null)
     {
-        options ??= new();
-        if(options.Mode==StoriesBackendMode.Auto && options.MatVec is not null) throw new ArgumentException("Custom measurement options require explicit Vulkan selection.",nameof(options));
-        if(!Enum.IsDefined(options.Path))throw new ArgumentOutOfRangeException(nameof(options));
-        if(options.Path==StoriesVulkanPath.Resident && (options.Mode==StoriesBackendMode.Auto || options.MatVec is not null))throw new ArgumentException("Resident execution requires explicit Vulkan selection without MatVec diagnostics.");
-        if (!Enum.IsDefined(options.Mode)) throw new ArgumentOutOfRangeException(nameof(options));
-        if (options.Mode==StoriesBackendMode.Cpu) { Model=new(path); return; }
-        if (!VulkanContext.TryCreate(options.Vulkan??new(),out var context,out var availability))
+        options ??=new();
+        if(!Enum.IsDefined(options.Mode)||!Enum.IsDefined(options.Path))throw new ArgumentOutOfRangeException(nameof(options));
+        if(options.Mode==StoriesBackendMode.Auto && (options.MatVec is not null || options.Path!=StoriesVulkanPath.MatVec))throw new ArgumentException("Auto selects all compatible paths without custom MatVec options.",nameof(options));
+        if(options.Path==StoriesVulkanPath.Resident && options.MatVec is not null)throw new ArgumentException("Resident execution does not use MatVec diagnostics.",nameof(options));
+        if(options.Mode==StoriesBackendMode.Cpu){Model=new(path);return;}
+        if(!VulkanContext.TryCreate(options.Vulkan??new(),out var created,out var availability))
         {
             Availability=availability;
-            if(options.Mode==StoriesBackendMode.VulkanRequired) throw new InvalidOperationException($"Vulkan required: {availability.Reason} ({availability.Operation}).");
-            Model=new(path);
-            return;
+            if(options.Mode==StoriesBackendMode.VulkanRequired)throw new InvalidOperationException($"Vulkan required: {availability.Reason} ({availability.Operation}).");
+            Model=new(path);return;
         }
-        CandidateDevice=context!.Info;
-        string? identity=null;
-        if(options.Mode==StoriesBackendMode.Auto)
-        {
-            try
-            {
-                if(options.Vulkan?.Validation==true) throw new ArgumentException("Automatic timing selection requires validation disabled.",nameof(options));
-                identity=StoriesExecutionPlanner.GetIdentity(context!);
-                Plan=StoriesExecutionPlanner.ReadCache(identity,options.Planner??new());
-                PlanFromCache=Plan is not null;
-                if(Plan?.SelectedBackend=="CPU")
-                {
-                    CandidateStatistics=context!.GetOffloadStatistics();
-                    context.Dispose();
-                    Model=new(path);Availability=availability;return;
-                }
-            }
-            catch { context!.Dispose();throw; }
-        }
+        var context=created!;CandidateDevice=context.Info;
+        StoriesModel? legacy=null,residentModel=null;VulkanResidentModel? weights=null;
         try
         {
-            if(options.Path==StoriesVulkanPath.Resident){_resident=new(path,context!);Model=new(path,sessionFactory:_resident);}
-            else Model=new(path,options.MatVec is null?context:new VulkanMatrixFactory(context!,options.MatVec));
+            StoriesVulkanPath? selected=options.Path;
+            if(options.Mode==StoriesBackendMode.Auto)
+            {
+                if(options.Vulkan?.Validation==true)throw new ArgumentException("Automatic timing selection requires validation disabled.",nameof(options));
+                string identity=StoriesExecutionPlanner.GetIdentity(context);
+                Plan=StoriesExecutionPlanner.ReadCache(identity,options.Planner??new());PlanFromCache=Plan is not null;
+                if(Plan is not null)selected=Plan.SelectedPath;
+                else
+                {
+                    legacy=new(path,new VulkanMatrixFactory(context,new()));weights=new(path,context);residentModel=new(path,sessionFactory:weights);
+                    Plan=StoriesExecutionPlanner.Select(path,legacy,residentModel,identity,options.Planner??new());selected=Plan.SelectedPath;
+                }
+            }
+            if(selected==StoriesVulkanPath.Resident)
+            {
+                weights ??=new(path,context);residentModel ??=new(path,sessionFactory:weights);
+            }
+            else if(selected==StoriesVulkanPath.MatVec)
+                legacy ??=new(path,options.Mode==StoriesBackendMode.Auto?new VulkanMatrixFactory(context,new()):options.MatVec is null?context:new VulkanMatrixFactory(context,options.MatVec));
+            CandidateStatistics=context.GetOffloadStatistics();CandidateResidentStatistics=weights?.Statistics;
+            if(selected is null)
+            {
+                legacy?.Dispose();residentModel?.Dispose();weights?.Dispose();context.Dispose();Model=new(path);Availability=availability;return;
+            }
+            if(selected==StoriesVulkanPath.Resident)
+            {
+                legacy?.Dispose();Model=residentModel!;_resident=weights;
+            }
+            else
+            {
+                residentModel?.Dispose();weights?.Dispose();Model=legacy!;
+            }
+            _context=context;Availability=availability;
         }
         catch(VulkanException error) when(error.Result==Result.ErrorOutOfDeviceMemory && options.Mode==StoriesBackendMode.Auto)
         {
-            context!.Dispose();
-            Availability=new(VulkanAvailabilityReason.DeviceMemoryUnavailable,error.Operation,(int)error.Result);
-            Model=new(path);
-            return;
+            legacy?.Dispose();residentModel?.Dispose();weights?.Dispose();context.Dispose();
+            Availability=new(VulkanAvailabilityReason.DeviceMemoryUnavailable,error.Operation,(int)error.Result);Model=new(path);
         }
         catch(NotSupportedException error) when(options.Mode==StoriesBackendMode.Auto)
         {
-            context!.Dispose();
-            Availability=new(VulkanAvailabilityReason.UnsupportedDevice,error.Message);
-            Model=new(path);
-            return;
+            legacy?.Dispose();residentModel?.Dispose();weights?.Dispose();context.Dispose();
+            Availability=new(VulkanAvailabilityReason.UnsupportedDevice,error.Message);Model=new(path);
         }
-        catch { context!.Dispose(); throw; }
-        if(options.Mode==StoriesBackendMode.Auto)
-        {
-            try
-            {
-                Plan ??= StoriesExecutionPlanner.Select(path,Model,identity!,options.Planner??new());
-                CandidateStatistics=context!.GetOffloadStatistics();
-                if(Plan.SelectedBackend=="CPU")
-                {
-                    Model.Dispose();context!.Dispose();Model=new(path);Availability=availability;return;
-                }
-            }
-            catch { Model.Dispose();context!.Dispose();throw; }
-        }
-        CandidateStatistics ??= context!.GetOffloadStatistics();
-        _context=context;
-        Availability=availability;
+        catch {legacy?.Dispose();residentModel?.Dispose();weights?.Dispose();context.Dispose();throw;}
     }
-
-    public void Dispose()
-    {
-        Model.Dispose();
-        _resident?.Dispose();
-        _context?.Dispose();
-    }
+    public void Dispose(){Model.Dispose();_resident?.Dispose();_context?.Dispose();}
 }

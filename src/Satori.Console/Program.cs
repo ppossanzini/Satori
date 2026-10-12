@@ -12,7 +12,7 @@ if (args.Length > 0)
         {
             if (args.Length < 3)
             {
-                Console.Error.WriteLine("Usage: Satori.Console generate <model.gguf> <prompt> [max-new-tokens] [--temperature N] [--top-k N] [--top-p N] [--seed N] [--backend cpu|auto|vulkan] [--device N] [--plan-cache path]");
+                Console.Error.WriteLine("Usage: Satori.Console generate <model.gguf> <prompt> [max-new-tokens] [--temperature N] [--top-k N] [--top-p N] [--seed N] [--backend cpu|auto|vulkan] [--device N] [--plan-cache path] [--vulkan-path matvec|resident]");
                 return 1;
             }
             var options = new StoriesGenerationOptions();
@@ -60,7 +60,7 @@ if (args.Length > 0)
             sampling.Validate();
             options = options with { Sampling = sampling };
             using var runtime = new VulkanStoriesRuntime(args[1],backend);
-            Console.Error.WriteLine($"Backend: {runtime.ActualBackend}");
+            Console.Error.WriteLine($"Backend: {runtime.ActualBackend}; path: {runtime.ActualPath?.ToString()??"CPU"}");
             if(runtime.Plan is not null) Console.Error.WriteLine($"Measured selection: {runtime.Plan.SelectedBackend}; cache: {runtime.PlanFromCache}");
             if(runtime.Availability is {Reason:not VulkanAvailabilityReason.Ready} unavailable)
                 Console.Error.WriteLine($"Vulkan unavailable: {unavailable.Reason} ({unavailable.Operation})");

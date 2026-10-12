@@ -12,7 +12,7 @@ internal static class StoriesPlannerStartupRunner
         double initializationMs=Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         using var generator=new StoriesGenerator(path,runtime.Model);
         var result=generator.Generate("",new(1));
-        Console.WriteLine(JsonSerializer.Serialize(new {runtime.ActualBackend,runtime.PlanFromCache,runtime.CandidateStatistics,runtime.CandidateDevice,Runtime=System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+        Console.WriteLine(JsonSerializer.Serialize(new {runtime.ActualBackend,runtime.ActualPath,runtime.PlanFromCache,runtime.CandidateResidentStatistics,runtime.CandidateStatistics,runtime.CandidateDevice,Runtime=System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
             InitializationMs=initializationMs,runtime.Plan,Text=result.Text,Tokens=result.Tokens}));
         return 0;
     }

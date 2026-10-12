@@ -1,0 +1,796 @@
+{
+  "fresh": {
+    "ActualBackend": "CPU",
+    "ActualPath": null,
+    "PlanFromCache": false,
+    "CandidateResidentStatistics": {
+      "Matrices": 43,
+      "WeightBytes": 16137216,
+      "TableBytes": 39552,
+      "Sessions": 0,
+      "SessionAllocationBytes": 0,
+      "CompletedAppends": 18,
+      "SubmissionCount": 18,
+      "FenceWaitCount": 18,
+      "TransferBytes": 2324736,
+      "MatVecDispatches": 774
+    },
+    "CandidateStatistics": {
+      "ResidentMatrices": 43,
+      "AllocatedBytes": 16658176,
+      "WeightAllocationBytes": 16137216,
+      "CompletedDispatches": 773,
+      "TransferBytes": 4559488,
+      "HostMilliseconds": 2898.9542999999994,
+      "KernelMilliseconds": null,
+      "HostPhases": {
+        "UploadMs": 0,
+        "RecordingMs": 0,
+        "SubmissionPreparationMs": 0,
+        "QueueSubmitMs": 0,
+        "FenceWaitMs": 0,
+        "PostWaitValidationMs": 0,
+        "QueryMs": 0,
+        "ReadbackMs": 0,
+        "OtherMs": 0
+      },
+      "PhaseSamples": 0,
+      "SubmissionCount": 773,
+      "FenceWaitCount": 773
+    },
+    "CandidateDevice": {
+      "Index": 0,
+      "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+      "Uuid": "8680557d080000000002000000000000",
+      "VendorId": 32902,
+      "DeviceId": 32085,
+      "ApiVersion": 4211042,
+      "DriverVersion": 109060100,
+      "Software": false,
+      "QueueFamily": 0,
+      "TimestampValidBits": 36,
+      "TimestampPeriod": 52.083332,
+      "MaxStorageBufferRange": 4294967295,
+      "MaxDispatchGroups": 2147483647,
+      "MaxWorkgroupInvocations": 1024,
+      "MaxPushConstantsSize": 256,
+      "MaxStorageDescriptors": 33554432,
+      "MaxMemoryAllocations": 4294967295,
+      "MaxAllocationBytes": 24804756480,
+      "StorageOffsetAlignment": 4,
+      "NonCoherentAtomSize": 64,
+      "MemoryTypeFlags": [
+        7,
+        11,
+        33,
+        7,
+        11
+      ]
+    },
+    "Runtime": ".NET 10.0.12",
+    "InitializationMs": 4979.9432,
+    "Plan": {
+      "Identity": "B43D2E6FAE5D1B754C39BE3DD34C6B49AC7CCDA64D37340193AB83F51D4DBA4B",
+      "CpuSamplesMs": [
+        8.4399,
+        8.6238,
+        7.4011,
+        8.4295,
+        7.7503
+      ],
+      "VulkanSamplesMs": [
+        327.9605,
+        287.6442,
+        385.9017,
+        401.6066,
+        393.3526
+      ],
+      "ResidentSamplesMs": [
+        158.4054,
+        145.3758,
+        141.1223,
+        149.5287,
+        115.7123
+      ],
+      "SelectedPath": null,
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    },
+    "Text": "Once",
+    "Tokens": [
+      9038
+    ]
+  },
+  "cached_cpu": {
+    "ActualBackend": "CPU",
+    "ActualPath": null,
+    "PlanFromCache": true,
+    "CandidateResidentStatistics": null,
+    "CandidateStatistics": {
+      "ResidentMatrices": 0,
+      "AllocatedBytes": 0,
+      "WeightAllocationBytes": 0,
+      "CompletedDispatches": 0,
+      "TransferBytes": 0,
+      "HostMilliseconds": 0,
+      "KernelMilliseconds": null,
+      "HostPhases": {
+        "UploadMs": 0,
+        "RecordingMs": 0,
+        "SubmissionPreparationMs": 0,
+        "QueueSubmitMs": 0,
+        "FenceWaitMs": 0,
+        "PostWaitValidationMs": 0,
+        "QueryMs": 0,
+        "ReadbackMs": 0,
+        "OtherMs": 0
+      },
+      "PhaseSamples": 0,
+      "SubmissionCount": 0,
+      "FenceWaitCount": 0
+    },
+    "CandidateDevice": {
+      "Index": 0,
+      "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+      "Uuid": "8680557d080000000002000000000000",
+      "VendorId": 32902,
+      "DeviceId": 32085,
+      "ApiVersion": 4211042,
+      "DriverVersion": 109060100,
+      "Software": false,
+      "QueueFamily": 0,
+      "TimestampValidBits": 36,
+      "TimestampPeriod": 52.083332,
+      "MaxStorageBufferRange": 4294967295,
+      "MaxDispatchGroups": 2147483647,
+      "MaxWorkgroupInvocations": 1024,
+      "MaxPushConstantsSize": 256,
+      "MaxStorageDescriptors": 33554432,
+      "MaxMemoryAllocations": 4294967295,
+      "MaxAllocationBytes": 24804756480,
+      "StorageOffsetAlignment": 4,
+      "NonCoherentAtomSize": 64,
+      "MemoryTypeFlags": [
+        7,
+        11,
+        33,
+        7,
+        11
+      ]
+    },
+    "Runtime": ".NET 10.0.12",
+    "InitializationMs": 214.8143,
+    "Plan": {
+      "Identity": "B43D2E6FAE5D1B754C39BE3DD34C6B49AC7CCDA64D37340193AB83F51D4DBA4B",
+      "CpuSamplesMs": [
+        8.4399,
+        8.6238,
+        7.4011,
+        8.4295,
+        7.7503
+      ],
+      "VulkanSamplesMs": [
+        327.9605,
+        287.6442,
+        385.9017,
+        401.6066,
+        393.3526
+      ],
+      "ResidentSamplesMs": [
+        158.4054,
+        145.3758,
+        141.1223,
+        149.5287,
+        115.7123
+      ],
+      "SelectedPath": null,
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    },
+    "Text": "Once",
+    "Tokens": [
+      9038
+    ]
+  },
+  "wrong_identity": {
+    "ActualBackend": "CPU",
+    "ActualPath": null,
+    "PlanFromCache": false,
+    "CandidateResidentStatistics": {
+      "Matrices": 43,
+      "WeightBytes": 16137216,
+      "TableBytes": 39552,
+      "Sessions": 0,
+      "SessionAllocationBytes": 0,
+      "CompletedAppends": 18,
+      "SubmissionCount": 18,
+      "FenceWaitCount": 18,
+      "TransferBytes": 2324736,
+      "MatVecDispatches": 774
+    },
+    "CandidateStatistics": {
+      "ResidentMatrices": 43,
+      "AllocatedBytes": 16658176,
+      "WeightAllocationBytes": 16137216,
+      "CompletedDispatches": 773,
+      "TransferBytes": 4559488,
+      "HostMilliseconds": 2969.2282999999993,
+      "KernelMilliseconds": null,
+      "HostPhases": {
+        "UploadMs": 0,
+        "RecordingMs": 0,
+        "SubmissionPreparationMs": 0,
+        "QueueSubmitMs": 0,
+        "FenceWaitMs": 0,
+        "PostWaitValidationMs": 0,
+        "QueryMs": 0,
+        "ReadbackMs": 0,
+        "OtherMs": 0
+      },
+      "PhaseSamples": 0,
+      "SubmissionCount": 773,
+      "FenceWaitCount": 773
+    },
+    "CandidateDevice": {
+      "Index": 0,
+      "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+      "Uuid": "8680557d080000000002000000000000",
+      "VendorId": 32902,
+      "DeviceId": 32085,
+      "ApiVersion": 4211042,
+      "DriverVersion": 109060100,
+      "Software": false,
+      "QueueFamily": 0,
+      "TimestampValidBits": 36,
+      "TimestampPeriod": 52.083332,
+      "MaxStorageBufferRange": 4294967295,
+      "MaxDispatchGroups": 2147483647,
+      "MaxWorkgroupInvocations": 1024,
+      "MaxPushConstantsSize": 256,
+      "MaxStorageDescriptors": 33554432,
+      "MaxMemoryAllocations": 4294967295,
+      "MaxAllocationBytes": 24804756480,
+      "StorageOffsetAlignment": 4,
+      "NonCoherentAtomSize": 64,
+      "MemoryTypeFlags": [
+        7,
+        11,
+        33,
+        7,
+        11
+      ]
+    },
+    "Runtime": ".NET 10.0.12",
+    "InitializationMs": 5065.0556,
+    "Plan": {
+      "Identity": "B43D2E6FAE5D1B754C39BE3DD34C6B49AC7CCDA64D37340193AB83F51D4DBA4B",
+      "CpuSamplesMs": [
+        11.1917,
+        10.1391,
+        11.5302,
+        10.0698,
+        10.7683
+      ],
+      "VulkanSamplesMs": [
+        401.7497,
+        311.7722,
+        295.7433,
+        290.1386,
+        280.9889
+      ],
+      "ResidentSamplesMs": [
+        147.8694,
+        137.2028,
+        154.7577,
+        161.0258,
+        144.0374
+      ],
+      "SelectedPath": null,
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    },
+    "Text": "Once",
+    "Tokens": [
+      9038
+    ]
+  },
+  "missing_resident_samples": {
+    "ActualBackend": "CPU",
+    "ActualPath": null,
+    "PlanFromCache": false,
+    "CandidateResidentStatistics": {
+      "Matrices": 43,
+      "WeightBytes": 16137216,
+      "TableBytes": 39552,
+      "Sessions": 0,
+      "SessionAllocationBytes": 0,
+      "CompletedAppends": 18,
+      "SubmissionCount": 18,
+      "FenceWaitCount": 18,
+      "TransferBytes": 2324736,
+      "MatVecDispatches": 774
+    },
+    "CandidateStatistics": {
+      "ResidentMatrices": 43,
+      "AllocatedBytes": 16658176,
+      "WeightAllocationBytes": 16137216,
+      "CompletedDispatches": 773,
+      "TransferBytes": 4559488,
+      "HostMilliseconds": 2686.1526999999996,
+      "KernelMilliseconds": null,
+      "HostPhases": {
+        "UploadMs": 0,
+        "RecordingMs": 0,
+        "SubmissionPreparationMs": 0,
+        "QueueSubmitMs": 0,
+        "FenceWaitMs": 0,
+        "PostWaitValidationMs": 0,
+        "QueryMs": 0,
+        "ReadbackMs": 0,
+        "OtherMs": 0
+      },
+      "PhaseSamples": 0,
+      "SubmissionCount": 773,
+      "FenceWaitCount": 773
+    },
+    "CandidateDevice": {
+      "Index": 0,
+      "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+      "Uuid": "8680557d080000000002000000000000",
+      "VendorId": 32902,
+      "DeviceId": 32085,
+      "ApiVersion": 4211042,
+      "DriverVersion": 109060100,
+      "Software": false,
+      "QueueFamily": 0,
+      "TimestampValidBits": 36,
+      "TimestampPeriod": 52.083332,
+      "MaxStorageBufferRange": 4294967295,
+      "MaxDispatchGroups": 2147483647,
+      "MaxWorkgroupInvocations": 1024,
+      "MaxPushConstantsSize": 256,
+      "MaxStorageDescriptors": 33554432,
+      "MaxMemoryAllocations": 4294967295,
+      "MaxAllocationBytes": 24804756480,
+      "StorageOffsetAlignment": 4,
+      "NonCoherentAtomSize": 64,
+      "MemoryTypeFlags": [
+        7,
+        11,
+        33,
+        7,
+        11
+      ]
+    },
+    "Runtime": ".NET 10.0.12",
+    "InitializationMs": 5018.2081,
+    "Plan": {
+      "Identity": "B43D2E6FAE5D1B754C39BE3DD34C6B49AC7CCDA64D37340193AB83F51D4DBA4B",
+      "CpuSamplesMs": [
+        10.7879,
+        8.3153,
+        7.4932,
+        8.091,
+        8.3744
+      ],
+      "VulkanSamplesMs": [
+        333.5296,
+        268.0909,
+        292.46,
+        291.5242,
+        319.4915
+      ],
+      "ResidentSamplesMs": [
+        160.7476,
+        158.7968,
+        159.1481,
+        155.8739,
+        160.0681
+      ],
+      "SelectedPath": null,
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    },
+    "Text": "Once",
+    "Tokens": [
+      9038
+    ]
+  },
+  "invalid_resident_samples": {
+    "ActualBackend": "CPU",
+    "ActualPath": null,
+    "PlanFromCache": false,
+    "CandidateResidentStatistics": {
+      "Matrices": 43,
+      "WeightBytes": 16137216,
+      "TableBytes": 39552,
+      "Sessions": 0,
+      "SessionAllocationBytes": 0,
+      "CompletedAppends": 18,
+      "SubmissionCount": 18,
+      "FenceWaitCount": 18,
+      "TransferBytes": 2324736,
+      "MatVecDispatches": 774
+    },
+    "CandidateStatistics": {
+      "ResidentMatrices": 43,
+      "AllocatedBytes": 16658176,
+      "WeightAllocationBytes": 16137216,
+      "CompletedDispatches": 773,
+      "TransferBytes": 4559488,
+      "HostMilliseconds": 2842.7244,
+      "KernelMilliseconds": null,
+      "HostPhases": {
+        "UploadMs": 0,
+        "RecordingMs": 0,
+        "SubmissionPreparationMs": 0,
+        "QueueSubmitMs": 0,
+        "FenceWaitMs": 0,
+        "PostWaitValidationMs": 0,
+        "QueryMs": 0,
+        "ReadbackMs": 0,
+        "OtherMs": 0
+      },
+      "PhaseSamples": 0,
+      "SubmissionCount": 773,
+      "FenceWaitCount": 773
+    },
+    "CandidateDevice": {
+      "Index": 0,
+      "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+      "Uuid": "8680557d080000000002000000000000",
+      "VendorId": 32902,
+      "DeviceId": 32085,
+      "ApiVersion": 4211042,
+      "DriverVersion": 109060100,
+      "Software": false,
+      "QueueFamily": 0,
+      "TimestampValidBits": 36,
+      "TimestampPeriod": 52.083332,
+      "MaxStorageBufferRange": 4294967295,
+      "MaxDispatchGroups": 2147483647,
+      "MaxWorkgroupInvocations": 1024,
+      "MaxPushConstantsSize": 256,
+      "MaxStorageDescriptors": 33554432,
+      "MaxMemoryAllocations": 4294967295,
+      "MaxAllocationBytes": 24804756480,
+      "StorageOffsetAlignment": 4,
+      "NonCoherentAtomSize": 64,
+      "MemoryTypeFlags": [
+        7,
+        11,
+        33,
+        7,
+        11
+      ]
+    },
+    "Runtime": ".NET 10.0.12",
+    "InitializationMs": 5007.5749,
+    "Plan": {
+      "Identity": "B43D2E6FAE5D1B754C39BE3DD34C6B49AC7CCDA64D37340193AB83F51D4DBA4B",
+      "CpuSamplesMs": [
+        10.7413,
+        9.5722,
+        10.0724,
+        9.6625,
+        10.135
+      ],
+      "VulkanSamplesMs": [
+        295.4257,
+        316.0929,
+        272.2522,
+        396.3704,
+        410.0012
+      ],
+      "ResidentSamplesMs": [
+        146.2794,
+        146.3449,
+        156.6079,
+        146.2269,
+        157.9376
+      ],
+      "SelectedPath": null,
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    },
+    "Text": "Once",
+    "Tokens": [
+      9038
+    ]
+  },
+  "malformed": {
+    "ActualBackend": "CPU",
+    "ActualPath": null,
+    "PlanFromCache": false,
+    "CandidateResidentStatistics": {
+      "Matrices": 43,
+      "WeightBytes": 16137216,
+      "TableBytes": 39552,
+      "Sessions": 0,
+      "SessionAllocationBytes": 0,
+      "CompletedAppends": 18,
+      "SubmissionCount": 18,
+      "FenceWaitCount": 18,
+      "TransferBytes": 2324736,
+      "MatVecDispatches": 774
+    },
+    "CandidateStatistics": {
+      "ResidentMatrices": 43,
+      "AllocatedBytes": 16658176,
+      "WeightAllocationBytes": 16137216,
+      "CompletedDispatches": 773,
+      "TransferBytes": 4559488,
+      "HostMilliseconds": 3016.2078,
+      "KernelMilliseconds": null,
+      "HostPhases": {
+        "UploadMs": 0,
+        "RecordingMs": 0,
+        "SubmissionPreparationMs": 0,
+        "QueueSubmitMs": 0,
+        "FenceWaitMs": 0,
+        "PostWaitValidationMs": 0,
+        "QueryMs": 0,
+        "ReadbackMs": 0,
+        "OtherMs": 0
+      },
+      "PhaseSamples": 0,
+      "SubmissionCount": 773,
+      "FenceWaitCount": 773
+    },
+    "CandidateDevice": {
+      "Index": 0,
+      "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+      "Uuid": "8680557d080000000002000000000000",
+      "VendorId": 32902,
+      "DeviceId": 32085,
+      "ApiVersion": 4211042,
+      "DriverVersion": 109060100,
+      "Software": false,
+      "QueueFamily": 0,
+      "TimestampValidBits": 36,
+      "TimestampPeriod": 52.083332,
+      "MaxStorageBufferRange": 4294967295,
+      "MaxDispatchGroups": 2147483647,
+      "MaxWorkgroupInvocations": 1024,
+      "MaxPushConstantsSize": 256,
+      "MaxStorageDescriptors": 33554432,
+      "MaxMemoryAllocations": 4294967295,
+      "MaxAllocationBytes": 24804756480,
+      "StorageOffsetAlignment": 4,
+      "NonCoherentAtomSize": 64,
+      "MemoryTypeFlags": [
+        7,
+        11,
+        33,
+        7,
+        11
+      ]
+    },
+    "Runtime": ".NET 10.0.12",
+    "InitializationMs": 5008.9332,
+    "Plan": {
+      "Identity": "B43D2E6FAE5D1B754C39BE3DD34C6B49AC7CCDA64D37340193AB83F51D4DBA4B",
+      "CpuSamplesMs": [
+        9.1856,
+        10.5972,
+        9.7014,
+        11.8461,
+        9.6114
+      ],
+      "VulkanSamplesMs": [
+        408.4601,
+        405.368,
+        401.1504,
+        349.9762,
+        273.4208
+      ],
+      "ResidentSamplesMs": [
+        104.537,
+        144.5752,
+        138.8367,
+        137.2906,
+        142.7993
+      ],
+      "SelectedPath": null,
+      "SelectedBackend": "CPU",
+      "SelectedKernel": "Q8_0 CPU automatic"
+    },
+    "Text": "Once",
+    "Tokens": [
+      9038
+    ]
+  },
+  "synthetic_cached_matvec": {
+    "ActualBackend": "Vulkan",
+    "ActualPath": 0,
+    "PlanFromCache": true,
+    "CandidateResidentStatistics": null,
+    "CandidateStatistics": {
+      "ResidentMatrices": 43,
+      "AllocatedBytes": 16658176,
+      "WeightAllocationBytes": 16137216,
+      "CompletedDispatches": 0,
+      "TransferBytes": 0,
+      "HostMilliseconds": 0,
+      "KernelMilliseconds": null,
+      "HostPhases": {
+        "UploadMs": 0,
+        "RecordingMs": 0,
+        "SubmissionPreparationMs": 0,
+        "QueueSubmitMs": 0,
+        "FenceWaitMs": 0,
+        "PostWaitValidationMs": 0,
+        "QueryMs": 0,
+        "ReadbackMs": 0,
+        "OtherMs": 0
+      },
+      "PhaseSamples": 0,
+      "SubmissionCount": 0,
+      "FenceWaitCount": 0
+    },
+    "CandidateDevice": {
+      "Index": 0,
+      "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+      "Uuid": "8680557d080000000002000000000000",
+      "VendorId": 32902,
+      "DeviceId": 32085,
+      "ApiVersion": 4211042,
+      "DriverVersion": 109060100,
+      "Software": false,
+      "QueueFamily": 0,
+      "TimestampValidBits": 36,
+      "TimestampPeriod": 52.083332,
+      "MaxStorageBufferRange": 4294967295,
+      "MaxDispatchGroups": 2147483647,
+      "MaxWorkgroupInvocations": 1024,
+      "MaxPushConstantsSize": 256,
+      "MaxStorageDescriptors": 33554432,
+      "MaxMemoryAllocations": 4294967295,
+      "MaxAllocationBytes": 24804756480,
+      "StorageOffsetAlignment": 4,
+      "NonCoherentAtomSize": 64,
+      "MemoryTypeFlags": [
+        7,
+        11,
+        33,
+        7,
+        11
+      ]
+    },
+    "Runtime": ".NET 10.0.12",
+    "InitializationMs": 366.1634,
+    "Plan": {
+      "Identity": "B43D2E6FAE5D1B754C39BE3DD34C6B49AC7CCDA64D37340193AB83F51D4DBA4B",
+      "CpuSamplesMs": [
+        100,
+        100,
+        100,
+        100,
+        100
+      ],
+      "VulkanSamplesMs": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "ResidentSamplesMs": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "SelectedPath": 0,
+      "SelectedBackend": "Vulkan",
+      "SelectedKernel": "Q8_0 packed/row64/SPIR-V1.3"
+    },
+    "Text": "Once",
+    "Tokens": [
+      9038
+    ]
+  },
+  "synthetic_cached_resident": {
+    "ActualBackend": "Vulkan",
+    "ActualPath": 1,
+    "PlanFromCache": true,
+    "CandidateResidentStatistics": {
+      "Matrices": 43,
+      "WeightBytes": 16137216,
+      "TableBytes": 39552,
+      "Sessions": 0,
+      "SessionAllocationBytes": 0,
+      "CompletedAppends": 0,
+      "SubmissionCount": 0,
+      "FenceWaitCount": 0,
+      "TransferBytes": 0,
+      "MatVecDispatches": 0
+    },
+    "CandidateStatistics": {
+      "ResidentMatrices": 0,
+      "AllocatedBytes": 0,
+      "WeightAllocationBytes": 0,
+      "CompletedDispatches": 0,
+      "TransferBytes": 0,
+      "HostMilliseconds": 0,
+      "KernelMilliseconds": null,
+      "HostPhases": {
+        "UploadMs": 0,
+        "RecordingMs": 0,
+        "SubmissionPreparationMs": 0,
+        "QueueSubmitMs": 0,
+        "FenceWaitMs": 0,
+        "PostWaitValidationMs": 0,
+        "QueryMs": 0,
+        "ReadbackMs": 0,
+        "OtherMs": 0
+      },
+      "PhaseSamples": 0,
+      "SubmissionCount": 0,
+      "FenceWaitCount": 0
+    },
+    "CandidateDevice": {
+      "Index": 0,
+      "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+      "Uuid": "8680557d080000000002000000000000",
+      "VendorId": 32902,
+      "DeviceId": 32085,
+      "ApiVersion": 4211042,
+      "DriverVersion": 109060100,
+      "Software": false,
+      "QueueFamily": 0,
+      "TimestampValidBits": 36,
+      "TimestampPeriod": 52.083332,
+      "MaxStorageBufferRange": 4294967295,
+      "MaxDispatchGroups": 2147483647,
+      "MaxWorkgroupInvocations": 1024,
+      "MaxPushConstantsSize": 256,
+      "MaxStorageDescriptors": 33554432,
+      "MaxMemoryAllocations": 4294967295,
+      "MaxAllocationBytes": 24804756480,
+      "StorageOffsetAlignment": 4,
+      "NonCoherentAtomSize": 64,
+      "MemoryTypeFlags": [
+        7,
+        11,
+        33,
+        7,
+        11
+      ]
+    },
+    "Runtime": ".NET 10.0.12",
+    "InitializationMs": 475.788,
+    "Plan": {
+      "Identity": "B43D2E6FAE5D1B754C39BE3DD34C6B49AC7CCDA64D37340193AB83F51D4DBA4B",
+      "CpuSamplesMs": [
+        100,
+        100,
+        100,
+        100,
+        100
+      ],
+      "VulkanSamplesMs": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "ResidentSamplesMs": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "SelectedPath": 1,
+      "SelectedBackend": "Vulkan",
+      "SelectedKernel": "Q8_0 resident/FP32/tree64-small/row64-output/v1"
+    },
+    "Text": "Once",
+    "Tokens": [
+      9038
+    ]
+  }
+}

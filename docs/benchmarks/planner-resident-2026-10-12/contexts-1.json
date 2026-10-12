@@ -1,0 +1,324 @@
+{
+  "Runtime": ".NET 10.0.12",
+  "Scope": "One context prefill excluded, three warmup appends then seven measured sequential appends. Teacher-forced 9038; positions differ within the declared range. CPU/MatVec/Resident sequential; validation and timestamps disabled.",
+  "Cases": [
+    {
+      "Path": "CPU",
+      "StartupMs": 87.698,
+      "Device": null,
+      "Contexts": [
+        {
+          "PrefixBeforeWarmup": 1,
+          "MeasuredPositions": [
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "SamplesMs": [
+            7.0801,
+            5.9948,
+            5.5511,
+            5.0257,
+            5.7544,
+            6.3985,
+            5.444
+          ],
+          "ManagedAllocatedBytes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "PrefixBeforeWarmup": 64,
+          "MeasuredPositions": [
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73
+          ],
+          "SamplesMs": [
+            4.3116,
+            4.9631,
+            3.9838,
+            3.8565,
+            3.8398,
+            4.2744,
+            4.2125
+          ],
+          "ManagedAllocatedBytes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "LegacyStatistics": null,
+      "ResidentStatistics": null
+    },
+    {
+      "Path": "MatVec",
+      "StartupMs": 273.987,
+      "Device": {
+        "Index": 0,
+        "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+        "Uuid": "8680557d080000000002000000000000",
+        "VendorId": 32902,
+        "DeviceId": 32085,
+        "ApiVersion": 4211042,
+        "DriverVersion": 109060100,
+        "Software": false,
+        "QueueFamily": 0,
+        "TimestampValidBits": 36,
+        "TimestampPeriod": 52.083332,
+        "MaxStorageBufferRange": 4294967295,
+        "MaxDispatchGroups": 2147483647,
+        "MaxWorkgroupInvocations": 1024,
+        "MaxPushConstantsSize": 256,
+        "MaxStorageDescriptors": 33554432,
+        "MaxMemoryAllocations": 4294967295,
+        "MaxAllocationBytes": 24804756480,
+        "StorageOffsetAlignment": 4,
+        "NonCoherentAtomSize": 64,
+        "MemoryTypeFlags": [
+          7,
+          11,
+          33,
+          7,
+          11
+        ]
+      },
+      "Contexts": [
+        {
+          "PrefixBeforeWarmup": 1,
+          "MeasuredPositions": [
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "SamplesMs": [
+            143.9989,
+            149.0583,
+            137.9372,
+            146.7443,
+            147.3865,
+            140.2529,
+            136.6738
+          ],
+          "ManagedAllocatedBytes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "PrefixBeforeWarmup": 64,
+          "MeasuredPositions": [
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73
+          ],
+          "SamplesMs": [
+            130.5197,
+            146.4752,
+            132.708,
+            202.1238,
+            155.1669,
+            150.5342,
+            124.262
+          ],
+          "ManagedAllocatedBytes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "LegacyStatistics": {
+        "ResidentMatrices": 43,
+        "AllocatedBytes": 16658176,
+        "WeightAllocationBytes": 16137216,
+        "CompletedDispatches": 3655,
+        "TransferBytes": 22140800,
+        "HostMilliseconds": 13501.191200000008,
+        "KernelMilliseconds": null,
+        "HostPhases": {
+          "UploadMs": 0,
+          "RecordingMs": 0,
+          "SubmissionPreparationMs": 0,
+          "QueueSubmitMs": 0,
+          "FenceWaitMs": 0,
+          "PostWaitValidationMs": 0,
+          "QueryMs": 0,
+          "ReadbackMs": 0,
+          "OtherMs": 0
+        },
+        "PhaseSamples": 0,
+        "SubmissionCount": 3655,
+        "FenceWaitCount": 3655
+      },
+      "ResidentStatistics": null
+    },
+    {
+      "Path": "Resident",
+      "StartupMs": 247.9344,
+      "Device": {
+        "Index": 0,
+        "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+        "Uuid": "8680557d080000000002000000000000",
+        "VendorId": 32902,
+        "DeviceId": 32085,
+        "ApiVersion": 4211042,
+        "DriverVersion": 109060100,
+        "Software": false,
+        "QueueFamily": 0,
+        "TimestampValidBits": 36,
+        "TimestampPeriod": 52.083332,
+        "MaxStorageBufferRange": 4294967295,
+        "MaxDispatchGroups": 2147483647,
+        "MaxWorkgroupInvocations": 1024,
+        "MaxPushConstantsSize": 256,
+        "MaxStorageDescriptors": 33554432,
+        "MaxMemoryAllocations": 4294967295,
+        "MaxAllocationBytes": 24804756480,
+        "StorageOffsetAlignment": 4,
+        "NonCoherentAtomSize": 64,
+        "MemoryTypeFlags": [
+          7,
+          11,
+          33,
+          7,
+          11
+        ]
+      },
+      "Contexts": [
+        {
+          "PrefixBeforeWarmup": 1,
+          "MeasuredPositions": [
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "SamplesMs": [
+            47.707,
+            47.3933,
+            66.7841,
+            74.9284,
+            57.8459,
+            67.6273,
+            73.7804
+          ],
+          "ManagedAllocatedBytes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "PrefixBeforeWarmup": 64,
+          "MeasuredPositions": [
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73
+          ],
+          "SamplesMs": [
+            75.7151,
+            80.8192,
+            76.9195,
+            83.0928,
+            79.7081,
+            81.657,
+            80.9252
+          ],
+          "ManagedAllocatedBytes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "LegacyStatistics": {
+        "ResidentMatrices": 0,
+        "AllocatedBytes": 0,
+        "WeightAllocationBytes": 0,
+        "CompletedDispatches": 0,
+        "TransferBytes": 0,
+        "HostMilliseconds": 0,
+        "KernelMilliseconds": null,
+        "HostPhases": {
+          "UploadMs": 0,
+          "RecordingMs": 0,
+          "SubmissionPreparationMs": 0,
+          "QueueSubmitMs": 0,
+          "FenceWaitMs": 0,
+          "PostWaitValidationMs": 0,
+          "QueryMs": 0,
+          "ReadbackMs": 0,
+          "OtherMs": 0
+        },
+        "PhaseSamples": 0,
+        "SubmissionCount": 0,
+        "FenceWaitCount": 0
+      },
+      "ResidentStatistics": {
+        "Matrices": 43,
+        "WeightBytes": 16137216,
+        "TableBytes": 39552,
+        "Sessions": 1,
+        "SessionAllocationBytes": 2038528,
+        "CompletedAppends": 85,
+        "SubmissionCount": 85,
+        "FenceWaitCount": 85,
+        "TransferBytes": 10977920,
+        "MatVecDispatches": 3655
+      }
+    }
+  ]
+}

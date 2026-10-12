@@ -13,7 +13,7 @@ internal static class StoriesExecutionPlanner
     {
         string cpu=File.Exists("/proc/cpuinfo")?string.Join('\n',File.ReadLines("/proc/cpuinfo").Where(l=>l.StartsWith("model name",StringComparison.Ordinal)||l.StartsWith("flags",StringComparison.Ordinal)).Distinct()):Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")??RuntimeInformation.ProcessArchitecture.ToString();
         string binaries=string.Join(':',new[] {typeof(StoriesModel).Assembly.Location,typeof(Satori.Core.QuantizedMatVec).Assembly.Location,typeof(StoriesExecutionPlanner).Assembly.Location}.Select(p=>Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p)))));
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"session-two-tokens-v1|{cpu}|{RuntimeInformation.OSDescription}|{RuntimeInformation.FrameworkDescription}|{System.Runtime.Intrinsics.X86.Avx2.IsSupported}|{JsonSerializer.Serialize(context.Info)}|{binaries}")));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"session-two-tokens-v2|resident-graph-fp32-tree64-small-row64-output-arena477344-v1|{cpu}|{RuntimeInformation.OSDescription}|{RuntimeInformation.FrameworkDescription}|{System.Runtime.Intrinsics.X86.Avx2.IsSupported}|{JsonSerializer.Serialize(context.Info)}|{binaries}")));
     }
 
     internal static StoriesExecutionPlan? ReadCache(string identity,StoriesPlannerOptions options)
@@ -23,27 +23,30 @@ internal static class StoriesExecutionPlanner
             try
             {
                 var saved=JsonSerializer.Deserialize<StoriesExecutionPlan>(File.ReadAllText(options.CachePath));
-                if(saved?.IsValidFor(identity)==true) return saved;
+                if(saved?.IsValidFor(identity)==true && saved.ResidentSamplesMs is not null) return saved;
             }
             catch(JsonException) { }
         }
         return null;
     }
 
-    internal static StoriesExecutionPlan Select(string path,StoriesModel gpu,string identity,StoriesPlannerOptions options)
+    internal static StoriesExecutionPlan Select(string path,StoriesModel gpu,StoriesModel resident,string identity,StoriesPlannerOptions options)
     {
         using var reference=new StoriesModel(path);
         float[] expected=new float[32000],actual=new float[32000];
-        reference.Forward([1,9038],expected);gpu.Forward([1,9038],actual);
-        double squared=0;
-        for(int i=0;i<actual.Length;i++)
+        reference.Forward([1,9038],expected);
+        foreach(var candidate in new[] {gpu,resident})
         {
-            double error=Math.Abs(actual[i]-expected[i]);
-            if(!float.IsFinite(actual[i]) || error>5e-4+5e-5*Math.Abs(expected[i])) throw new InvalidDataException("Planner CPU/GPU numerical gate failed.");
-            squared+=error*error;
+            candidate.Forward([1,9038],actual);double squared=0;
+            for(int i=0;i<actual.Length;i++)
+            {
+                double error=Math.Abs(actual[i]-expected[i]);
+                if(!float.IsFinite(actual[i]) || error>5e-4+5e-5*Math.Abs(expected[i]))throw new InvalidDataException("Planner CPU/GPU numerical gate failed.");
+                squared+=error*error;
+            }
+            if(Math.Sqrt(squared/actual.Length)>1e-4)throw new InvalidDataException("Planner CPU/GPU RMS gate failed.");
         }
-        if(Math.Sqrt(squared/actual.Length)>1e-4) throw new InvalidDataException("Planner CPU/GPU RMS gate failed.");
-        var plan=new StoriesExecutionPlan(identity,Measure(reference),Measure(gpu));
+        var plan=new StoriesExecutionPlan(identity,Measure(reference),Measure(gpu),Measure(resident));
         string full=Path.GetFullPath(options.CachePath);
         Directory.CreateDirectory(Path.GetDirectoryName(full)!);
         File.WriteAllText(full,JsonSerializer.Serialize(plan,new JsonSerializerOptions {WriteIndented=true}));

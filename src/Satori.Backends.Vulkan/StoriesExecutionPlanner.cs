@@ -9,21 +9,29 @@ namespace Satori.Backends.Vulkan;
 
 internal static class StoriesExecutionPlanner
 {
-    internal static StoriesExecutionPlan Select(string path,StoriesModel gpu,VulkanContext context,StoriesPlannerOptions options,out bool cached)
+    internal static string GetIdentity(VulkanContext context)
     {
         string cpu=File.Exists("/proc/cpuinfo")?string.Join('\n',File.ReadLines("/proc/cpuinfo").Where(l=>l.StartsWith("model name",StringComparison.Ordinal)||l.StartsWith("flags",StringComparison.Ordinal)).Distinct()):Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")??RuntimeInformation.ProcessArchitecture.ToString();
         string binaries=string.Join(':',new[] {typeof(StoriesModel).Assembly.Location,typeof(Satori.Core.QuantizedMatVec).Assembly.Location,typeof(StoriesExecutionPlanner).Assembly.Location}.Select(p=>Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p)))));
-        string identity=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"session-two-tokens-v1|{cpu}|{RuntimeInformation.OSDescription}|{RuntimeInformation.FrameworkDescription}|{System.Runtime.Intrinsics.X86.Avx2.IsSupported}|{JsonSerializer.Serialize(context.Info)}|{binaries}")));
-        cached=false;
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"session-two-tokens-v1|{cpu}|{RuntimeInformation.OSDescription}|{RuntimeInformation.FrameworkDescription}|{System.Runtime.Intrinsics.X86.Avx2.IsSupported}|{JsonSerializer.Serialize(context.Info)}|{binaries}")));
+    }
+
+    internal static StoriesExecutionPlan? ReadCache(string identity,StoriesPlannerOptions options)
+    {
         if(File.Exists(options.CachePath))
         {
             try
             {
                 var saved=JsonSerializer.Deserialize<StoriesExecutionPlan>(File.ReadAllText(options.CachePath));
-                if(saved?.IsValidFor(identity)==true) {cached=true;return saved;}
+                if(saved?.IsValidFor(identity)==true) return saved;
             }
             catch(JsonException) { }
         }
+        return null;
+    }
+
+    internal static StoriesExecutionPlan Select(string path,StoriesModel gpu,string identity,StoriesPlannerOptions options)
+    {
         using var reference=new StoriesModel(path);
         float[] expected=new float[32000],actual=new float[32000];
         reference.Forward([1,9038],expected);gpu.Forward([1,9038],actual);

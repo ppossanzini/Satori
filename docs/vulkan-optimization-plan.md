@@ -1,6 +1,6 @@
 # Piano di ottimizzazione Vulkan
 
-Stato: T32 completato; T33–T45 pianificati. Ambito: Stories15M Q8_0, singola sequenza, contesto massimo 128, Intel Arc MTL come primo hardware di verifica. CPU AVX2 resta il riferimento e il fallback di inizializzazione. Metal, ROCm, nuovi modelli, nuovi formati e batching multiutente sono esclusi.
+Stato: T32–T33 completati; T34–T45 pianificati. Ambito: Stories15M Q8_0, singola sequenza, contesto massimo 128, Intel Arc MTL come primo hardware di verifica. CPU AVX2 resta il riferimento e il fallback di inizializzazione. Metal, ROCm, nuovi modelli, nuovi formati e batching multiutente sono esclusi.
 
 ## Obiettivo e baseline
 
@@ -51,4 +51,4 @@ Fusioni QKV, gate/up, RMSNorm-MatVec, subgroup specializzati, upload zero-copy i
 
 ## Stato iniziale
 
-T32 completato: [fasi misurate e report](vulkan-call-phases.md). T33 è il prossimo task eseguibile; T34–T45 sono pianificati. Il completamento della baseline T01–T31 rimane invariato.
+T32 completato: [fasi misurate e report](vulkan-call-phases.md). T33 completato: [riuso anticipato e startup](stories15m-planner-startup.md). T34 è il prossimo task eseguibile; T35–T45 sono pianificati. Il completamento della baseline T01–T31 rimane invariato.

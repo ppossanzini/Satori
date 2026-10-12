@@ -7,6 +7,9 @@ namespace Satori.Backends.Vulkan;
 public sealed class VulkanStoriesRuntime : IDisposable
 {
     private readonly VulkanContext? _context;
+    /// <summary>Candidate allocations and completed work before returning the selected model.</summary>
+    public VulkanDeviceInfo? CandidateDevice { get; }
+    public VulkanOffloadStatistics? CandidateStatistics { get; }
     public StoriesExecutionPlan? Plan { get; }
     public bool PlanFromCache { get; }
     public StoriesModel Model { get; }
@@ -30,6 +33,25 @@ public sealed class VulkanStoriesRuntime : IDisposable
             Model=new(path);
             return;
         }
+        CandidateDevice=context!.Info;
+        string? identity=null;
+        if(options.Mode==StoriesBackendMode.Auto)
+        {
+            try
+            {
+                if(options.Vulkan?.Validation==true) throw new ArgumentException("Automatic timing selection requires validation disabled.",nameof(options));
+                identity=StoriesExecutionPlanner.GetIdentity(context!);
+                Plan=StoriesExecutionPlanner.ReadCache(identity,options.Planner??new());
+                PlanFromCache=Plan is not null;
+                if(Plan?.SelectedBackend=="CPU")
+                {
+                    CandidateStatistics=context!.GetOffloadStatistics();
+                    context.Dispose();
+                    Model=new(path);Availability=availability;return;
+                }
+            }
+            catch { context!.Dispose();throw; }
+        }
         try { Model=new(path,options.MatVec is null?context:new VulkanMatrixFactory(context!,options.MatVec)); }
         catch(VulkanException error) when(error.Result==Result.ErrorOutOfDeviceMemory && options.Mode==StoriesBackendMode.Auto)
         {
@@ -50,9 +72,8 @@ public sealed class VulkanStoriesRuntime : IDisposable
         {
             try
             {
-                if(options.Vulkan?.Validation==true) throw new ArgumentException("Automatic timing selection requires validation disabled.",nameof(options));
-                Plan=StoriesExecutionPlanner.Select(path,Model,context!,options.Planner??new(),out bool cached);
-                PlanFromCache=cached;
+                Plan ??= StoriesExecutionPlanner.Select(path,Model,identity!,options.Planner??new());
+                CandidateStatistics=context!.GetOffloadStatistics();
                 if(Plan.SelectedBackend=="CPU")
                 {
                     Model.Dispose();context!.Dispose();Model=new(path);Availability=availability;return;
@@ -60,6 +81,7 @@ public sealed class VulkanStoriesRuntime : IDisposable
             }
             catch { Model.Dispose();context!.Dispose();throw; }
         }
+        CandidateStatistics ??= context!.GetOffloadStatistics();
         _context=context;
         Availability=availability;
     }

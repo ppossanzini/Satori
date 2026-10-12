@@ -1,0 +1,22 @@
+{
+  "required": {
+    "ExitCode": 0,
+    "Stdout": "Once\n",
+    "Stderr": "Backend: Vulkan\nTokenLimit; prompt: 1; generated: 1\n"
+  },
+  "unavailable_auto": {
+    "ExitCode": 0,
+    "Stdout": "Once\n",
+    "Stderr": "Backend: CPU\nVulkan unavailable: InitializationFailed (CreateInstance)\nTokenLimit; prompt: 1; generated: 1\n"
+  },
+  "unavailable_required": {
+    "ExitCode": 1,
+    "Stdout": "",
+    "Stderr": "Vulkan required: InitializationFailed (CreateInstance).\n"
+  },
+  "invalid_model": {
+    "ExitCode": 1,
+    "Stdout": "",
+    "Stderr": "Expected the pinned Stories15M Q8_0 artifact.\n"
+  }
+}

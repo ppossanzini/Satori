@@ -12,7 +12,7 @@ The representative short prefix measures this model's decode-dominated path. It 
 
 Only matching identities with exactly five finite positive samples per backend are reused. Malformed JSON, missing samples, zero/negative/nonfinite timings and identity mismatches require fresh calibration. The selected backend is recalculated from samples; a serialized choice does not override the policy. Cache files are derived local performance state, not trusted configuration for arbitrary model execution. File-access failures propagate; they are not silently hidden by CPU fallback. An interrupted cache write producing invalid JSON is recalibrated on the next run.
 
-A cache hit skips calibration, but currently still initializes Vulkan and uploads candidate weights before selection. If CPU wins, candidate resources are released and the returned model is CPU-only. Cold startup therefore still has GPU initialization/upload overhead; cache reuse does not promise zero GPU work. Runtime execution failures retain the fail-closed behavior documented in [offload](stories15m-vulkan-offload.md).
+T33 reads a matching cache after device identification and before constructing resident GPU weights. A cached CPU choice releases the context and opens the CPU model with zero candidate matrices/uploads; cached GPU choices still construct their matrices. Missing or invalid caches still calibrate. Device/context initialization remains necessary to validate identity. [Startup measurements and resource evidence](stories15m-planner-startup.md). Runtime execution failures retain the fail-closed behavior documented in [offload](stories15m-vulkan-offload.md).
 
 ## Verification
 

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Satori.Backends.Vulkan;
 using Satori.Core;
 using Satori.Validation;
+using Satori.Formats.Gguf;
 
 namespace Satori.Vulkan.Tests;
 
@@ -52,6 +53,27 @@ public sealed class VulkanTransformerTests
             x=Enumerable.Range(0,288).Select(i=>(i%31-15)/8f).ToArray();var expected=x.ToArray();
             TransformerOps.Rope(expected,48,position);ops.Rope(x,position);Compare(x,expected);
         }
+        context.Dispose();Assert.Equal(0,context.ValidationErrorCount);
+    }
+    [Fact]
+    public void SwiGluMatchesFixtureExtremesAndRealFeedForwardBlock()
+    {
+        using var context=Create();using var fixture=Fixture();
+        using var file=new GgufFile(Path.Combine(AppContext.BaseDirectory,"../../../../../.temp/gguf-corpus/stories15M-q8_0.gguf"));
+        var weights=new GgufFloatVector(file,"blk.0.ffn_norm.weight");
+        using var ops=new VulkanTransformerOperators(context,weights.Values);
+        float[] gate=Input(fixture,"gate"),up=Input(fixture,"up"),actual=new float[gate.Length];
+        ops.SwiGlu(gate,up,actual);Compare(actual,Input(fixture,"swiglu"));
+        gate=[-1000,-100,-10,-1,0,1,10,1000];up=Enumerable.Repeat(1f,8).ToArray();
+        float[] expected=new float[8];TransformerOps.SwiGlu(gate,up,expected);ops.SwiGlu(gate,up,gate);Compare(gate,expected);
+        var g=new GgufQuantizedMatrix(file,"blk.0.ffn_gate.weight");var u=new GgufQuantizedMatrix(file,"blk.0.ffn_up.weight");var d=new GgufQuantizedMatrix(file,"blk.0.ffn_down.weight");
+        using var gg=g.CreateExecution(context);using var ug=u.CreateExecution(context);using var dg=d.CreateExecution(context);
+        float[] x=Enumerable.Range(0,288).Select(i=>(i%17-8)/16f).ToArray(),norm=new float[288],cpuNorm=new float[288];
+        ops.RmsNorm(x,norm);TransformerOps.RmsNorm(x,weights.Values,1e-5f,cpuNorm);
+        gate=new float[768];up=new float[768];float[] cg=new float[768],cu=new float[768];
+        gg.Execute(norm,gate);ug.Execute(norm,up);g.Execute(cpuNorm,cg);u.Execute(cpuNorm,cu);
+        ops.SwiGlu(gate,up,gate);TransformerOps.SwiGlu(cg,cu,cg);
+        actual=new float[288];expected=new float[288];dg.Execute(gate,actual);d.Execute(cg,expected);Compare(actual,expected);
         context.Dispose();Assert.Equal(0,context.ValidationErrorCount);
     }
 }

@@ -283,3 +283,9 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Added in-place paired RoPE using the immutable host-computed rotation table. Independent fixture and profile positions 0,1,31,63,127 pass unchanged operator tolerances. Two operator tests pass with zero SyncVal errors; build without warnings/errors. Production recording performs no readback.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## T39 — Implement resident SwiGLU recording (completed)
+
+Added sign-stable FP32 SwiGLU and exact gate alias. Independent fixture, extreme signed gates and real feed-forward block pass unchanged tolerances. Three operator tests pass under SyncVal; build without warnings/errors. No activation approximation or intermediate readback in recording.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.

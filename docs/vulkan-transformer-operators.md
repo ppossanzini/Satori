@@ -7,3 +7,5 @@ RMSNorm uses a 64-lane tree reduction and epsilon 1e-5. One critical hardware te
 Context owns the lifetime of registered graphs. Disposing a context releases descriptors, arena and mapped staging before the device. Explicit graph disposal removes its registration; repeated disposal is safe. Shared model tables are introduced at layer composition. [Resident contract](adr/current/vulkan-resident.md).
 
 RoPE uses a host-double sin/cos table rounded to FP32, with disjoint in-place pairs and head dimension 48. Independent fixture position 37 and all 288 channels at positions 0/1/31/63/127 pass the unchanged operator tolerance; two operator tests pass with zero SyncVal errors. No components outside the uploaded/readback vector are exposed.
+
+SwiGLU uses exp(-abs(x)) for a sign-stable sigmoid, with exact gate alias supported. Independent fixture, zero and ±1000 gates, and the first real feed-forward block (GPU RMSNorm, gate/up projections, SwiGLU and down projection) pass unchanged tolerances. Three operator tests pass with zero SyncVal errors. Recording retains gate/up on device; standalone verification transfers are excluded from productive graph composition.

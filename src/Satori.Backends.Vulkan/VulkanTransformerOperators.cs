@@ -46,5 +46,19 @@ public sealed class VulkanTransformerOperators : IDisposable
             _graph.Context.SubmitAndWait();_graph.Readback.Read(vector);
         }
     }
+    public void SwiGlu(ReadOnlySpan<float> gate,ReadOnlySpan<float> up,Span<float> output) => Binary(2,gate,up,output);
+    private void Binary(uint op,ReadOnlySpan<float> left,ReadOnlySpan<float> right,Span<float> output)
+    {
+        lock(_graph.Context.Sync)
+        {
+            _graph.EnsureReady();
+            if(left.IsEmpty || left.Length>768 || right.Length!=left.Length || output.Length!=left.Length)throw new ArgumentException("Operator dimensions differ.");
+            if(left.Overlaps(output,out int lo) && lo!=0 || right.Overlaps(output,out int ro) && ro!=0)throw new ArgumentException("Partial overlap.");
+            left.CopyTo(_host);right.CopyTo(_host.AsSpan(768));_graph.Upload.Write(_host.AsSpan(0,768+right.Length));
+            _graph.Context.BeginCommands();_graph.RecordUpload(0,(uint)(768+right.Length));
+            _graph.Record(op,0,768,0,(uint)left.Length);_graph.RecordDownload(0,(uint)left.Length);
+            _graph.Context.SubmitAndWait();_graph.Readback.Read(output);
+        }
+    }
     public void Dispose() => _graph.Dispose();
 }

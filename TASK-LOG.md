@@ -277,3 +277,9 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Added immutable FP32 pipeline descriptors, owned arena/staging with context lifetime registration, and RMSNorm recording plus synchronous facade. Independent fixture, zeros, profile ranges and RMSNorm-to-Q8 FP64 checks pass with SyncVal; build has zero warnings/errors. Operator tolerance unchanged. docs/vulkan-transformer-operators.md documents scope and lifecycle.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## T38 — Implement resident RoPE recording (completed)
+
+Added in-place paired RoPE using the immutable host-computed rotation table. Independent fixture and profile positions 0,1,31,63,127 pass unchanged operator tolerances. Two operator tests pass with zero SyncVal errors; build without warnings/errors. Production recording performs no readback.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.

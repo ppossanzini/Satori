@@ -34,5 +34,17 @@ public sealed class VulkanTransformerOperators : IDisposable
             _graph.Context.SubmitAndWait();_graph.Readback.Read(output);
         }
     }
+    public void Rope(Span<float> vector,int position)
+    {
+        lock(_graph.Context.Sync)
+        {
+            _graph.EnsureReady();
+            if(vector.IsEmpty || vector.Length>768 || vector.Length%48!=0 || (uint)position>=128)throw new ArgumentOutOfRangeException(nameof(position));
+            vector.CopyTo(_host);_graph.Upload.Write(_host.AsSpan(0,vector.Length));
+            _graph.Context.BeginCommands();_graph.RecordUpload(0,(uint)vector.Length);
+            _graph.Record(1,0,0,0,(uint)vector.Length,(uint)position,table:(uint)_width);_graph.RecordDownload(0,(uint)vector.Length);
+            _graph.Context.SubmitAndWait();_graph.Readback.Read(vector);
+        }
+    }
     public void Dispose() => _graph.Dispose();
 }

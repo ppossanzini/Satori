@@ -14,4 +14,13 @@ void main() {
         float scale=inversesqrt(sums[0]/float(p.n)+1e-5);
         for(uint i=lane;i<p.n;i+=64) v[p.c+i]=(v[p.a+i]*scale)*t[p.b+i];
     }
+    if(p.op==1) {
+        for(uint i=lane*2;i<p.n;i+=128) {
+            uint pair=(i%48)/2;
+            float sn=t[p.table+(p.position*24+pair)*2], cs=t[p.table+(p.position*24+pair)*2+1];
+            float x=v[p.a+i], y=v[p.a+i+1];
+            precise float xr=x*cs-y*sn, yr=x*sn+y*cs;
+            v[p.a+i]=xr;v[p.a+i+1]=yr;
+        }
+    }
 }

@@ -41,4 +41,17 @@ public sealed class VulkanTransformerTests
         }
         context.Dispose();Assert.Equal(0,context.ValidationErrorCount);
     }
+    [Fact]
+    public void RopeMatchesIndependentFixtureAndContextBoundaryPositions()
+    {
+        using var context=Create();using var fixture=Fixture();
+        using var ops=new VulkanTransformerOperators(context,Enumerable.Repeat(1f,288).ToArray());
+        float[] x=Input(fixture,"x");ops.Rope(x,37);Compare(x,Input(fixture,"rope"));
+        foreach(int position in new[] {0,1,31,63,127})
+        {
+            x=Enumerable.Range(0,288).Select(i=>(i%31-15)/8f).ToArray();var expected=x.ToArray();
+            TransformerOps.Rope(expected,48,position);ops.Rope(x,position);Compare(x,expected);
+        }
+        context.Dispose();Assert.Equal(0,context.ValidationErrorCount);
+    }
 }

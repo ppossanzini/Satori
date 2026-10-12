@@ -1,0 +1,10 @@
+{
+  "model_sha256": "2eda49203f2f044f3dddf29a7dd7cc861ef5a0340f518a19613d73ba6d9c06b6",
+  "source": "https://huggingface.co/ggml-org/tiny-llamas/blob/99dd1a73db5a37100bd4ae633f4cfce6560e1567/stories15M-q8_0.gguf",
+  "official_revision": "efe3626b119ff81033e309c3ba07a770bef2c546",
+  "official_source_sha256": "e772949cb8ad204f87845cb5e18f11e8a419fdb872e5f645012e5b6a9f84588f",
+  "files": {
+    "tools/tokenizer_fixture.py": "64d4b1751994e06e7dda2c67079da314fc930127a3204837ff3a1debd4c3004f",
+    "fixtures/models/stories15m-q8-v1/tokenizer.gguf": "5ab0f140a4c4764f5bad91808219f93126d862fed41a3f5603153bf7105896fb"
+  }
+}

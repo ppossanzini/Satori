@@ -55,3 +55,7 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Task-owned temporary workspace and regenerated measurements
+.temp/
+reports/

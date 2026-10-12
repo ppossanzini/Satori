@@ -1,0 +1,110 @@
+[
+  {
+    "Size": 1024,
+    "BlockSize": 64,
+    "PackedBytes": 327680,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 7554.555927083333,
+    "StandardDeviationMicroseconds": 159.1867492568837,
+    "EffectiveWeightGBPerSecond": 0.04337515046056597,
+    "MatVecPerSecond": 132.37045428639516,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Size": 1024,
+    "BlockSize": 128,
+    "PackedBytes": 294912,
+    "BytesPerWeight": 0.28125,
+    "MeanMicroseconds": 9151.02496875,
+    "StandardDeviationMicroseconds": 536.3241978825097,
+    "EffectiveWeightGBPerSecond": 0.03222720963029828,
+    "MatVecPerSecond": 109.27737640482,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Size": 1024,
+    "BlockSize": 256,
+    "PackedBytes": 278528,
+    "BytesPerWeight": 0.265625,
+    "MeanMicroseconds": 11062.578145833333,
+    "StandardDeviationMicroseconds": 1117.5776407789176,
+    "EffectiveWeightGBPerSecond": 0.02517749446180466,
+    "MatVecPerSecond": 90.39484167410335,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Size": 2048,
+    "BlockSize": 64,
+    "PackedBytes": 1310720,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 39999.241583333336,
+    "StandardDeviationMicroseconds": 1630.4953860610187,
+    "EffectiveWeightGBPerSecond": 0.03276862130671356,
+    "MatVecPerSecond": 25.00047401940427,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Size": 2048,
+    "BlockSize": 128,
+    "PackedBytes": 1179648,
+    "BytesPerWeight": 0.28125,
+    "MeanMicroseconds": 31004.33816666667,
+    "StandardDeviationMicroseconds": 1106.7083331328013,
+    "EffectiveWeightGBPerSecond": 0.038047836843305406,
+    "MatVecPerSecond": 32.25355092646739,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Size": 2048,
+    "BlockSize": 256,
+    "PackedBytes": 1114112,
+    "BytesPerWeight": 0.265625,
+    "MeanMicroseconds": 30372.020904761906,
+    "StandardDeviationMicroseconds": 564.1375171080756,
+    "EffectiveWeightGBPerSecond": 0.036682182048193006,
+    "MatVecPerSecond": 32.925039895623605,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Size": 4096,
+    "BlockSize": 64,
+    "PackedBytes": 5242880,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 162336.478,
+    "StandardDeviationMicroseconds": 9078.280722693311,
+    "EffectiveWeightGBPerSecond": 0.032296376418860094,
+    "MatVecPerSecond": 6.160044940731066,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Size": 4096,
+    "BlockSize": 128,
+    "PackedBytes": 4718592,
+    "BytesPerWeight": 0.28125,
+    "MeanMicroseconds": 179408.76133333336,
+    "StandardDeviationMicroseconds": 3867.101143515299,
+    "EffectiveWeightGBPerSecond": 0.026300789130543463,
+    "MatVecPerSecond": 5.573863798892437,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Size": 4096,
+    "BlockSize": 256,
+    "PackedBytes": 4456448,
+    "BytesPerWeight": 0.265625,
+    "MeanMicroseconds": 161492.544,
+    "StandardDeviationMicroseconds": 7047.661407483478,
+    "EffectiveWeightGBPerSecond": 0.02759537926407302,
+    "MatVecPerSecond": 6.192236342502599,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  }
+]

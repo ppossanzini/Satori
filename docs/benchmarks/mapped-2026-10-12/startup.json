@@ -1,0 +1,74 @@
+[
+  {
+    "Size": 1024,
+    "BlockSize": 64,
+    "Trial": 1,
+    "OpenAndValidateMilliseconds": 4.509,
+    "FirstMatVecAfterValidationMicroseconds": 768,
+    "MatchesOwned": true
+  },
+  {
+    "Size": 1024,
+    "BlockSize": 64,
+    "Trial": 2,
+    "OpenAndValidateMilliseconds": 1.5067,
+    "FirstMatVecAfterValidationMicroseconds": 227.6,
+    "MatchesOwned": true
+  },
+  {
+    "Size": 1024,
+    "BlockSize": 64,
+    "Trial": 3,
+    "OpenAndValidateMilliseconds": 1.4778,
+    "FirstMatVecAfterValidationMicroseconds": 215.3,
+    "MatchesOwned": true
+  },
+  {
+    "Size": 2048,
+    "BlockSize": 64,
+    "Trial": 1,
+    "OpenAndValidateMilliseconds": 6.126,
+    "FirstMatVecAfterValidationMicroseconds": 1037.2,
+    "MatchesOwned": true
+  },
+  {
+    "Size": 2048,
+    "BlockSize": 64,
+    "Trial": 2,
+    "OpenAndValidateMilliseconds": 5.9057,
+    "FirstMatVecAfterValidationMicroseconds": 903.4,
+    "MatchesOwned": true
+  },
+  {
+    "Size": 2048,
+    "BlockSize": 64,
+    "Trial": 3,
+    "OpenAndValidateMilliseconds": 5.8911,
+    "FirstMatVecAfterValidationMicroseconds": 873.6,
+    "MatchesOwned": true
+  },
+  {
+    "Size": 4096,
+    "BlockSize": 64,
+    "Trial": 1,
+    "OpenAndValidateMilliseconds": 25.7443,
+    "FirstMatVecAfterValidationMicroseconds": 3836.9,
+    "MatchesOwned": true
+  },
+  {
+    "Size": 4096,
+    "BlockSize": 64,
+    "Trial": 2,
+    "OpenAndValidateMilliseconds": 25.9543,
+    "FirstMatVecAfterValidationMicroseconds": 3730.7,
+    "MatchesOwned": true
+  },
+  {
+    "Size": 4096,
+    "BlockSize": 64,
+    "Trial": 3,
+    "OpenAndValidateMilliseconds": 25.9885,
+    "FirstMatVecAfterValidationMicroseconds": 3785.1,
+    "MatchesOwned": true
+  }
+]

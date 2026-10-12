@@ -1,0 +1,80 @@
+[
+  {
+    "Kernel": "OwnedAuto",
+    "Size": 1024,
+    "BlockSize": 64,
+    "PackedBytes": 327680,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 228.00085098870056,
+    "StandardDeviationMicroseconds": 1.020432743302245,
+    "EffectiveWeightGBPerSecond": 1.4371876182876153,
+    "MatVecPerSecond": 4385.9485421374975,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Kernel": "MappedAuto",
+    "Size": 1024,
+    "BlockSize": 64,
+    "PackedBytes": 327680,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 233.57504148065476,
+    "StandardDeviationMicroseconds": 2.5805880659464018,
+    "EffectiveWeightGBPerSecond": 1.4028896149297665,
+    "MatVecPerSecond": 4281.279342437032,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Kernel": "OwnedAuto",
+    "Size": 2048,
+    "BlockSize": 64,
+    "PackedBytes": 1310720,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 938.6690583333333,
+    "StandardDeviationMicroseconds": 5.878244598660738,
+    "EffectiveWeightGBPerSecond": 1.396360078521462,
+    "MatVecPerSecond": 1065.3381946727463,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Kernel": "MappedAuto",
+    "Size": 2048,
+    "BlockSize": 64,
+    "PackedBytes": 1310720,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 942.3587770833333,
+    "StandardDeviationMicroseconds": 2.628122740053853,
+    "EffectiveWeightGBPerSecond": 1.390892759609849,
+    "MatVecPerSecond": 1061.1669613722604,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Kernel": "OwnedAuto",
+    "Size": 4096,
+    "BlockSize": 64,
+    "PackedBytes": 5242880,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 3759.7042369791666,
+    "StandardDeviationMicroseconds": 32.32185380554215,
+    "EffectiveWeightGBPerSecond": 1.3944926700437825,
+    "MatVecPerSecond": 265.97836876750614,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  },
+  {
+    "Kernel": "MappedAuto",
+    "Size": 4096,
+    "BlockSize": 64,
+    "PackedBytes": 5242880,
+    "BytesPerWeight": 0.3125,
+    "MeanMicroseconds": 3750.947796875,
+    "StandardDeviationMicroseconds": 39.3350556310935,
+    "EffectiveWeightGBPerSecond": 1.3977480583355393,
+    "MatVecPerSecond": 266.59928480826176,
+    "AllocatedBytesPerOperation": 0,
+    "Success": true
+  }
+]

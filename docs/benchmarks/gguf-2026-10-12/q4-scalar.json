@@ -1,0 +1,33 @@
+{
+  "Passed": true,
+  "TensorCount": 57,
+  "Results": [
+    {
+      "Name": "blk.0.attn_q.weight",
+      "Rows": 288,
+      "columns": 288,
+      "Format": 1,
+      "MaximumErrorOverBound": 0,
+      "AllocatedBytesPerOperation": 0,
+      "ScalarMicroseconds": 99.14500000000001
+    },
+    {
+      "Name": "blk.0.ffn_gate.weight",
+      "Rows": 768,
+      "columns": 288,
+      "Format": 1,
+      "MaximumErrorOverBound": 0,
+      "AllocatedBytesPerOperation": 0,
+      "ScalarMicroseconds": 241.00500000000002
+    },
+    {
+      "Name": "blk.0.ffn_down.weight",
+      "Rows": 288,
+      "columns": 768,
+      "Format": 1,
+      "MaximumErrorOverBound": 0,
+      "AllocatedBytesPerOperation": 0,
+      "ScalarMicroseconds": 233.635
+    }
+  ]
+}

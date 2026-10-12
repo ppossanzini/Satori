@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Satori.Benchmarks.GgufBenchmarks-20261012-153443</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, Arch Linux
+Intel Core Ultra 7 155H, 1 CPU, 22 logical and 16 physical cores
+.NET SDK 10.0.112
+  [Host] : .NET 10.0.12 (42.42.42.42424), X64 RyuJIT AVX2
+</code></pre>
+<pre><code>Job=GgufWarm  Toolchain=InProcessEmitToolchain  IterationCount=3  
+IterationTime=200ms  LaunchCount=1  WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method</th><th>Format</th><th>Tensor        </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>Scalar</td><td>q4_0</td><td>blk.0.attn_q.weight</td><td>231.98 &mu;s</td><td>804.28 &mu;s</td><td>44.085 &mu;s</td><td>1.02</td><td>0.23</td><td>-</td><td>NA</td>
+</tr><tr><td>Avx2OrScalar</td><td>q4_0</td><td>blk.0.attn_q.weight</td><td>25.80 &mu;s</td><td>19.02 &mu;s</td><td>1.042 &mu;s</td><td>0.11</td><td>0.02</td><td>-</td><td>NA</td>
+</tr><tr><td>Scalar</td><td>q4_0</td><td>blk.0(...)eight [21]</td><td>299.80 &mu;s</td><td>182.29 &mu;s</td><td>9.992 &mu;s</td><td>1.00</td><td>0.04</td><td>-</td><td>NA</td>
+</tr><tr><td>Avx2OrScalar</td><td>q4_0</td><td>blk.0(...)eight [21]</td><td>61.76 &mu;s</td><td>70.43 &mu;s</td><td>3.861 &mu;s</td><td>0.21</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Scalar</td><td>q4_0</td><td>blk.0(...)eight [21]</td><td>296.49 &mu;s</td><td>52.05 &mu;s</td><td>2.853 &mu;s</td><td>1.00</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Avx2OrScalar</td><td>q4_0</td><td>blk.0(...)eight [21]</td><td>52.00 &mu;s</td><td>62.26 &mu;s</td><td>3.413 &mu;s</td><td>0.18</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Scalar</td><td>q8_0</td><td>blk.0.attn_q.weight</td><td>122.95 &mu;s</td><td>36.23 &mu;s</td><td>1.986 &mu;s</td><td>1.00</td><td>0.02</td><td>-</td><td>NA</td>
+</tr><tr><td>Avx2OrScalar</td><td>q8_0</td><td>blk.0.attn_q.weight</td><td>23.89 &mu;s</td><td>27.81 &mu;s</td><td>1.524 &mu;s</td><td>0.19</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Scalar</td><td>q8_0</td><td>blk.0(...)eight [21]</td><td>324.22 &mu;s</td><td>117.10 &mu;s</td><td>6.418 &mu;s</td><td>1.00</td><td>0.02</td><td>-</td><td>NA</td>
+</tr><tr><td>Avx2OrScalar</td><td>q8_0</td><td>blk.0(...)eight [21]</td><td>71.28 &mu;s</td><td>70.47 &mu;s</td><td>3.863 &mu;s</td><td>0.22</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Scalar</td><td>q8_0</td><td>blk.0(...)eight [21]</td><td>342.36 &mu;s</td><td>161.23 &mu;s</td><td>8.837 &mu;s</td><td>1.00</td><td>0.03</td><td>-</td><td>NA</td>
+</tr><tr><td>Avx2OrScalar</td><td>q8_0</td><td>blk.0(...)eight [21]</td><td>67.66 &mu;s</td><td>15.64 &mu;s</td><td>0.857 &mu;s</td><td>0.20</td><td>0.00</td><td>-</td><td>NA</td>
+</tr></tbody></table>
+</body>
+</html>

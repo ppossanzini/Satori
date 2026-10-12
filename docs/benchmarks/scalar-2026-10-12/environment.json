@@ -1,0 +1,12 @@
+{
+  "TimestampUtc": "2026-10-12T12:39:32.3560847+00:00",
+  "Runtime": ".NET 10.0.12",
+  "OS": "Arch Linux",
+  "Architecture": "X64",
+  "LogicalProcessors": 22,
+  "Avx2": true,
+  "CorpusVersion": 1,
+  "Seed": 1729,
+  "Kernel": "Ternary2 scalar v1",
+  "Mode": "Warm, single-thread, in-process; quantization and setup excluded"
+}

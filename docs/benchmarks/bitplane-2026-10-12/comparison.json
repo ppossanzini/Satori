@@ -1,0 +1,182 @@
+[
+  {
+    "run": "run1",
+    "parameters": "Size=1024&BlockSize=64",
+    "ternary2_scalar_ms": 9.857484072916666,
+    "bitplane_scalar_ms": 8.294075802083333,
+    "ternary2_auto_ms": 0.28785299512411344,
+    "bitplane_auto_ms": 0.3535308865740741,
+    "bitplane_simd_speedup": 23.46068226869197,
+    "bitplane_over_ternary2_simd": 1.2281646971282767
+  },
+  {
+    "run": "run1",
+    "parameters": "Size=1024&BlockSize=128",
+    "ternary2_scalar_ms": 8.972955015625,
+    "bitplane_scalar_ms": 8.167727854166667,
+    "ternary2_auto_ms": 0.31901487738715273,
+    "bitplane_auto_ms": 0.3313793746408046,
+    "bitplane_simd_speedup": 24.647665121041392,
+    "bitplane_over_ternary2_simd": 1.0387583718819684
+  },
+  {
+    "run": "run1",
+    "parameters": "Size=1024&BlockSize=256",
+    "ternary2_scalar_ms": 9.26461271875,
+    "bitplane_scalar_ms": 8.264650302083332,
+    "ternary2_auto_ms": 0.34916368858506946,
+    "bitplane_auto_ms": 0.3134969378255208,
+    "bitplane_simd_speedup": 26.362778403542457,
+    "bitplane_over_ternary2_simd": 0.8978509165598447
+  },
+  {
+    "run": "run1",
+    "parameters": "Size=2048&BlockSize=64",
+    "ternary2_scalar_ms": 33.8699835,
+    "bitplane_scalar_ms": 35.98374694444445,
+    "ternary2_auto_ms": 1.269538107007576,
+    "bitplane_auto_ms": 1.2181180260416666,
+    "bitplane_simd_speedup": 29.540443680466147,
+    "bitplane_over_ternary2_simd": 0.9594970165274429
+  },
+  {
+    "run": "run1",
+    "parameters": "Size=2048&BlockSize=128",
+    "ternary2_scalar_ms": 37.85311033333333,
+    "bitplane_scalar_ms": 34.086345944444446,
+    "ternary2_auto_ms": 1.0890837206439394,
+    "bitplane_auto_ms": 1.1655018828125,
+    "bitplane_simd_speedup": 29.24606682075012,
+    "bitplane_over_ternary2_simd": 1.070167389999528
+  },
+  {
+    "run": "run1",
+    "parameters": "Size=2048&BlockSize=256",
+    "ternary2_scalar_ms": 45.143518222222234,
+    "bitplane_scalar_ms": 30.786990944444447,
+    "ternary2_auto_ms": 1.1192257636217948,
+    "bitplane_auto_ms": 1.2053689886363634,
+    "bitplane_simd_speedup": 25.54154888228362,
+    "bitplane_over_ternary2_simd": 1.076966799563129
+  },
+  {
+    "run": "run1",
+    "parameters": "Size=4096&BlockSize=64",
+    "ternary2_scalar_ms": 142.681687,
+    "bitplane_scalar_ms": 130.488051,
+    "ternary2_auto_ms": 8.439455177083333,
+    "bitplane_auto_ms": 5.377484125,
+    "bitplane_simd_speedup": 24.265632025459492,
+    "bitplane_over_ternary2_simd": 0.637183800632312
+  },
+  {
+    "run": "run1",
+    "parameters": "Size=4096&BlockSize=128",
+    "ternary2_scalar_ms": 151.07276833333336,
+    "bitplane_scalar_ms": 117.09470966666667,
+    "ternary2_auto_ms": 3.7447894557291663,
+    "bitplane_auto_ms": 3.7613852916666666,
+    "bitplane_simd_speedup": 31.13074056148662,
+    "bitplane_over_ternary2_simd": 1.0044317140212276
+  },
+  {
+    "run": "run1",
+    "parameters": "Size=4096&BlockSize=256",
+    "ternary2_scalar_ms": 114.947332,
+    "bitplane_scalar_ms": 113.23298133333333,
+    "ternary2_auto_ms": 3.640902359375,
+    "bitplane_auto_ms": 4.044567955729167,
+    "bitplane_simd_speedup": 27.996310748824925,
+    "bitplane_over_ternary2_simd": 1.110869657164731
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=1024&BlockSize=64",
+    "ternary2_scalar_ms": 6.863251223958333,
+    "bitplane_scalar_ms": 7.782624989583333,
+    "ternary2_auto_ms": 0.33152119855442175,
+    "bitplane_auto_ms": 0.29059441006097564,
+    "bitplane_simd_speedup": 26.781743626624817,
+    "bitplane_over_ternary2_simd": 0.8765485022619823
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=1024&BlockSize=128",
+    "ternary2_scalar_ms": 7.9764253125,
+    "bitplane_scalar_ms": 7.364563666666667,
+    "ternary2_auto_ms": 0.24129350192901236,
+    "bitplane_auto_ms": 0.2842046807065217,
+    "bitplane_simd_speedup": 25.912886615233255,
+    "bitplane_over_ternary2_simd": 1.177838103531415
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=1024&BlockSize=256",
+    "ternary2_scalar_ms": 7.876364286458333,
+    "bitplane_scalar_ms": 8.047006723958333,
+    "ternary2_auto_ms": 0.258231912109375,
+    "bitplane_auto_ms": 0.2813742455357143,
+    "bitplane_simd_speedup": 28.598945538307778,
+    "bitplane_over_ternary2_simd": 1.0896184102007394
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=2048&BlockSize=64",
+    "ternary2_scalar_ms": 30.864514722222225,
+    "bitplane_scalar_ms": 56.37389833333334,
+    "ternary2_auto_ms": 1.1766759713541668,
+    "bitplane_auto_ms": 1.8108642566287878,
+    "bitplane_simd_speedup": 31.130935478445153,
+    "bitplane_over_ternary2_simd": 1.5389659521514416
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=2048&BlockSize=128",
+    "ternary2_scalar_ms": 60.80927166666667,
+    "bitplane_scalar_ms": 33.012757416666666,
+    "ternary2_auto_ms": 1.5921721354166667,
+    "bitplane_auto_ms": 1.6353677202380952,
+    "bitplane_simd_speedup": 20.186748832158862,
+    "bitplane_over_ternary2_simd": 1.0271299716033055
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=2048&BlockSize=256",
+    "ternary2_scalar_ms": 33.30396391666667,
+    "bitplane_scalar_ms": 37.6205861111111,
+    "ternary2_auto_ms": 1.0230198541666666,
+    "bitplane_auto_ms": 1.1304808541666667,
+    "bitplane_simd_speedup": 33.27839297096553,
+    "bitplane_over_ternary2_simd": 1.1050429271360875
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=4096&BlockSize=64",
+    "ternary2_scalar_ms": 140.42407433333335,
+    "bitplane_scalar_ms": 229.29795633333333,
+    "ternary2_auto_ms": 8.416344381944445,
+    "bitplane_auto_ms": 5.8485235,
+    "bitplane_simd_speedup": 39.20612721028365,
+    "bitplane_over_ternary2_simd": 0.6949006878267503
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=4096&BlockSize=128",
+    "ternary2_scalar_ms": 252.41178433333334,
+    "bitplane_scalar_ms": 162.20071,
+    "ternary2_auto_ms": 8.193619328125,
+    "bitplane_auto_ms": 6.867510479166667,
+    "bitplane_simd_speedup": 23.618560247130794,
+    "bitplane_over_ternary2_simd": 0.8381534709079784
+  },
+  {
+    "run": "run2",
+    "parameters": "Size=4096&BlockSize=256",
+    "ternary2_scalar_ms": 174.50809566666666,
+    "bitplane_scalar_ms": 121.79578383333333,
+    "ternary2_auto_ms": 5.3394781875,
+    "bitplane_auto_ms": 4.6290239756944445,
+    "bitplane_simd_speedup": 26.311331389261507,
+    "bitplane_over_ternary2_simd": 0.8669431381012537
+  }
+]

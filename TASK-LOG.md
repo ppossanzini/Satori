@@ -466,6 +466,31 @@ this. Numerical parity against an independent reference is DW06.4.
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW06.4 — 2026-10-13 — Completed
+
+Verified K parity on real artifact bytes and end-to-end execution. `tools/k_tensor_reference.py` reads the
+two real tensors of the pinned Qwen2.5-Coder 7B Q4_K_M (`token_embd.weight` Q4_K, `output.weight` Q6_K),
+takes a window of their raw block bytes, decodes them with the independent FP64 decoders in
+`q4k_reference.py` and `q6k_reference.py` (no Satori code), and writes `fixtures/operators/k-real-v1.json`.
+`KParityTests` decodes the same bytes with `Q4KCodec`/`Q6KCodec` and checks the reconstruct and the dot
+against that reference (tolerance 1e-3 + 1e-4 relative on weights, 1e-2 + 1e-4 on the dot).
+
+End-to-end: the real Q4_K_M file loads through the strict reader, its capability check is empty, and a
+generation completes with a coherent completion; the process held 4.68 GB RSS equal to the compressed
+weights, with no silent fallback and no permanent expansion.
+
+Verification: Release build without warnings; the parity test passes on the real artifact bytes. The full
+numerics suite is green at 175/175 (K parity adds one case on top of the 174 of DW06.2).
+
+Reproduce: `python3 tools/k_tensor_reference.py .temp/deepseek/dw02/models/qwen2.5-coder-7b-instruct-q4_k_m.gguf`
+then `dotnet test tests/Satori.Numerics.Tests -c Release --filter "FullyQualifiedName~KParityTests"`.
+
+Limits: parity is on a representative window of two tensors, not the whole artifact; a full logits-vs-reference
+run is deferred because the scalar K forward is too slow (DW06.5–DW06.7). Quality versus the Q8 reference is
+not asserted.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

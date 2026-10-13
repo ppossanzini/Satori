@@ -69,6 +69,26 @@ Limits: specification only; DS05 onward implements it.
 
 Skills: phase-development-project-conventions, base-dossier-writing.
 
+## DS04 — 2026-10-13 — Completed
+
+Fixed the validation protocol in `docs/validation-protocol-v1.md`: the artifact set for correctness,
+quality and performance; independent numerical references and per-operator tolerances; a C# coding task set
+with compile/run criteria, Italian prompts and long outputs, with quality prompts excluded from
+calibration; target hardware and 2K/4K contexts; the startup/prefill/TTFT/decode/memory/I-O measurement
+groups; the manifest fields; and the separation of correctness, quality and performance. No advertised
+benchmark is accepted as an oracle and no `sleep` or theoretical bandwidth counts as a measurement.
+
+Owner-approved thresholds (2026-10-13): coding C# pass rate 80%; peak RAM under 12 GB. Decode rate and TTFT
+at 2K were left open by the owner and are reported as data only. A GPU result must beat CPU by a stated
+factor, to be confirmed before DS39.
+
+Verification: manifest fields, commands and provenance defined; the three axes kept separate; regenerable
+vs durable output locations defined; thresholds recorded where approved.
+
+Limits: decode/TTFT target and the GPU factor are still open; no product threshold was invented.
+
+Skills: phase-development-project-conventions, base-dossier-writing.
+
 # Registro di esecuzione
 
 ## T11 — 2026-10-12 — Completato

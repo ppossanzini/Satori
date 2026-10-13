@@ -327,3 +327,7 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 ## Model-specific documentation cleanup — 2026-10-13
 
 Removed sixteen model-specific guides, stale optimization narratives and fixture prose. README, TASKS and ProjectInfo now direct development to the multi-model requirements. Removed links to deleted guides; numerical fixtures, raw measurements and production code were preserved. Documentation-only verification: local Markdown link scan; no runtime tests added or run. Skills: phase-development-project-conventions and base-dossier-writing.
+
+## Local quantized-model and kernel scouting — 2026-10-13
+
+Inspected DS4 small, AirLLM-plus and AirLLM at verified revisions, plus official HF artifacts/configs for seven candidate model repositories. Published exact file sizes/hashes, estimated KV budgets and architecture/format gaps. Recommended a candidate portfolio rather than a model-named runtime. DS4 supplies quantized-kernel/residency ideas; AirLLM supplies layer streaming; AirLLM-plus uses mock compute and is not inference performance evidence. No model weights downloaded or external code executed. JSON and local links verified; no runtime tests needed for this research-only task. Skills: phase-scouting-solution-scouting, phase-scouting-technical-feasibility and base-dossier-writing.

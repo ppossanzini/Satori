@@ -376,6 +376,25 @@ not measured.
 
 Skills: phase-development-task-execution, base-dossier-writing.
 
+## DW05 — 2026-10-13 — Completed
+
+Restricted the plan to the selected path in `docs/path-plan-v1.md`: the capability matrix narrowed to
+`qwen2` dense with only Q4_K and Q6_K missing; the session and resource contracts narrowed to the resident
+policy (no streaming, no expert cache, no SSD KV, so DW08 is not applicable); the memory plan (weights
+4.68 GB resident plus KV and workspace inside 12 GB); and the ordered subtasks DW06.1–DW06.8, each with a
+dependency, an oracle and a verification criterion.
+
+The Q4_K and Q6_K block layouts are pinned for DW06.1 from the ggml reference at the revision already
+recorded in `docs/gguf-subset-v1.md`; the oracle is an independent FP64 reconstruction.
+
+Verification: every subtask names its oracle and criterion; no architecture breadth is required; the only
+missing capability is named exactly.
+
+Limits: DW06.6 and DW06.7 depend on DW06.5 because the measured bottleneck is the quantized MatVec; the
+quality corpus must be frozen before DW06.8.
+
+Skills: phase-development-task-execution, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

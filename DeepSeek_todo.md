@@ -54,7 +54,7 @@ Una configurazione oltre budget fallisce per quella configurazione. Il confronto
 
 | Stato / ID | Azione | Dipendenze | Risultato e verifica |
 |---|---|---|---|
-| [ ] DW05 | Restringere contratti e task ai gap selezionati | DW04 | Capability matrix del percorso, contratti di sessione e risorse, piano memoria e sottotask ordinati DW06.1 ecc. Ogni sottotask ha dipendenze, oracle e criterio di verifica. Nessun obbligo di due architetture. |
+| [x] DW05 | Restringere contratti e task ai gap selezionati | DW04 | Capability matrix del percorso, contratti di sessione e risorse, piano memoria e sottotask ordinati DW06.1 ecc. Ogni sottotask ha dipendenze, oracle e criterio di verifica. Nessun obbligo di due architetture. |
 | [ ] DW06 | Completare il percorso CPU | DW05 | Eseguire soltanto i sottotask approvati del percorso selezionato. Tokenizer/template conformi, codec/operatori contro reference indipendenti, intermedi/logits e generazione verificati. La checkbox si chiude solo a completamento dei sottotask. |
 
 ### Dipendenze condizionate alla selezione

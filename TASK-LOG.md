@@ -21,6 +21,32 @@ Limits: header, metadata and directory only; no weight decoding or execution; an
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
 
+## DS02 — 2026-10-13 — Completed
+
+Pinned the first capability matrix from descriptor inventories of the candidate artifacts, without
+downloading weights: a 32 MiB ranged download of each header/descriptor region, read by the DS01
+inventory. Tool `tools/gguf_header_inventory.py`; per-artifact JSON and provenance in
+`docs/scouting/inventories/`; matrix in `docs/capability-matrix-v1.md`.
+
+Eleven artifacts at pinned revisions were inventoried: Qwen2.5-Coder 1.5B/7B (q4_0, q8_0, q4_k_m),
+Qwen3 4B (Q4_K_M, Q8_0), BitNet b1.58 2B (i2_s), Tiel-Coder APEX-I-NanoPlus and Ternary-Bonsai-2 27B
+(PTQ1_0, PQ2_0). Each inventory records architecture, tensor types with counts and `general.file_type`.
+
+Findings: the official `q4_0` files carry a Q6_K `output.weight`, so capability is never deduced from the
+file name. Unknown types are explicit: 36 (BitNet `I2_S`, 210 tensors), 143 (Prism `PTQ1_0`), 142 (Prism
+`PQ2_0`); BF16 and the K/IQ types are listed as missing. The matrix covers architecture, tokenizer,
+operators, codec and transformations with supported/missing and the reason, and lists four reader gaps
+(`bitnet-b1.58` architecture string, `split.count = 0`, strict type set, private types).
+
+Verification: inventory tool ran end-to-end; eleven inventories and the manifest produced; matrix written.
+
+Reproduce: `python3 tools/gguf_header_inventory.py`.
+
+Limits: descriptor region only; no weights, no decoding, no quality claim; APEX/Bonsai private types remain
+unverified.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
+
 # Registro di esecuzione
 
 ## T11 — 2026-10-12 — Completato

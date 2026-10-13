@@ -177,6 +177,30 @@ kernel. Contract in `docs/qwen-operators.md`.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
+## DS08 — 2026-10-13 — Completed
+
+Implemented the generic dense CPU forward: `DenseForward` (embedding, per-layer grouped-query attention with
+half-split RoPE and optional Q/K per-head norm, SwiGLU feed-forward, final norm, output projection) driven
+entirely by the validated `ModelShape`, plus `IModelWeights` in Core and `GgufWeightStore` in the GGUF
+module. Projections call the shared quantized MatVec, so a new tensor format is a kernel registration, not a
+forward change; QKV bias and Q/K norm are applied from tensor presence, so one class serves qwen2 and qwen3
+with no model-name branch. Optional per-layer intermediates are exposed through `ForwardObserver`.
+
+Verification: Release build without warnings; 145/145 numerics tests passed, 2 in `QwenForwardTests`
+against an independent NumPy float64 reference (`tools/qwen_forward_reference.py`, its own GGUF parser and
+Q8_0 decode) on two topologies: Qwen2.5-Coder 1.5B Q8_0 (12/2 heads, QKV bias) and Qwen3 4B Q8_0 (32/8
+heads, head dim 128 via `attention.key_length`, Q/K norm). Shape equals the reference config, capability
+report empty, argmax matches, 64 sampled logits within 5e-3 + 5e-3 x |ref|, first/last-layer intermediates
+within 2e-3 + 2e-3 x |ref|.
+
+Reproduce: `python3 tools/download_qwen_models.py`, then `python3 tools/qwen_forward_reference.py` for each
+model, then `dotnet test tests/Satori.Numerics.Tests -c Release --filter "FullyQualifiedName~QwenForwardTests"`.
+
+Limits: whole-sequence forward only, no incremental state, sampling or streaming (later tasks); Q4_K/Q6_K
+types still unsupported, so only the Q8_0 artifacts run. Contract in `docs/model-forward.md`.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

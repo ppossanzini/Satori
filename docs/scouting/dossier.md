@@ -18,6 +18,8 @@ Dimensioni effettive degli artefatti ufficiali Hugging Face, in GB decimali. KV 
 
 Qwen e SmolLM2: Apache-2.0; BitNet: MIT. Non è una classifica di qualità misurata. I modelli coding devono superare test di compilazione/esecuzione su C# e altri linguaggi dichiarati; per uso italiano servono prompt dedicati. Revisioni, byte esatti, SHA degli artefatti quando esposti e topologie sono in [evidence-2026-10-13.json](evidence-2026-10-13.json).
 
+[Riepilogo delle idee applicabili](applicability-summary.md): DS4, AirLLM, AirLLM-plus; candidati APEX e Bonsai, streaming e prove necessarie.
+
 ## Compatibility
 
 Il codice corrente espone Q4_0/Q8_0 nei kernel CPU e Q8_0 su Vulkan; Ternary2/STQ2 e TernaryBitplane/STB1 sono formati di laboratorio. Questo non significa che i modelli della tabella siano già eseguibili in Satori. Servono runtime/sessioni derivati dai metadati, tokenizer e chat template, GQA, dimensioni e forme dinamiche, embedding/output anche condivisi e inventario completo dei tipi di ogni GGUF.
@@ -53,7 +55,7 @@ Ricerca coperta: repository richiesti, ggml/BitNet, asset locali e skill disponi
 | Generare codice utile entro 16 GB | Qualità Q4 e memoria di contesto/scratch | Sconosciuto sul target; prova coding + picco RAM e TTFT/decode a 2K/4K |
 | Usare SSD quando i pesi non entrano | Miss per token e I/O non nascosto | Sconosciuto sul target; misurare byte letti/token, hit rate e throughput SSD reale |
 
-Capacità decisiva: generare su un modello coding utile entro RAM e latenza interattiva misurate. Nessuna velocità minima è stata ancora approvata; non si può dichiarare raggiunto R-PERF. Conclusione: realizzabile per il perimetro denso 1,5–7B e ternary 2B come ipotesi da validare; 14B condizionato al budget; 27B+ non è una baseline garantita.
+Capacità decisiva: generare su un modello coding utile entro RAM e latenza interattiva misurate. Nessuna velocità minima è stata ancora approvata; non si può dichiarare raggiunto R-PERF. Conclusione: realizzabile per il perimetro denso 1,5–7B e ternary 2B come ipotesi da validare; 14B condizionato al budget; 27B+ non è una baseline garantita; APEX e Bonsai sono candidati esplorativi con percorsi di memoria e operatori descritti nel riepilogo.
 
 ## Proposed validation order
 

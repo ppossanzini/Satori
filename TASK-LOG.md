@@ -335,3 +335,7 @@ Inspected DS4 small, AirLLM-plus and AirLLM at verified revisions, plus official
 ## Q4_K_M and UD-IQ scouting — 2026-10-13
 
 Evaluated mixed quantization recipes, verified Unsloth artifact revisions/sizes and documented codec, CPU/Vulkan and quality gaps. Proposed Q4_K/Q6_K first, then an IQ3 comparison on the same model; IQ2 for capacity and IQ1 exploratory. No weights downloaded, binary tensor inventory or performance claims made. Evidence JSON parsed; documentation whitespace checked. Skills: phase-scouting-solution-scouting and base-dossier-writing.
+
+## Repository ideas and APEX/Bonsai applicability — 2026-10-13
+
+Consolidated applicability of DS4, AirLLM and AirLLM-plus for bounded residency, layer/expert streaming and compressed kernels. Added APEX as a MoE streaming/cache candidate and Bonsai PTQ1_0/PQ2_0 as distinct ternary/rotation paths; verified artifact metadata and Prism codec definitions. No weights downloaded or inference performed. JSON and local links checked; no runtime tests for documentation-only work.

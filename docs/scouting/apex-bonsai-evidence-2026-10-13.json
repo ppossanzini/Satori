@@ -1,0 +1,183 @@
+{
+  "verified": "2026-10-13",
+  "source": "HF API metadata; no weight downloads",
+  "repositories": [
+    {
+      "repo": "IsValorum/Tiel-Coder-35B-A3B-APEX-I-NanoPlus-GGUF",
+      "revision": "ef9ff9001e8205458bf842fd13f43e5318eb2d46",
+      "cardData": {
+        "base_model": "ornith-ai/Ornith-1.5-35B-A3B",
+        "base_model_relation": "quantized",
+        "quantized_by": "IsValorum",
+        "library_name": "gguf",
+        "pipeline_tag": "image-text-to-text",
+        "license": "mit",
+        "language": [
+          "en",
+          "zh",
+          "es",
+          "fr",
+          "de",
+          "pt",
+          "it",
+          "ru",
+          "ja",
+          "ko",
+          "vi",
+          "th",
+          "ar"
+        ],
+        "tags": [
+          "gguf",
+          "llama.cpp",
+          "quantized",
+          "quantization",
+          "apex",
+          "apex-quant",
+          "apex-i-nanoplus",
+          "nanoplus",
+          "custom-quantization",
+          "unsloth-studio",
+          "qwen3.6",
+          "qwen35moe",
+          "qwen3_5_moe",
+          "qwen",
+          "moe",
+          "reasoning",
+          "conversational",
+          "multimodal",
+          "vision",
+          "image-text-to-text",
+          "tiel-coder",
+          "ornith",
+          "coding",
+          "agentic-coding",
+          "agentic",
+          "swe-bench",
+          "token-efficient",
+          "imatrix",
+          "unsloth-dynamic"
+        ]
+      },
+      "files": [
+        {
+          "rfilename": "Tiel-Coder-35B-A3B.APEX-I-NanoPlus.gguf",
+          "blobId": "d4eddd688a2ea79d9a0a8321ad92ed0fbc6831d7",
+          "size": 12554424672,
+          "lfs": {
+            "sha256": "18f6b0bd47dacad208aea82b1d5060309c4b8bca4de2028e5dd9dcdbf7de56f4",
+            "size": 12554424672,
+            "pointerSize": 136
+          }
+        },
+        {
+          "rfilename": "mmproj-Q8_0.gguf",
+          "blobId": "3c1dfb5456b3fb73d076a706c4e455d7e08a0799",
+          "size": 614194176,
+          "lfs": {
+            "sha256": "2d1f84623497449e5fe085836072d1e5db9ccac3e36ebbbf4ac573016cc65053",
+            "size": 614194176,
+            "pointerSize": 134
+          }
+        }
+      ]
+    },
+    {
+      "repo": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+      "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+      "cardData": {
+        "license": "apache-2.0",
+        "library_name": "llama.cpp",
+        "pipeline_tag": "text-generation",
+        "tags": [
+          "ternary",
+          "2-bit",
+          "gguf",
+          "llama-cpp",
+          "cuda",
+          "metal",
+          "on-device",
+          "hybrid-attention",
+          "prismml",
+          "bonsai"
+        ],
+        "base_model": [
+          "Qwen/Qwen3.8-27B"
+        ]
+      },
+      "files": [
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-F16.gguf",
+          "blobId": "6ed901f6df9dcae2058958b3aec54f3620a10b5d",
+          "size": 53808408928,
+          "lfs": {
+            "sha256": "f6f3b2c9b41956c34b379ec7c301dc936bc38d79b3c24c83388dd7d76000c180",
+            "size": 53808408928,
+            "pointerSize": 136
+          }
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-PQ2_0.gguf",
+          "blobId": "8d0823f96b78839696c57d6ee544160444f956f7",
+          "size": 7206168928,
+          "lfs": {
+            "sha256": "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1",
+            "size": 7206168928,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-PTQ1_0.gguf",
+          "blobId": "8c9da0522bd62bdda9347ed1855ea024d7e11765",
+          "size": 5946648928,
+          "lfs": {
+            "sha256": "53107f530aa52eb00912263ab1ee29bd199261c87cd7b4ad4ca1318c1fe33ee3",
+            "size": 5946648928,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-mmproj-BF16.gguf",
+          "blobId": "fe3f1d0119708de49e8d3166013238229535fa97",
+          "size": 931145856,
+          "lfs": {
+            "sha256": "e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7",
+            "size": 931145856,
+            "pointerSize": 134
+          }
+        },
+        {
+          "rfilename": "Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf",
+          "blobId": "19ca9905c6e3ddcd06960506f4d1bf19613ce169",
+          "size": 629246976,
+          "lfs": {
+            "sha256": "6807ede61d570bb86ba34b756a0fa109edc33668604de867c6ea6d8f1d631903",
+            "size": 629246976,
+            "pointerSize": 134
+          }
+        }
+      ]
+    }
+  ],
+  "prism_kernel_reference": {
+    "repository": "https://github.com/PrismML-Eng/llama.cpp",
+    "revision": "e8fd209c975c80aa7fb36a8423571ff3b1b7e955",
+    "paths": [
+      "docs/development/hadamard-tied-output.md",
+      "ggml/src/ggml-cuda/mmvq-pq2_0.cuh",
+      "ggml/src/ggml-cuda/mmvq-ptq1_0.cuh",
+      "ggml/src/ggml-cuda/template-instances/mmq-instance-pq2_0.cu",
+      "ggml/src/ggml-cuda/template-instances/mmq-instance-ptq1_0.cu",
+      "ggml/src/ggml-sycl/pq2_xmx.cpp",
+      "ggml/src/ggml-sycl/pq2_xmx.hpp",
+      "ggml/src/ggml-vulkan/vulkan-shaders/dequant_pq2_0.comp",
+      "ggml/src/ggml-vulkan/vulkan-shaders/dequant_ptq1_0.comp",
+      "ggml/src/ggml-vulkan/vulkan-shaders/mul_mat_vec_ptq1_0.comp",
+      "ggml/src/ggml-vulkan/vulkan-shaders/mul_mat_vecq_ptq1_0.comp",
+      "ggml/src/ggml-vulkan/vulkan-shaders/ptq1_0.glsl",
+      "tests/test-pq2-row-shapes.cpp",
+      "tests/test-ptq1_0-cuda-dot.cpp",
+      "tests/test-ptq1_0-element-map.cpp"
+    ]
+  }
+}

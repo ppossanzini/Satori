@@ -81,9 +81,36 @@ if (args.Length > 0)
             Console.Write(args.Length == 3 ? inventory.ToJson() : inventory.ToReport());
             return 0;
         }
+        if (args[0] == "describe")
+        {
+            if (args.Length is < 2 or > 3)
+            {
+                Console.Error.WriteLine("Usage: Satori.Console describe <model.gguf> [context-length]");
+                return 1;
+            }
+            var definition = GgufModelLoader.Load(args[1]);
+            int context = args.Length == 3 ? int.Parse(args[2], CultureInfo.InvariantCulture) : 2048;
+            Console.WriteLine($"Architecture: {definition.Architecture}");
+            Console.WriteLine($"Tensors: {definition.Tensors.Count}; compressed weight bytes: {definition.WeightBytes}");
+            Console.WriteLine($"Executable: {(definition.Capabilities.IsExecutable ? "yes" : "no")}");
+            foreach (var gap in definition.Capabilities.Gaps)
+                Console.WriteLine($"  gap [{gap.Kind}] {gap.Detail}: {gap.Reason}");
+            if (definition.Shape is { } shape)
+            {
+                Console.WriteLine($"Shape: layers={shape.Layers} embedding={shape.EmbeddingLength} ffn={shape.FeedForwardLength} heads={shape.HeadCount}/{shape.HeadCountKv} head_dim={shape.HeadDim} vocab={shape.VocabularySize} tied={shape.TiedEmbeddings}");
+                long budget = 12L * 1024 * 1024 * 1024;
+                var plan = definition.Plan(context, budget);
+                Console.WriteLine($"Plan @ {context}: weights={plan.WeightBytes} state={plan.StateBytes} workspace={plan.WorkspaceBytes} total={plan.TotalBytes} exceeds_budget={plan.ExceedsBudget}");
+            }
+            else
+            {
+                Console.WriteLine("Shape: not derived (see gaps)");
+            }
+            return 0;
+        }
         if (args.Length != 2 || args[0] is not ("save" or "run"))
         {
-            Console.Error.WriteLine("Usage: Satori.Console [save <new-file> | run <file> | inventory <file.gguf> [--json] | generate <model.gguf> <prompt> [max-new-tokens]]");
+            Console.Error.WriteLine("Usage: Satori.Console [save <new-file> | run <file> | inventory <file.gguf> [--json] | describe <model.gguf> [context] | generate <model.gguf> <prompt> [max-new-tokens]]");
             return 1;
         }
         if (args[0] == "save")

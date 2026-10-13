@@ -89,6 +89,32 @@ Limits: decode/TTFT target and the GPU factor are still open; no product thresho
 
 Skills: phase-development-project-conventions, base-dossier-writing.
 
+## DS05 — 2026-10-13 — Completed
+
+Implemented the validated model descriptor (`src/Satori.Core/Model`) and the GGUF loader
+(`GgufModelLoader`). `ModelDefinition` is immutable and descriptor-only; `ModelConfig` reads scalar metadata
+by architecture prefix; `ModelShape` holds metadata-derived dimensions; `ModelPlanner` computes a checked
+shape/memory plan (weights, F32 KV state, workspace upper bound) against a byte budget; `IArchitectureAdapter`
+and `ArchitectureAdapters` form the capability registry with `DenseTransformerAdapter` for qwen2/qwen3.
+`CapabilityGap`/`CapabilityReport` make every missing capability explicit: tensor format, architecture and
+shape. Head dimension comes from `attention.key_length` when declared, never forced to
+`embedding_length / head_count`. Console command `describe <model.gguf> [context]`.
+
+Demo on two topologies from the DS02 header prefixes: qwen2.5-coder-1.5b q8_0 (28 layers, 12/2 heads,
+head_dim 128, executable, plan 2.0 GB at 2K) and qwen3-4b q8_0 (36 layers, 32/8 heads, explicit
+key_length 128, tied output, executable, plan 4.9 GB at 2K). qwen2.5-coder-7b q4_k_m derives its shape and
+reports Q4_K/Q6_K format gaps; BitNet reports an unknown type 36 format gap and an architecture gap.
+
+Verification: Release build without warnings; 102/102 offline numerics tests passed (9 new in
+`ModelDescriptorTests`): shape incompatibility, indivisible head dimension, missing required metadata,
+unknown architecture, plan overflow (Int64), budget excess, and unsupported tensor type becoming a format
+gap.
+
+Limits: plan is an estimate from metadata; only qwen2/qwen3 adapters exist; the descriptor validates, it
+does not decode or execute. Contract in `docs/model-descriptor.md`.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
+
 # Registro di esecuzione
 
 ## T11 — 2026-10-12 — Completato

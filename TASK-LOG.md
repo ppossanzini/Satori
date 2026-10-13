@@ -254,6 +254,27 @@ required because the sampling path was not modified. Contract in `docs/text-gene
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
+# DeepSeek Work Plan Execution
+
+Tasks DW01–DW10 from DeepSeek_todo.md. One task per commit; no push.
+
+## DW01 — 2026-10-13 — Completed
+
+Inventoried the reusable assets in `docs/reusable-assets-v1.md`: code capabilities (numerical kernels, GGUF
+reader and inventory, model descriptor/planner, tokenizer, operators, dense forward, session, generation,
+console commands, Vulkan primitives, Stories15M laboratory path), independent reference tools, fixtures,
+reports, and the declared-unverified set. Each code capability cites its module, contract document and
+verifying test or report.
+
+Verification: Release build without warnings; 165/165 numerics tests passed. The document states which
+capabilities are unverified: Vulkan hardware (validation layer unavailable), the removed model-specific
+paths, and every codec absent from the profile.
+
+Limits: covers Satori's own assets only; candidate artifact capability stays owned by
+`docs/capability-matrix-v1.md`. No runtime change.
+
+Skills: phase-development-task-execution, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

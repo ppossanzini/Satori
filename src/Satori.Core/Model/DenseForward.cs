@@ -13,8 +13,13 @@ public delegate void ForwardObserver(int layer, int position, string stage, Read
 /// <remarks>
 /// Every dimension comes from the validated <see cref="ModelShape"/>; nothing is a nominal constant. Every
 /// operator is the shared <see cref="TransformerOps"/> implementation and every projection is the shared
-/// quantized MatVec, so a new tensor format is supported by the kernel registry, not by this class. The
-/// whole token sequence is processed at once; incremental state is a later task.
+/// quantized MatVec, so a new tensor format is supported by the kernel registry, not by this class.
+/// <para>
+/// The per-position step (<see cref="Step"/>) and the final normalization (<see cref="Final"/>) are shared
+/// with <see cref="DenseSession"/>: the whole-sequence pass keeps its key/value prefix in a local buffer,
+/// while a session keeps it in persistent state, but the layer arithmetic is one implementation. This is
+/// the contract's requirement that full recomputation and incremental execution agree.
+/// </para>
 /// </remarks>
 public sealed class DenseForward
 {
@@ -27,8 +32,6 @@ public sealed class DenseForward
     private readonly string _output;
     private readonly string _outputNorm;
     private readonly int _embedding;
-    private readonly int _feedForward;
-    private readonly int _qWidth;
     private readonly int _kvWidth;
     private readonly int _headDim;
     private readonly float _epsilon;
@@ -41,9 +44,7 @@ public sealed class DenseForward
         _shape = shape;
         _weights = weights;
         _embedding = shape.EmbeddingLength;
-        _feedForward = shape.FeedForwardLength;
-        _qWidth = checked(shape.HeadCount * shape.HeadDim);
-        _kvWidth = checked(shape.HeadCountKv * shape.HeadDim);
+        _kvWidth = shape.KvWidth;
         _headDim = shape.HeadDim;
         _epsilon = (float)shape.RmsNormEpsilon;
         _ropeBase = shape.RopeBase;
@@ -64,86 +65,94 @@ public sealed class DenseForward
         if (tokens.IsEmpty) throw new ArgumentException("At least one token is required.", nameof(tokens));
         int count = tokens.Length;
 
+        var scratch = CreateScratch(count);
         float[] hidden = new float[checked(count * _embedding)];
         for (int position = 0; position < count; position++)
-        {
-            int token = tokens[position];
-            if ((uint)token >= (uint)_shape.VocabularySize)
-                throw new ArgumentOutOfRangeException(nameof(tokens), $"Token {token} is outside the vocabulary.");
-            _weights.EmbedRow(TokenEmbedding, token, hidden.AsSpan(position * _embedding, _embedding));
-        }
+            Embed(tokens[position], hidden.AsSpan(position * _embedding, _embedding));
 
-        float[] normed = new float[_embedding];
-        float[] query = new float[_qWidth];
-        float[] key = new float[_kvWidth];
-        float[] value = new float[_kvWidth];
         float[] keys = new float[checked(count * _kvWidth)];
         float[] values = new float[keys.Length];
-        double[] scores = new double[count];
-        float[] context = new float[_qWidth];
-        float[] projected = new float[_embedding];
-        float[] gate = new float[_feedForward];
-        float[] up = new float[_feedForward];
-        float[] activated = new float[_feedForward];
-
         for (int layer = 0; layer < _shape.Layers; layer++)
-        {
-            var names = _layers[layer];
             for (int position = 0; position < count; position++)
-            {
-                Span<float> residual = hidden.AsSpan(position * _embedding, _embedding);
-
-                TransformerOps.RmsNorm(residual, _weights.Vector(names.AttnNorm), _epsilon, normed);
-                observe?.Invoke(layer, position, "attn_norm", normed);
-
-                _weights.Project(names.Query, normed, query);
-                _weights.Project(names.Key, normed, key);
-                _weights.Project(names.Value, normed, value);
-                if (names.HasBias)
-                {
-                    TransformerOps.Add(query, _weights.Vector(names.QueryBias), query);
-                    TransformerOps.Add(key, _weights.Vector(names.KeyBias), key);
-                    TransformerOps.Add(value, _weights.Vector(names.ValueBias), value);
-                }
-                if (names.HasHeadNorm)
-                {
-                    TransformerOps.RmsNormHeads(query, _weights.Vector(names.QueryNorm), _epsilon, _headDim);
-                    TransformerOps.RmsNormHeads(key, _weights.Vector(names.KeyNorm), _epsilon, _headDim);
-                }
-                TransformerOps.RopeHalf(query, _headDim, position, _ropeBase, _headDim);
-                TransformerOps.RopeHalf(key, _headDim, position, _ropeBase, _headDim);
-                observe?.Invoke(layer, position, "q", query);
-
-                key.CopyTo(keys.AsSpan(position * _kvWidth));
-                value.CopyTo(values.AsSpan(position * _kvWidth));
-                TransformerOps.GroupedAttention(query, keys.AsSpan(0, (position + 1) * _kvWidth),
-                    values.AsSpan(0, (position + 1) * _kvWidth), _shape.HeadCount, _shape.HeadCountKv, _headDim,
-                    position + 1, scores, context);
-                observe?.Invoke(layer, position, "attn_ctx", context);
-
-                _weights.Project(names.Output, context, projected);
-                TransformerOps.Add(residual, projected, residual);
-                observe?.Invoke(layer, position, "attn_residual", residual);
-
-                TransformerOps.RmsNorm(residual, _weights.Vector(names.FfnNorm), _epsilon, normed);
-                _weights.Project(names.Gate, normed, gate);
-                _weights.Project(names.Up, normed, up);
-                TransformerOps.SwiGlu(gate, up, activated);
-                observe?.Invoke(layer, position, "ffn_act", activated);
-                _weights.Project(names.Down, activated, projected);
-                TransformerOps.Add(residual, projected, residual);
-                observe?.Invoke(layer, position, "out", residual);
-            }
-        }
-
-        Span<float> last = hidden.AsSpan((count - 1) * _embedding, _embedding);
-        TransformerOps.RmsNorm(last, _weights.Vector(_outputNorm), _epsilon, normed);
-        observe?.Invoke(-1, -1, "final_norm", normed);
+                Step(layer, position, hidden.AsSpan(position * _embedding, _embedding), keys, values, scratch, observe);
 
         float[] logits = new float[_shape.VocabularySize];
-        _weights.Project(_output, normed, logits);
-        observe?.Invoke(-1, -1, "logits", logits);
+        Final(hidden.AsSpan((count - 1) * _embedding, _embedding), logits, scratch, observe);
         return logits;
+    }
+
+    internal DenseScratch CreateScratch(int maxTokens) => new(_shape, maxTokens);
+
+    /// <summary>Writes the embedding row of <paramref name="token"/> into <paramref name="hidden"/>.</summary>
+    internal void Embed(int token, Span<float> hidden)
+    {
+        if ((uint)token >= (uint)_shape.VocabularySize)
+            throw new ArgumentOutOfRangeException(nameof(token), $"Token {token} is outside the vocabulary.");
+        _weights.EmbedRow(TokenEmbedding, token, hidden);
+    }
+
+    /// <summary>
+    /// Applies one layer to the residual vector at <paramref name="position"/>, writing the new key/value
+    /// into <paramref name="keys"/>/<paramref name="values"/> at that position and attending over the prefix
+    /// <c>0..position</c>. The residual is updated in place; the arrays must hold at least
+    /// <c>(position + 1)</c> key/value slots.
+    /// </summary>
+    internal void Step(int layer, int position, Span<float> residual, Span<float> keys, Span<float> values,
+        DenseScratch scratch, ForwardObserver? observe)
+    {
+        var names = _layers[layer];
+        Span<float> query = scratch.Query, key = scratch.Key, value = scratch.Value,
+            context = scratch.Context, projected = scratch.Projected, normed = scratch.Normed;
+
+        TransformerOps.RmsNorm(residual, _weights.Vector(names.AttnNorm), _epsilon, normed);
+        observe?.Invoke(layer, position, "attn_norm", normed);
+
+        _weights.Project(names.Query, normed, query);
+        _weights.Project(names.Key, normed, key);
+        _weights.Project(names.Value, normed, value);
+        if (names.HasBias)
+        {
+            TransformerOps.Add(query, _weights.Vector(names.QueryBias), query);
+            TransformerOps.Add(key, _weights.Vector(names.KeyBias), key);
+            TransformerOps.Add(value, _weights.Vector(names.ValueBias), value);
+        }
+        if (names.HasHeadNorm)
+        {
+            TransformerOps.RmsNormHeads(query, _weights.Vector(names.QueryNorm), _epsilon, _headDim);
+            TransformerOps.RmsNormHeads(key, _weights.Vector(names.KeyNorm), _epsilon, _headDim);
+        }
+        TransformerOps.RopeHalf(query, _headDim, position, _ropeBase, _headDim);
+        TransformerOps.RopeHalf(key, _headDim, position, _ropeBase, _headDim);
+        observe?.Invoke(layer, position, "q", query);
+
+        key.CopyTo(keys.Slice(position * _kvWidth, _kvWidth));
+        value.CopyTo(values.Slice(position * _kvWidth, _kvWidth));
+        int tokens = position + 1;
+        TransformerOps.GroupedAttention(query, keys[..checked(tokens * _kvWidth)], values[..checked(tokens * _kvWidth)],
+            _shape.HeadCount, _shape.HeadCountKv, _headDim, tokens, scratch.Scores, context);
+        observe?.Invoke(layer, position, "attn_ctx", context);
+
+        _weights.Project(names.Output, context, projected);
+        TransformerOps.Add(residual, projected, residual);
+        observe?.Invoke(layer, position, "attn_residual", residual);
+
+        TransformerOps.RmsNorm(residual, _weights.Vector(names.FfnNorm), _epsilon, normed);
+        _weights.Project(names.Gate, normed, scratch.Gate);
+        _weights.Project(names.Up, normed, scratch.Up);
+        TransformerOps.SwiGlu(scratch.Gate, scratch.Up, scratch.Activated);
+        observe?.Invoke(layer, position, "ffn_act", scratch.Activated);
+        _weights.Project(names.Down, scratch.Activated, projected);
+        TransformerOps.Add(residual, projected, residual);
+        observe?.Invoke(layer, position, "out", residual);
+    }
+
+    /// <summary>Applies the final normalization and the output projection.</summary>
+    internal void Final(ReadOnlySpan<float> hidden, Span<float> logits, DenseScratch scratch, ForwardObserver? observe)
+    {
+        TransformerOps.RmsNorm(hidden, _weights.Vector(_outputNorm), _epsilon, scratch.Normed);
+        observe?.Invoke(-1, -1, "final_norm", scratch.Normed);
+        _weights.Project(_output, scratch.Normed, logits);
+        observe?.Invoke(-1, -1, "logits", logits);
     }
 
     private readonly struct LayerNames

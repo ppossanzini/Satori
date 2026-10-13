@@ -15,4 +15,11 @@ public sealed record ModelShape(
     int VocabularySize,
     bool TiedEmbeddings,
     double RmsNormEpsilon,
-    double RopeBase);
+    double RopeBase)
+{
+    /// <summary>Width of a query projection (<c>HeadCount * HeadDim</c>), checked.</summary>
+    public int QueryWidth => checked(HeadCount * HeadDim);
+
+    /// <summary>Width of a key/value projection (<c>HeadCountKv * HeadDim</c>), checked.</summary>
+    public int KvWidth => checked(HeadCountKv * HeadDim);
+}

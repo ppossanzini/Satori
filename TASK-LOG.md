@@ -201,6 +201,33 @@ types still unsupported, so only the Q8_0 artifacts run. Contract in `docs/model
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
+## DS09 — 2026-10-13 — Completed
+
+Implemented the incremental session from the DS03 contract: `IInferenceSession` and `DenseSession`, which
+owns a key/value state dimensioned from the model shape and a chosen context, and reuses the shared
+per-layer step of `DenseForward` (extracted as internal `Step`/`Final`, with a reusable `DenseScratch`), so
+incremental execution and full recomputation agree by construction. `Reset`, the context limit, token and
+buffer validation, and idempotent `Dispose` follow the contract; limits are errors, never silent truncation.
+
+Verification: Release build without warnings; 153/153 numerics tests passed across three consecutive runs.
+`DenseSessionTests` (offline, synthetic weights) checks incremental versus full recomputation on a
+qwen2-like and a qwen3-like shape, reset identity, plan-consistent state bytes, context/token/buffer
+enforcement, dispose, and the capability/shape guards. `QwenForwardTests.IncrementalSessionMatchesFullForward`
+checks on Qwen2.5-Coder 1.5B and Qwen3 4B that the session reaches the independent-reference argmax and that
+appending one token equals recomputing the prefix through `DenseForward`.
+
+Two pre-existing exact-allocation tests (`MappedTernary2Tests`, `StoriesSessionTests`) were intermittently
+failing under parallel execution once the model-integration tests increased load; test-collection
+parallelization is now disabled via `xunit.runner.json` so those assertions stay meaningful. No production
+code was involved.
+
+Reproduce: `dotnet test tests/Satori.Numerics.Tests -c Release`.
+
+Limits: whole prompt plus one token at a time; no sampling, generation or streaming (later tasks); KV is
+F32 only. Contract in `docs/model-session.md`.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

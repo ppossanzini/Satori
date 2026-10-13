@@ -83,4 +83,35 @@ public sealed class QwenForwardTests
             }
         }
     }
+
+    [Theory]
+    [MemberData(nameof(Models))]
+    public void IncrementalSessionMatchesFullForward(string name)
+    {
+        string modelPath = Corpus(name);
+        Assert.True(File.Exists(modelPath), $"Missing corpus {modelPath}: run python tools/download_qwen_models.py");
+        var reference = JsonDocument.Parse(File.ReadAllText(Reference(name))).RootElement;
+        int[] tokens = reference.GetProperty("tokens").EnumerateArray().Select(t => t.GetInt32()).ToArray();
+
+        var definition = GgufModelLoader.Load(modelPath);
+        Assert.Empty(definition.Capabilities.Gaps);
+        using var file = new GgufFile(modelPath);
+        using var weights = new GgufWeightStore(file);
+
+        // The session reaches the same independent-reference argmax as the whole-sequence pass.
+        using var session = new DenseSession(definition, weights, contextLength: 64);
+        float[] logits = new float[definition.Shape!.VocabularySize];
+        session.Forward(tokens, logits);
+        int argmax = 0;
+        for (int i = 1; i < logits.Length; i++) if (logits[i] > logits[argmax]) argmax = i;
+        Assert.Equal(reference.GetProperty("argmax").GetInt32(), argmax);
+
+        // Appending one token equals recomputing the whole prefix through the whole-sequence forward.
+        float[] extended = new DenseForward(definition.Shape, weights).Logits([.. tokens, 100]);
+        session.Append(100);
+        for (int i = 0; i < logits.Length; i++)
+            Assert.True(Math.Abs(extended[i] - session.Logits[i]) <= 1e-3 + 1e-3 * Math.Abs(extended[i]),
+                $"{name} incremental logit[{i}]: {session.Logits[i]} vs {extended[i]}");
+        Assert.Equal(tokens.Length + 1, session.Position);
+    }
 }

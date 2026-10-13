@@ -13,6 +13,9 @@
     <ProjectReference Include="../../validation/Satori.Validation/Satori.Validation.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Satori.Formats.Gguf\Satori.Formats.Gguf.csproj" />
   </ItemGroup>
 </Project>

@@ -70,9 +70,20 @@ if (args.Length > 0)
             Console.Error.WriteLine($"{result.StopReason}; prompt: {result.PromptTokenCount}; generated: {result.Tokens.Count}");
             return 0;
         }
+        if (args[0] == "inventory")
+        {
+            if (args.Length is < 2 or > 3 || (args.Length == 3 && args[2] != "--json"))
+            {
+                Console.Error.WriteLine("Usage: Satori.Console inventory <file.gguf> [--json]");
+                return 1;
+            }
+            var inventory = GgufInventory.Scan(args[1]);
+            Console.Write(args.Length == 3 ? inventory.ToJson() : inventory.ToReport());
+            return 0;
+        }
         if (args.Length != 2 || args[0] is not ("save" or "run"))
         {
-            Console.Error.WriteLine("Usage: Satori.Console [save <new-file> | run <file> | generate <model.gguf> <prompt> [max-new-tokens]]");
+            Console.Error.WriteLine("Usage: Satori.Console [save <new-file> | run <file> | inventory <file.gguf> [--json] | generate <model.gguf> <prompt> [max-new-tokens]]");
             return 1;
         }
         if (args[0] == "save")

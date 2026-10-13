@@ -2,6 +2,25 @@
 
 Historical task entries describe their original scope and may mention removed implementations. Current product requirements and executable work are defined only in TASKS.md.
 
+# DeepSeek Plan Execution
+
+Tasks DS01–DS40 from DeepSeek_todo.md. One task per commit; no push.
+
+## DS01 — 2026-10-13 — Completed
+
+Exposed the descriptor inventory of a GGUF container through `GgufInventory` (reusing `MappedWeights` and `GgufCursor`) and the console command `inventory <file.gguf> [--json]`. It reports architecture, version, alignment, data offset, tensor and metadata counts, every metadata key with its declared type and decoded scalar value or array shape, and every tensor with type, dimensions, declared offset, computed byte length and support status. `GgufTypes` adds the GGML type catalogue with block geometry and profile support.
+
+Unsupported tensor types are reported explicitly instead of rejecting the file, which `GgufFile` still does for execution. The scan and the validated catalogue agree on the four golden fixtures (tensor name, type, dimensions, absolute offset, byte length, data offset, alignment, counts), checked in `GgufInventoryTests`.
+
+Verification: Release build without warnings; 93/93 offline numerics tests passed (5 new); demo on `fixtures/gguf/v1/q8_0.gguf`, `f32.gguf` and the tokenizer fixture (arrays described, not materialised); non-GGUF input rejected with a readable message and exit code 1.
+
+Reproduce: `dotnet run --project src/Satori.Console -c Release -- inventory fixtures/gguf/v1/q8_0.gguf`.
+
+Limits: header, metadata and directory only; no weight decoding or execution; an unknown metadata value type is rejected because it cannot be skipped; private fork types (Prism PTQ1_0/PQ2_0) are not catalogued. Contract in `docs/gguf-inventory.md`.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
+
+
 # Registro di esecuzione
 
 ## T11 — 2026-10-12 — Completato

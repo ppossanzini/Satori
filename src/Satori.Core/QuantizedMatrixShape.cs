@@ -9,6 +9,7 @@ public sealed record QuantizedMatrixShape
             BlockQuantization.Q8_0 => (32, 34),
             BlockQuantization.Q4_0 => (32, 18),
             BlockQuantization.Q4_K => (Q4KCodec.ElementsPerBlock, Q4KCodec.BytesPerBlock),
+            BlockQuantization.Q6_K => (Q6KCodec.ElementsPerBlock, Q6KCodec.BytesPerBlock),
             _ => throw new ArgumentOutOfRangeException(nameof(format)),
         };
         if (rows <= 0 || columns <= 0 || columns % BlockElements != 0)

@@ -421,6 +421,29 @@ the path is not executable yet.
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW06.2 — 2026-10-13 — Completed
+
+Implemented the GGML Q6_K super-block codec in `src/Satori.Core/Q6KCodec.cs` from the pinned ggml layout
+(210 bytes per 256 weights: `ql[128]`, `qh[64]`, 16 signed 8-bit sub-scales, FP16 `d`). Registered the
+format: `BlockQuantization.Q6_K`, block geometry 256/210 in `QuantizedMatrixShape`, the scalar Q6_K branch
+in `QuantizedMatVec` (finite super-scale check, still outside the AVX2 path until DW06.5), the type id 14
+in `GgufTypes`, and the type 14 mapping in `GgufQuantizedMatrix`.
+
+Verification: Release build without warnings; 174/174 numerics tests passed. The independent FP64 oracle
+`tools/q6k_reference.py` writes `fixtures/operators/q6k-v1.json` from the ggml layout without calling
+Satori. `Q6KCodecTests` checks the reconstruct and the dot on eight blocks (zero, positive, negative scales,
+extremes, four random) and rejects a non-finite super-scale. One defect was found and fixed during the task:
+the 16 sub-scales must be read as signed bytes; reading them unsigned flipped the sign of every negative
+scale and the reference caught it.
+
+Reproduce: `python3 tools/q6k_reference.py` then
+`dotnet test tests/Satori.Numerics.Tests -c Release --filter "FullyQualifiedName~Q6KCodecTests"`.
+
+Limits: scalar only; the format dispatch accepts Q4_K/Q6_K but end-to-end execution on a Q4_K_M artifact is
+DW06.4 and still needs the AVX2 kernels and the forward parity check.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

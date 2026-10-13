@@ -13,14 +13,15 @@ public sealed class GgufQuantizedMatrix
     public GgufQuantizedMatrix(GgufFile file, string name)
     {
         var tensor = file.Tensors[name];
-        if (tensor.Type is not (8 or 2 or 12) || tensor.Dimensions.Count != 2 || tensor.ByteLength > int.MaxValue ||
+        if (tensor.Type is not (8 or 2 or 12 or 14) || tensor.Dimensions.Count != 2 || tensor.ByteLength > int.MaxValue ||
             tensor.Dimensions.Any(d => d > int.MaxValue))
-            throw new NotSupportedException("MatVec requires a rank-2 Q8_0/Q4_0/Q4_K tensor within Int32 limits.");
+            throw new NotSupportedException("MatVec requires a rank-2 Q8_0/Q4_0/Q4_K/Q6_K tensor within Int32 limits.");
         Shape = new((int)tensor.Dimensions[1], (int)tensor.Dimensions[0], tensor.Type switch
         {
             8 => BlockQuantization.Q8_0,
             2 => BlockQuantization.Q4_0,
-            _ => BlockQuantization.Q4_K,
+            12 => BlockQuantization.Q4_K,
+            _ => BlockQuantization.Q6_K,
         });
         _file = file;
         _name = name;

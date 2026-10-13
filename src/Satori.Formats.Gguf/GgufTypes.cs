@@ -18,8 +18,8 @@ public readonly record struct GgufTypeInfo(
 /// </remarks>
 public static class GgufTypes
 {
-    // Supported by the current execution profile (docs/gguf-subset-v1.md, extended by DW06.1).
-    private static readonly HashSet<uint> Supported = [0, 1, 2, 8, 12];
+    // Supported by the current execution profile (docs/gguf-subset-v1.md, extended by DW06.1-DW06.2).
+    private static readonly HashSet<uint> Supported = [0, 1, 2, 8, 12, 14];
 
     private static readonly Dictionary<uint, GgufTypeInfo> Catalogue = Build();
 

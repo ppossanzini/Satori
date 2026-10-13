@@ -27,9 +27,12 @@ public static class QuantizedMatVec
         for (int offset = 0; offset < data.Length; offset += shape.BlockBytes)
         {
             var block = data[offset..];
-            bool finite = shape.Format == BlockQuantization.Q4_K
-                ? Q4KCodec.AreScalesFinite(block)
-                : float.IsFinite(Scale(block));
+            bool finite = shape.Format switch
+            {
+                BlockQuantization.Q4_K => Q4KCodec.AreScalesFinite(block),
+                BlockQuantization.Q6_K => Q6KCodec.AreScalesFinite(block),
+                _ => float.IsFinite(Scale(block)),
+            };
             if (!finite) throw new InvalidDataException($"Nonfinite block scale at {offset}.");
         }
     }
@@ -49,6 +52,11 @@ public static class QuantizedMatVec
                 if (shape.Format == BlockQuantization.Q4_K)
                 {
                     total += Q4KCodec.DotBlock(block, input.Slice(column, Q4KCodec.ElementsPerBlock));
+                    continue;
+                }
+                if (shape.Format == BlockQuantization.Q6_K)
+                {
+                    total += Q6KCodec.DotBlock(block, input.Slice(column, Q6KCodec.ElementsPerBlock));
                     continue;
                 }
                 float sum = 0;

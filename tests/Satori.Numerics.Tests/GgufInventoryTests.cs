@@ -40,17 +40,17 @@ public sealed class GgufInventoryTests
         byte[] bytes = GgufContainerFixture.Prefix(32, tensors:
         [
             ("q4k", [256, 2], 12, 0),
-            ("q6k", [256, 1], 14, 288),
+            ("iq3", [256, 1], 18, 288),
         ]);
         using var temp = new MappedFileFixture(bytes.Length, 0, bytes);
         var inventory = GgufInventory.Scan(temp.Path);
 
         Assert.False(inventory.ProfileCompatible);
-        // Q4_K is supported since DW06.1; Q6_K still is not, so only it is reported unsupported.
-        Assert.Equal(["Q6_K(14)"], inventory.UnsupportedTypes.OrderBy(x => x));
+        // Q4_K and Q6_K are supported since DW06.1-DW06.2; IQ3_XXS still is not, so it is the reported one.
+        Assert.Equal(["IQ3_XXS(18)"], inventory.UnsupportedTypes.OrderBy(x => x));
         Assert.True(inventory.Tensors.Single(t => t.Name == "q4k").Supported);
-        Assert.False(inventory.Tensors.Single(t => t.Name == "q6k").Supported);
+        Assert.False(inventory.Tensors.Single(t => t.Name == "iq3").Supported);
         Assert.True(inventory.TotalTensorBytesExact);
-        Assert.Equal(288 + 210, inventory.TotalTensorBytes);
+        Assert.Equal(288 + 98, inventory.TotalTensorBytes);
     }
 }

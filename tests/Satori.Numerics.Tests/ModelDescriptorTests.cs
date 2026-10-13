@@ -104,15 +104,15 @@ public sealed class ModelDescriptorTests
         byte[] bytes = GgufContainerFixture.Prefix(32, tensors:
         [
             ("q4k", [256, 2], 12, 0),
-            ("q6k", [256, 1], 14, 288),
+            ("iq3", [256, 1], 18, 288),
         ]);
         using var temp = new MappedFileFixture(bytes.Length, 0, bytes);
         var definition = GgufModelLoader.Load(temp.Path);
 
         Assert.False(definition.Capabilities.IsExecutable);
-        // Q4_K is supported since DW06.1; Q6_K still is not, so it is the format gap here.
+        // Q4_K and Q6_K are supported since DW06.1-DW06.2; IQ3_XXS still is not, so it is the format gap here.
         Assert.DoesNotContain(definition.Capabilities.Gaps, g => g.Kind == "tensor-format" && g.Detail == "Q4_K(12)");
-        Assert.Contains(definition.Capabilities.Gaps, g => g.Kind == "tensor-format" && g.Detail == "Q6_K(14)");
+        Assert.Contains(definition.Capabilities.Gaps, g => g.Kind == "tensor-format" && g.Detail == "IQ3_XXS(18)");
         Assert.Contains(definition.Capabilities.Gaps, g => g.Kind == "architecture");
         Assert.Null(definition.Shape);
     }

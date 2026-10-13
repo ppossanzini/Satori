@@ -1,99 +1,123 @@
-# Piano di lavoro Satori
+# Satori Work Plan
 
-Obiettivo finale: generare testo da un modello GGUF supportato con un runtime .NET indipendente, pesi memory-mapped, backend CPU verificato e accelerazione Vulkan misurata. Target iniziale: mini PC Intel/AMD con 16 GB di RAM. Metal e ROCm restano estensioni future.
+Final goal: a multi-model inference engine for generic models within explicitly supported architectures and tensor formats, optimized for aggressively quantized models, including ternary models. The engine uses an independent .NET runtime, memory-mapped weights, a verified CPU backend and measured Vulkan acceleration. Initial target: Intel/AMD mini PCs with 16 GB of RAM. Metal and ROCm remain future extensions.
 
-Il supporto fino a 27B è un obiettivo condizionato da modello, quantizzazione, contesto e memoria disponibile; non implica una velocità garantita. Il ternary sperimentale non implica che un modello convenzionale convertito mantenga la qualità originale.
+Support up to 27B is a goal conditional on model, quantization, context and available memory; it does not imply guaranteed speed. Experimental ternary support does not imply that a converted conventional model retains its original quality.
 
-## Regole di esecuzione
+## Mandatory Product Requirements
 
-Stato: **T01–T44 completati**. GGUF Q8_0/Q4_0 su mapping e kernel scalar/AVX2 verificati anche su pesi pubblici reali; TernaryBitplane convertibile senza perdita e confrontato con Ternary2. Il bitplane non mostra un vantaggio generale su Ternary2 AVX2. T04 è ridotto al contratto concreto CPU descritto sotto. Profilo del primo modello: [Stories15M Q8_0](docs/stories15m-profile-v1.md), con fixture indipendenti di tokenizer, logits e stati intermedi. Operatori CPU del profilo implementati e verificati singolarmente: [contratto](docs/stories15m-operators.md). Tokenizer del profilo verificato sui sedici casi ufficiali. Forward sul prefisso verificato contro stati e logits indipendenti: [evidenze](docs/stories15m-forward.md). Cache incrementale con reset e limite 128 verificata contro il ricalcolo completo: [contratto](docs/stories15m-cache.md). Generazione greedy da console conforme alle sequenze ufficiali: [avvio e contratto](docs/stories15m-generation.md). Sampling con temperature, top-k/top-p e seed verificato. Baseline CPU/Vulkan e planner completati; [diagnostica T32](docs/vulkan-call-phases.md). Prossimo: **T45**. Evidenze in [TASK-LOG.md](TASK-LOG.md).
+| ID | Requirement | Acceptance Criterion |
+|---|---|---|
+| R-MM | The engine MUST support multiple models. A regression fixture must not define the engine architecture. | Run at least two distinct model artifacts with different topology dimensions through the same runtime and session contracts. Validate each against independent references. Adding a model within supported capabilities must not require model-named runtime interfaces or hard-coded execution dimensions. |
+| R-CAP | Model architecture, tensor quantization and execution backend MUST be separate capabilities. Generic support is bounded by an explicit capability matrix. | Read and validate model metadata and tensor shapes before execution. Derive workspace and KV sizes from the validated model and context. Reject unsupported architecture, tokenizer, operator or format with an explicit reason before generation. |
+| R-QUANT | The engine MUST optimize aggressively quantized inference, including ternary weights, without restricting inference to ternary or one model family. | Validate end-to-end inference for a supported ternary model and a supported non-ternary model. Keep compressed weights without permanent full-model FP32 expansion. Verify each format against independent numerical references; assess conversion quality separately from kernel correctness. |
+| R-PERF | Speed and bounded memory on small machines MUST govern the roadmap. A small-fixture result alone cannot establish product performance. | Declare model, quantization, context, hardware, RAM budget and performance targets before optimization. Measure startup, prefill, TTFT, decode and peak memory on representative workloads, including a coding model. Report target attainment and CPU/GPU comparisons without extrapolating from the small fixture. |
 
-Politica di verifica aggiornata: niente test per bootstrap, configurazione o passaggi semplici; usare build e demo. Aggiungere test soltanto per invarianti critiche di formato, correttezza numerica, memoria/lifetime, SIMD, GPU e inferenza.
+## Execution Rules
 
-Eseguire un task alla volta, nell'ordine indicato. Ogni task dipende dal precedente, salvo T01. Segnare completato soltanto dopo la verifica. I task di decisione producono una specifica prima dell'implementazione dipendente. Nessun task include funzionalità delle fasi successive.
+Current scope: Model-specific Vulkan offload, resident graphs, planner, diagnostic runners and their tests have been removed. CPU reference inference and reusable numerical/Vulkan primitives remain. The completion evidence below records historical verification, not availability of the removed paths.
 
-## A — Laboratorio numerico CPU
+Status: **historical tasks T01–T45 verified in their original scope**. Reusable mapped GGUF readers, quantized scalar/AVX2 kernels and Vulkan primitives remain. Earlier model-specific inference, offload and planner milestones do not establish multi-model product support. The removed optimization paths are not current capabilities. Verification history is retained in [TASK-LOG.md](TASK-LOG.md); the mandatory requirements and replanning gate below govern future work.
 
-Contesto: .NET 10, C# 14, x64; xUnit per correttezza, BenchmarkDotNet per prestazioni. Nessuna dipendenza da altri runtime di inferenza. Vulkan, tokenizer e generazione sono esclusi da questa fase.
+Updated verification policy: no tests for bootstrap, configuration or simple steps; use builds and demos. Add tests only for critical invariants of format, numerical correctness, memory/lifetime, SIMD, GPU and inference.
 
-| ID | Task | Risultato atteso | Verifica | Esclusioni specifiche |
+Execute one task at a time in the listed order. Each task depends on the previous one, except T01. Mark completed only after verification. Decision tasks produce a specification before dependent implementation. No task includes functionality from later phases. Completed profile-specific tasks establish only their verified scope; they do not satisfy R-MM, R-CAP, R-QUANT or R-PERF by themselves.
+
+## A — CPU Numerical Laboratory
+
+Context: .NET 10, C# 14, x64; xUnit for correctness, BenchmarkDotNet for performance. No dependency on other inference runtimes. Vulkan, tokenizer and generation are excluded from this phase.
+
+| ID | Task | Expected Result | Verification | Specific Exclusions |
 |---|---|---|---|---|
-| T01 | Crea una soluzione eseguibile minima | Libreria Satori, console con prodotto matrice-vettore FP32 su dati noti, progetto test, SDK fissato | Build Release, test e console restituiscono il risultato atteso | Quantizzazione |
-| T02 | Specifica il formato Ternary2 v1 | Specifica byte-level: ordine dei pesi, codici 00/01/10, rifiuto di 11, scale FP32, blocchi, padding, dimensioni, overflow e valori non finiti; regola deterministica di quantizzazione | Esempi binari calcolabili a mano coprono blocchi pieni, parziali e nulli | SIMD |
-| T03 | Implementa il codec Ternary2 | Packing, unpacking e quantizzazione conformi a T02 | Test su tutti i codici, scale, padding, input invalidi e determinismo | MatVec |
-| T04 | Definisci il contratto delle matrici CPU | Matrice Ternary2 con forma e block size immutabili, payload privato posseduto, importazione tramite copia validata; MatVec tramite span CPU | Build e utilizzo end-to-end nella console; validazione payload coperta dai test critici del codec | Descrittori generici e astrazione GPU rinviati all'introduzione di altri formati |
-| T05 | Implementa la MatVec Ternary2 scalar | Calcolo diretto sui pesi compressi con accumulo FP32, senza espansione completa | Confronto con reference FP64 sui medesimi pesi ricostruiti; tolleranze documentate | AVX2 |
-| T06 | Crea il corpus numerico riproducibile | Matrici con seed fisso, zeri, segni alterni, scale estreme ammesse e dimensioni irregolari | Test distinguono errore del kernel da errore di quantizzazione FP32→ternary | Qualità linguistica |
-| T07 | Aggiungi il benchmark scalar | Report per dimensione: latenza, byte/peso incluse scale e padding, banda effettiva, allocazioni, ambiente | Esecuzione Release su corpus fisso; nessuna allocazione gestita nel percorso caldo dopo warm-up | Obiettivi arbitrari di velocità |
-| T08 | Implementa la MatVec AVX2 | Kernel con code parziali, rilevamento capacità CPU e fallback scalar | Stesso corpus di T06; esecuzione con AVX2 e fallback; confronto prestazioni con T07 | AVX-512 |
-| T09 | Implementa il proprietario memory-mapped | Mapping read-only con lifetime protetto durante l'esecuzione, accesso a file grandi e controlli degli intervalli | Test su file temporanei, offset, disposal, acquisizioni concorrenti e identità dei risultati | Prefetch specifico dell'OS |
-| T10 | Collega MatVec ai pesi mappati | Console carica una matrice Ternary2 da file ed esegue scalar o AVX2 | Risultati identici alla versione in memoria; benchmark separa apertura/validazione, primo calcolo dopo validazione e regime caldo | GGUF completo; cold storage reale non misurato |
+| T01 | Create a minimal executable solution | Satori library, console with FP32 matrix-vector product on known data, test project, pinned SDK | Release build, tests and console return the expected result | Quantization |
+| T02 | Specify the Ternary2 v1 format | Byte-level specification: weight order, codes 00/01/10, rejection of 11, FP32 scales, blocks, padding, dimensions, overflow and nonfinite values; deterministic quantization rule | Hand-computable binary examples cover full, partial and zero blocks | SIMD |
+| T03 | Implement the Ternary2 codec | Packing, unpacking and quantization conforming to T02 | Tests for all codes, scales, padding, invalid inputs and determinism | MatVec |
+| T04 | Define the CPU matrix contract | Ternary2 matrix with immutable shape and block size, private owned payload, import through validated copy; MatVec through CPU spans | Build and end-to-end console use; payload validation covered by critical codec tests | Generic descriptors and GPU abstraction deferred until other formats are introduced |
+| T05 | Implement scalar Ternary2 MatVec | Direct computation on compressed weights with FP32 accumulation, without full expansion | Comparison with FP64 reference on the same reconstructed weights; documented tolerances | AVX2 |
+| T06 | Create the reproducible numerical corpus | Matrices with fixed seed, zeros, alternating signs, allowed extreme scales and irregular dimensions | Tests distinguish kernel error from FP32→ternary quantization error | Linguistic quality |
+| T07 | Add the scalar benchmark | Per-size report: latency, bytes/weight including scales and padding, effective bandwidth, allocations, environment | Release run on fixed corpus; no managed allocations on the hot path after warm-up | Arbitrary speed targets |
+| T08 | Implement AVX2 MatVec | Kernel with partial tails, CPU capability detection and scalar fallback | Same corpus as T06; AVX2 and fallback execution; performance comparison with T07 | AVX-512 |
+| T09 | Implement the memory-mapped owner | Read-only mapping with protected lifetime during execution, large-file access and range checks | Tests on temporary files, offsets, disposal, concurrent acquisitions and result identity | OS-specific prefetch |
+| T10 | Connect MatVec to mapped weights | Console loads a Ternary2 matrix from file and executes scalar or AVX2 | Results identical to in-memory version; benchmark separates opening/validation, first computation after validation and warm steady state | Full GGUF; actual cold storage not measured |
 
-Traguardo A: una matrice FP32 viene quantizzata, salvata, mappata e moltiplicata con risultati verificati e prestazioni misurate.
+Milestone A: an FP32 matrix is quantized, saved, mapped and multiplied with verified results and measured performance.
 
-## B — Formati reali
+## B — Real Formats
 
-Contesto: il laboratorio A è funzionante. Importare non significa convertire automaticamente un formato GGUF in ternary. Il runtime Transformer rimane escluso.
+Context: laboratory A is working. Importing does not mean automatically converting a GGUF format to ternary. The Transformer runtime remains excluded.
 
-| ID | Task | Risultato atteso | Verifica | Esclusioni specifiche |
+| ID | Task | Expected Result | Verification | Specific Exclusions |
 |---|---|---|---|---|
-| T11 | Specifica il sottoinsieme GGUF supportato | Versioni, tipi metadata, allineamenti, dimensioni tensoriali, limiti del parser e formati Q4_0/Q8_0 fissati | Fixture valide e casi da rifiutare documentati contro la specifica del formato | Supporto GGUF universale |
-| T12 | Implementa il lettore GGUF | Lettura metadata e indice tensori su mapping, con validazione dimensioni e offset | Test su fixture note, file troncati, metadata invalidi e intervalli fuori file | Inferenza |
-| T13 | Implementa la MatVec Q8_0 | Decodifica per blocco e kernel scalar su tensori importati | Confronto con valori di riferimento indipendenti e corpus reale | Q4_0 |
-| T14 | Implementa la MatVec Q4_0 | Kernel scalar conforme al layout GGUF | Confronto indipendente e benchmark sullo stesso input di Q8_0 | Q4_K e Q2 |
-| T15 | Ottimizza i kernel Q8_0/Q4_0 per AVX2 | Implementazioni specializzate registrate per formato | Test reference e benchmark ripetibili; mantenere sperimentali i kernel senza vantaggio dimostrato | Nuovi formati |
-| T16 | Specifica TernaryBitplane v1 | Layout, scale, padding e conversione senza perdita da Ternary2 definiti | Esempi binari e identità dei pesi logici | Base3 |
-| T17 | Implementa TernaryBitplane | Codec e MatVec scalar conformi a T16 | Confronto con gli stessi pesi di Ternary2 e benchmark completo della decodifica | LUT |
-| T18 | Ottimizza TernaryBitplane per AVX2 | Kernel SIMD sul layout compatto | Corpus numerico e confronto equo con Ternary2 a scale identiche | Quantizzazione attivazioni |
+| T11 | Specify the supported GGUF subset | Pinned versions, metadata types, alignments, tensor dimensions, parser limits and Q4_0/Q8_0 formats | Valid fixtures and rejection cases documented against the format specification | Universal GGUF support |
+| T12 | Implement the GGUF reader | Metadata and tensor index reads on mapping, with dimension and offset validation | Tests on known fixtures, truncated files, invalid metadata and out-of-file ranges | Inference |
+| T13 | Implement Q8_0 MatVec | Per-block decoding and scalar kernel on imported tensors | Comparison with independent reference values and real corpus | Q4_0 |
+| T14 | Implement Q4_0 MatVec | Scalar kernel conforming to the GGUF layout | Independent comparison and benchmark on the same input as Q8_0 | Q4_K and Q2 |
+| T15 | Optimize Q8_0/Q4_0 kernels for AVX2 | Specialized implementations registered by format | Reference tests and repeatable benchmarks; keep kernels without a demonstrated advantage experimental | New formats |
+| T16 | Specify TernaryBitplane v1 | Defined layout, scales, padding and lossless conversion from Ternary2 | Binary examples and logical-weight identity | Base3 |
+| T17 | Implement TernaryBitplane | Codec and scalar MatVec conforming to T16 | Comparison with the same Ternary2 weights and complete decoding benchmark | LUT |
+| T18 | Optimize TernaryBitplane for AVX2 | SIMD kernel on compact layout | Numerical corpus and fair comparison with Ternary2 at identical scales | Activation quantization |
 
-Traguardo B: benchmark su pesi reali GGUF Q4_0/Q8_0 e confronto controllato fra layout ternari.
+Milestone B: benchmarks on real GGUF Q4_0/Q8_0 weights and a controlled comparison of ternary layouts.
 
-## C — Primo modello funzionante
+## C — First Working Model
 
-Contesto: scegliere un solo modello piccolo e una sola architettura per il primo percorso completo. Nessuna interfaccia grafica; console sufficiente.
+Context: select one small model and one architecture for the first complete validation pipeline, not as a product restriction. No graphical interface; a console is sufficient.
 
-| ID | Task | Risultato atteso | Verifica | Esclusioni specifiche |
+| ID | Task | Expected Result | Verification | Specific Exclusions |
 |---|---|---|---|---|
-| T19 | Fissa il profilo del primo modello | Modello/versione/licenza, tokenizer, topologia, formati necessari, chat template e budget RAM documentati; fixture di token/logits con provenienza | Tutti gli operatori necessari sono elencati; formati mancanti diventano task obbligatori prima di T20 | Altre famiglie di modelli |
-| T20 | Implementa gli operatori del profilo | Operatori CPU richiesti da T19, verificati singolarmente | Confronti con fixture indipendenti per normalizzazione, RoPE, attention e attivazioni effettivamente richieste | Operatori non richiesti |
-| T21 | Implementa il tokenizer del profilo | Codifica, decodifica, token speciali e template del modello | Identità con sequenze ufficiali su corpus multilingue e casi limite | Tokenizer universale |
-| T22 | Implementa il forward di un token | Logits ottenuti attraversando tutti i layer dai pesi GGUF | Confronto dei tensori intermedi e dei logits con fixture T19 | Generazione autoregressiva |
-| T23 | Implementa la KV cache | Stato incrementale con limiti di contesto e budget memoria espliciti | Logits incrementali confrontati con ricalcolo completo; reset e contesto pieno verificati | Persistenza su SSD |
-| T24 | Implementa la generazione greedy | Console prompt→token→testo con EOS e limite token | Sequenza deterministica confrontata con riferimento; errori leggibili per modelli non supportati | Sampling casuale |
-| T25 | Aggiungi il sampling configurabile | Temperature, top-k/top-p e seed con regole di validazione | Test di distribuzione, riproducibilità e casi limite | API server |
-| T26 | Pubblica il benchmark del primo modello | TTFT, prefill, decode, memoria e qualità rispetto a riferimento con stesso modello/configurazione | Report riproducibile con hardware, runtime, contesto e quantizzazione; nessuna misura stimata presentata come reale | Generalizzazione a 27B |
+| T19 | Pin the first model profile | Documented model/version/license, tokenizer, topology, required formats, chat template and RAM budget; token/logit fixtures with provenance | All required operators listed; missing formats become mandatory tasks before T20 | Other model families |
+| T20 | Implement profile operators | CPU operators required by T19, individually verified | Comparisons with independent fixtures for normalization, RoPE, attention and the activations actually required | Unneeded operators |
+| T21 | Implement the profile tokenizer | Encoding, decoding, special tokens and model template | Identity with official sequences on multilingual corpus and edge cases | Universal tokenizer |
+| T22 | Implement a single-token forward pass | Logits obtained by traversing all layers from GGUF weights | Comparison of intermediate tensors and logits with T19 fixtures | Autoregressive generation |
+| T23 | Implement the KV cache | Incremental state with explicit context limits and memory budget | Incremental logits compared with full recomputation; reset and full context verified | SSD persistence |
+| T24 | Implement greedy generation | Prompt→token→text console with EOS and token limit | Deterministic sequence compared with reference; readable errors for unsupported models | Random sampling |
+| T25 | Add configurable sampling | Temperature, top-k/top-p and seed with validation rules | Distribution, reproducibility and edge-case tests | Server API |
+| T26 | Publish the first model benchmark | TTFT, prefill, decode, memory and quality against a reference with the same model/configuration | Reproducible report with hardware, runtime, context and quantization; no estimated measurement presented as real | Generalization to 27B |
 
-Traguardo C: Satori genera testo corretto da un modello piccolo supportato su CPU.
+Milestone C: Satori generates correct text from a supported small model on CPU.
 
 ## D — Vulkan
 
-Contesto: CPU verificata come riferimento; disponibilità di una GPU compatibile necessaria per chiudere la validazione hardware.
+Context: verified CPU as reference; a compatible GPU is required to complete hardware validation.
 
-| ID | Task | Risultato atteso | Verifica | Esclusioni specifiche |
+| ID | Task | Expected Result | Verification | Specific Exclusions |
 |---|---|---|---|---|
-| T27 | Fissa il contratto del backend Vulkan | Binding, compilazione SPIR-V, ownership buffer, submission, sincronizzazione e capability minime documentati | Specifica comprende fallimento di inizializzazione, disposal e fallback CPU | Metal/ROCm |
-| T28 | Implementa il percorso Vulkan minimo | Upload, dispatch di un kernel semplice e readback con lifetime espliciti | Risultato noto corretto su GPU; validation layer senza errori | Kernel quantizzati |
-| T29 | Implementa la MatVec quantizzata Vulkan | Primo formato scelto fra quelli usati dal modello T19, con pesi residenti nei buffer | Corpus CPU/GPU entro tolleranza; tempi kernel separati dalla latenza end-to-end | Tutti i formati contemporaneamente |
-| T30 | Integra l'offload del modello | Esecuzione GPU di operazioni o layer completi compatibili; fallback CPU | Logits conformi al riferimento; report dei trasferimenti, della memoria e della latenza totale | Divisione di una MatVec CPU/GPU |
-| T31 | Implementa il planner misurato | Scelta di kernel/layout/backend basata su capacità e misure; cache invalidabile per hardware, driver e versione kernel | Scelte riproducibili, cache invalida respinta, confronto con CPU-only | Promessa di vantaggio GPU su ogni hardware |
+| T27 | Pin the Vulkan backend contract | Documented bindings, SPIR-V compilation, buffer ownership, submission, synchronization and minimum capabilities | Specification covers initialization failure, disposal and CPU fallback | Metal/ROCm |
+| T28 | Implement the minimal Vulkan path | Upload, simple kernel dispatch and readback with explicit lifetimes | Correct known result on GPU; validation layer without errors | Quantized kernels |
+| T29 | Implement Vulkan quantized MatVec | First format selected from those used by the T19 model, with weights resident in buffers | CPU/GPU corpus within tolerance; kernel times separated from end-to-end latency | All formats simultaneously |
+| T30 | Integrate model offload | GPU execution of compatible operations or complete layers; CPU fallback | Logits match reference; report of transfers, memory and total latency | Splitting a MatVec across CPU/GPU |
+| T31 | Implement the measurement-based planner | Kernel/layout/backend selection based on capabilities and measurements; cache invalidatable by hardware, driver and kernel version | Reproducible choices, invalid cache rejected, comparison with CPU-only | Promise of GPU advantage on every hardware configuration |
 
-Traguardo D: accelerazione Vulkan utilizzabile con vantaggi e limiti documentati sull'hardware provato.
+Milestone D: usable Vulkan acceleration with advantages and limits documented on tested hardware.
 
-## D2 — Ottimizzazioni Vulkan
+## D2 — Vulkan Optimization
 
-T32–T44 completati; T45–T45 pianificati. [Startup T33](docs/stories15m-planner-startup.md). [Piano con dipendenze e verifiche](docs/vulkan-optimization-plan.md). Ogni task completato viene registrato in un commit separato.
+**Model-specific optimization roadmap removed. T46–T50 are cancelled in their previous formulation.** Raw measurement files remain historical evidence. Reusable primitives remain subject to the multi-model requirements; no model-specific optimization sequence is carried forward.
 
-## E — Estensioni dopo la baseline
+### Replanning Gate
 
-Questi task sono in ordine indicativo. Prima di implementarli, fissare il profilo o il formato specifico e scomporre ciascuna estensione in task con fixture, kernel, integrazione e benchmark come nelle fasi precedenti.
+Next work item: define the supported capability matrix and representative validation models. This is a planning step, not authorization to implement another model-specific runtime. No model has been selected as the product architecture.
 
-1. Aggiungere i formati Q2/Q4_K richiesti dai modelli selezionati.
-2. Valutare TernaryBase3/LUT su identiche matrici e scale.
-3. Validare un modello nativamente ternario prima di estendere il runtime.
-4. Valutare conversioni ternarie post-training con metriche di qualità indipendenti.
-5. Aggiungere profili 7–9B e successivamente 20–27B entro budget misurati.
-6. Valutare AVX-512 dove disponibile.
-7. Specificare un backend Metal per Apple Silicon, incluso il percorso CPU ARM64.
-8. Specificare un backend ROCm sulle GPU AMD effettivamente supportate.
+Before resuming implementation:
 
-Metal e ROCm sono memorandum, non dipendenze per completare la prima versione.
+1. Define the architecture, tokenizer, operator and tensor-format capability matrix required by R-CAP and R-QUANT.
+2. Specify model-independent runtime/session contracts and metadata-driven memory planning required by R-MM. Keep existing small-model artifacts as regression fixtures.
+3. Select representative validation artifacts and coding workloads; fix numerical, quality, memory and performance criteria required by R-PERF.
+4. Replace the pending roadmap with ordered tasks, dependencies and acceptance criteria traced to R-MM, R-CAP, R-QUANT and R-PERF. Reuse existing kernels and backend infrastructure where compatible.
+
+Runtime contracts must satisfy the mandatory product requirements before dependent tasks become executable. Requirements stay in this plan; implementation details stay in the relevant technical documentation. No ADRs or equivalent decision-record systems are created.
+
+## E — Extensions After the Baseline
+
+These candidates are not an executable sequence. Multi-model support and ternary inference are mandatory baseline requirements, not optional extensions. The replanning gate determines which candidates are required for the baseline and which remain future work.
+
+1. Add Q2/Q4_K formats required by selected models.
+2. Evaluate TernaryBase3/LUT on identical matrices and scales.
+3. Validate a natively ternary model before extending the runtime.
+4. Evaluate post-training ternary conversions with independent quality metrics.
+5. Add 7–9B profiles and later 20–27B within measured budgets.
+6. Evaluate AVX-512 where available.
+7. Specify a Metal backend for Apple Silicon, including the ARM64 CPU path.
+8. Specify a ROCm backend on actually supported AMD GPUs.
+
+Metal and ROCm are notes for future work, not dependencies for completing the first version.

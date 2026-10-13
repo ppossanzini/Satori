@@ -10,11 +10,11 @@ Optional timestamps bracket dispatch at the compute stage. They report a GPU dis
 
 ## Evidence
 
-[Raw measurements](benchmarks/vulkan-q8-2026-10-12/q8-matvec.json): Intel Arc MTL, .NET 10, Khronos synchronization validation enabled. All 30 synthetic cases and all 44 Stories15M Q8 matrices passed the independent FP64 decode/dot oracle, as did CPU scalar and automatic AVX2. The maximum GPU error/bound ratio was 0.003338. The bound is `gamma(n) * sum(abs(products)) + n * float.Epsilon`, with `n = columns + columns / 32 + 2` and unit roundoff `2^-24`.
+[Raw measurements](benchmarks/vulkan-q8-2026-10-12/q8-matvec.json): Intel Arc MTL, .NET 10, Khronos synchronization validation enabled. All 30 synthetic cases and all 44 Q8 matrices in the regression corpus passed the independent FP64 decode/dot oracle, as did CPU scalar and automatic AVX2. The maximum GPU error/bound ratio was 0.003338. The bound is `gamma(n) * sum(abs(products)) + n * float.Epsilon`, with `n = columns + columns / 32 + 2` and unit roundoff `2^-24`.
 
 Synthetic cases cover signed quantized values, positive/negative/zero/subnormal/maximal half scales, 32–768 columns, unaligned block starts and 1/7/63/64/65/129 rows. Nine GPU tests cover these cases, independent mapped-weight ownership, repeated calls, invalid inputs, zero warm managed allocation and concurrent execution/disposal. The 114 CPU numerical tests also pass.
 
-Three warmups and fifteen sequential samples per real matrix separate CPU scalar, CPU automatic, GPU kernel and host times. Median GPU kernel times range from 0.162 to 18.409 ms; host times from 1.736 to 27.541 ms. CPU AVX2 medians range from 0.021 to 2.692 ms. For `output.weight` (32000 × 288), GPU kernel/host medians are 17.658/26.440 ms versus CPU AVX2 2.338 ms. All measured GPU calls allocate zero managed bytes. These validation-enabled diagnostic measurements establish correctness and expose the slow baseline; they do not demonstrate acceleration or predict whole-model latency. Model integration is documented in [Stories15M offload](stories15m-vulkan-offload.md).
+Three warmups and fifteen sequential samples per real matrix separate CPU scalar, CPU automatic, GPU kernel and host times. Median GPU kernel times range from 0.162 to 18.409 ms; host times from 1.736 to 27.541 ms. CPU AVX2 medians range from 0.021 to 2.692 ms. For `output.weight` (32000 × 288), GPU kernel/host medians are 17.658/26.440 ms versus CPU AVX2 2.338 ms. All measured GPU calls allocate zero managed bytes. These validation-enabled diagnostic measurements establish correctness and expose the slow baseline; they do not demonstrate acceleration or predict whole-model latency. These matrix-level results do not define a supported inference model.
 
 ## Reproduction
 
@@ -24,7 +24,7 @@ Build Release and compile shaders using `python3 tools/compile_vulkan_shaders.py
 VK_LAYER_PATH="$PWD/.temp/t29/layer/usr/share/vulkan/explicit_layer.d" \
 LD_LIBRARY_PATH="$PWD/.temp/t29/layer/usr/lib" VK_VALIDATION_VALIDATE_SYNC=1 \
 dotnet run --project validation/Satori.Vulkan.Validation -c Release --no-build -- \
-  --q8 .temp/gguf-corpus/stories15M-q8_0.gguf
+  --q8 <model.gguf>
 ```
 
 The report records the model SHA256, device, allocation sizes, cold upload, numerical errors and raw timing samples. Temporary validation layers are removed after verification; they must be restaged for subsequent runs.

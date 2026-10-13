@@ -1,19 +1,21 @@
 # Satori
 
-Motore di calcolo quantizzato C#/.NET per inferenza locale, con particolare attenzione ai modelli piccoli e alle quantizzazioni low-bit.
+Independent multi-model C#/.NET inference engine for small machines, optimized for aggressively quantized weights, including ternary models. Generic model support is bounded by explicitly supported architectures, tokenizers, operators and tensor formats.
 
-## Target e ordine di sviluppo
+Product requirements and the next development step are defined in [TASKS.md](TASKS.md#mandatory-product-requirements). Complete inference has been checked on a small regression fixture only; this does not establish product-level model support. Multi-model inference and end-to-end ternary model inference remain to be implemented and verified.
 
-- CPU x64 Intel/AMD: kernel scalar e SIMD, primo target.
-- Vulkan Compute: primo backend GPU previsto, dopo la validazione dei kernel CPU.
-- Metal: memorandum per un futuro backend su macOS e Apple Silicon.
-- ROCm: memorandum per un futuro backend su GPU AMD.
+## Targets and Development Order
 
-Metal e ROCm sono target futuri da valutare; non rientrano nella prima milestone.
+- Intel/AMD x64 CPU: scalar and SIMD kernels, the first target.
+- Vulkan Compute: reusable Q8_0 MatVec and FP32 operator primitives; no model-specific offload or planner.
+- Metal: a note for a future macOS and Apple Silicon backend.
+- ROCm: a note for a future AMD GPU backend.
 
-## Avvio
+Metal and ROCm are future targets to evaluate; they are outside the first milestone.
 
-Richiede SDK .NET 10.0.112 (o patch compatibile), C# 14. Baseline iniziale verificata su Linux x64.
+## Getting Started
+
+Requires .NET SDK 10.0.112 (or a compatible patch), C# 14. The initial baseline was verified on Linux x64.
 
 ```sh
 dotnet restore Satori.sln
@@ -22,91 +24,87 @@ dotnet test Satori.sln -c Release --no-build --no-restore -m:1
 dotnet run --project src/Satori.Console -c Release --no-build
 ```
 
-La console quantizza una matrice FP32 2×3 in Ternary2 ed esegue la MatVec direttamente sui blocchi compressi. Stampa `[4, -2.6666667]` e 40 byte occupati, incluse scale e padding. Su matrici così piccole il padding prevale sulla compressione.
+The console quantizes a 2×3 FP32 matrix to Ternary2 and runs MatVec directly on the compressed blocks. It prints `[4, -2.6666667]` and 40 bytes of storage, including scales and padding. For matrices this small, padding outweighs compression.
 
-Ternary2 supporta blocchi da 64, 128 o 256 pesi, scale FP32, importazione validata del payload e ricostruzione esplicita dei pesi per analisi numerica. La specifica binaria è in [docs/ternary2-v1.md](docs/ternary2-v1.md). Il kernel non espande la matrice e non alloca memoria gestita durante il calcolo.
+Ternary2 supports blocks of 64, 128 or 256 weights, FP32 scales, validated payload import and explicit weight reconstruction for numerical analysis. The binary specification is in [docs/ternary2-v1.md](docs/ternary2-v1.md). The kernel does not expand the matrix or allocate managed memory during computation.
 
-`Ternary2MatVec.Execute` seleziona AVX2 quando disponibile e scalar altrimenti. `ExecuteScalar` permette di usare esplicitamente la reference; `ExecuteAvx2` include lo stesso fallback per CPU senza supporto. Le code parziali vengono elaborate scalar senza letture oltre la fine dell'input.
+`Ternary2MatVec.Execute` selects AVX2 when available and scalar otherwise. `ExecuteScalar` explicitly uses the reference implementation; `ExecuteAvx2` includes the same fallback for unsupported CPUs. Partial tails are processed by the scalar kernel without reading beyond the input.
 
-I test sono riservati ai passaggi critici: formato binario, corruzione dei dati, estremi numerici, correttezza dei kernel e memoria. Bootstrap e passaggi semplici si verificano con build e demo.
+Tests are reserved for critical behavior: binary format, data corruption, numerical extremes, kernel correctness and memory. Bootstrap and simple steps are verified through builds and demos.
 
-## Pesi memory-mapped
+## Memory-Mapped Weights
 
-`MappedWeights` apre i pesi in sola lettura e permette accessi senza copia tramite callback, con offset a 64 bit. La chiusura impedisce nuovi accessi e mantiene validi quelli già avviati fino al termine delle callback. `MappedTernary2Matrix` carica un file STQ2 validato ed esegue MatVec scalar o AVX2 direttamente sui byte mappati. Contratto e limiti in [docs/mapped-weights.md](docs/mapped-weights.md).
+`MappedWeights` opens weights read-only and provides zero-copy access through callbacks, with 64-bit offsets. Closing prevents new accesses and keeps existing ones valid until their callbacks finish. `MappedTernary2Matrix` loads a validated STQ2 file and runs scalar or AVX2 MatVec directly on mapped bytes. Contract and limits: [docs/mapped-weights.md](docs/mapped-weights.md).
 
-Demo di salvataggio e caricamento, usando un percorso nuovo:
+Save and load demo, using a new path:
 
 ```sh
 dotnet run --project src/Satori.Console -c Release -- save demo.stq2
 dotnet run --project src/Satori.Console -c Release -- run demo.stq2
 ```
 
-La demo stampa `[4, -2.6666667]`. Il comando `run` usa `[2, -1, 3]` per matrici con tre colonne e un vettore di uno negli altri casi, mostrando al massimo otto risultati. È una console di laboratorio, non un generatore di testo. `Save` non sovrascrive file esistenti. Il contenitore STQ2 v1 è descritto nella [specifica Ternary2](docs/ternary2-v1.md); il payload di ogni matrice è limitato a `int.MaxValue` byte.
+The demo prints `[4, -2.6666667]`. The `run` command uses `[2, -1, 3]` for matrices with three columns and a vector of ones otherwise, displaying at most eight results. It is a laboratory console, not a text generator. `Save` does not overwrite existing files. The STQ2 v1 container is described in the [Ternary2 specification](docs/ternary2-v1.md); each matrix payload is limited to `int.MaxValue` bytes.
 
-Il piano di sviluppo è in [TASKS.md](TASKS.md).
+The development plan is in [TASKS.md](TASKS.md).
 
-## Corpus numerico e benchmark
+## Numerical Corpus and Benchmarks
 
 ```sh
 dotnet run --project benchmarks/Satori.Benchmarks -c Release -- --validate
 dotnet run --project benchmarks/Satori.Benchmarks -c Release -- --filter '*'
 ```
 
-Il primo comando verifica il corpus con entrambi i kernel e salva gli errori numerici; il secondo confronta scalar e AVX2 con BenchmarkDotNet per matrici 1024², 2048² e 4096², con blocchi da 64/128/256 pesi. I report rigenerabili sono in `reports/cpu/`: ambiente, errori numerici, prestazioni JSON e report BenchmarkDotNet con dispersione statistica. Su hardware senza AVX2 il secondo metodo usa il fallback scalar; il report ambiente indica la capacità effettiva.
+The first command validates the corpus with both kernels and saves numerical errors; the second compares scalar and AVX2 with BenchmarkDotNet for 1024², 2048² and 4096² matrices, with blocks of 64/128/256 weights. Regenerable reports are in `reports/cpu/`: environment, numerical errors, performance JSON and BenchmarkDotNet reports with statistical dispersion. On hardware without AVX2, the second method uses the scalar fallback; the environment report records actual capabilities.
 
-Le misure includono la decodifica dei pesi ma escludono quantizzazione e preparazione. Sono eseguite a caldo, su un thread e nello stesso processo; la banda effettiva conta soltanto il payload quantizzato, scale e padding inclusi. Non rappresenta la banda fisica della RAM. Il job breve serve come baseline di sviluppo; per scegliere ottimizzazioni servono confronti ripetuti sullo stesso hardware.
+Measurements include weight decoding but exclude quantization and setup. They run warm, on one thread and in the same process; effective bandwidth counts only the quantized payload, including scales and padding. It does not represent physical RAM bandwidth. The short job provides a development baseline; selecting optimizations requires repeated comparisons on the same hardware.
 
-Prima esecuzione salvata: [baseline scalar del 12 ottobre 2026](docs/benchmarks/scalar-2026-10-12/README.md). Protocollo ed errori: [metodo del laboratorio](docs/benchmark-method.md).
+First saved run: [scalar baseline from October 12, 2026](docs/benchmarks/scalar-2026-10-12/README.md). Protocol and errors: [laboratory method](docs/benchmark-method.md).
 
-Confronto ripetuto: [scalar / AVX2, due esecuzioni](docs/benchmarks/avx2-2026-10-12/README.md). Su Intel Core Ultra 7 155H, AVX2 ha mostrato un vantaggio di circa 27–32× sul nostro kernel scalar nelle configurazioni sintetiche misurate. Non è una misura di inferenza LLM o un confronto con altri runtime.
+Repeated comparison: [scalar / AVX2, two runs](docs/benchmarks/avx2-2026-10-12/README.md). On Intel Core Ultra 7 155H, AVX2 showed an approximately 27–32× advantage over our scalar kernel in the measured synthetic configurations. This is not an LLM inference measurement or a comparison with other runtimes.
 
-Per confrontare memoria posseduta e mapping:
+To compare owned memory and mapping:
 
 ```sh
 dotnet run --project benchmarks/Satori.Benchmarks -c Release -- --mapped --filter '*'
 ```
 
-Report in `reports/mapped/`: apertura/validazione e primo calcolo in `startup.json`, regime in `performance.json`. Il primo calcolo avviene dopo la validazione delle pagine e non rappresenta una lettura SSD a freddo. [Prima esecuzione mapped](docs/benchmarks/mapped-2026-10-12/README.md).
+Reports in `reports/mapped/`: opening/validation and first computation in `startup.json`, steady state in `performance.json`. The first computation occurs after page validation and does not represent a cold SSD read. [First mapped run](docs/benchmarks/mapped-2026-10-12/README.md).
 
 ## GGUF
 
-Il [profilo GGUF v1](docs/gguf-subset-v1.md) è implementato: contenitori v3 little-endian, catalogo F32/F16/Q4_0/Q8_0, metadati scalar/array e accesso ai tensori per finestre mappate. `GgufQuantizedMatrix` valida le scale del tensore Q8_0/Q4_0 selezionato e offre MatVec scalar e AVX2 con fallback. F32/F16 sono catalogati; tokenizer e inferenza non sono ancora implementati.
+The [GGUF v1 profile](docs/gguf-subset-v1.md) is implemented: little-endian v3 containers, an F32/F16/Q4_0/Q8_0 catalog, scalar/array metadata and tensor access through mapped windows. `GgufQuantizedMatrix` validates scales in the selected Q8_0/Q4_0 tensor and provides scalar and AVX2 MatVec with fallback. F32/F16 are cataloged; tokenizer and inference are not yet implemented.
 
-Le [fixture critiche](docs/gguf-fixtures-v1.md) verificano layout e rifiuto dei file corrotti. Il [corpus pubblico e i report](docs/benchmarks/gguf-2026-10-12/README.md) confrontano cataloghi col reader ufficiale e calcoli con reference FP64 indipendenti. Riproduzione:
+The [critical fixtures](docs/gguf-fixtures-v1.md) verify layout and rejection of corrupted files. The [public corpus and reports](docs/benchmarks/gguf-2026-10-12/README.md) compare catalogs with the official reader and computations with independent FP64 references. Reproduction:
 
 ```sh
 python3 tools/download_gguf_corpus.py
-dotnet run --project validation/Satori.Gguf.Validation -c Release -- .temp/gguf-corpus/stories15M-q8_0.gguf docs/benchmarks/gguf-2026-10-12/q8-reference.json
+dotnet run --project validation/Satori.Gguf.Validation -c Release -- <model.gguf> <reference.json>
 dotnet run --project benchmarks/Satori.Benchmarks -c Release -- --gguf .temp/gguf-corpus --filter '*'
 ```
 
-## Layout ternario bitplane
+## Ternary Bitplane Layout
 
-`TernaryBitplaneMatrix.FromTernary2` converte senza perdita, mantenendo le scale FP32 e separando i bit positivi e negativi. `ToTernary2` riproduce il payload originale byte per byte. Il nuovo [formato STB1](docs/ternary-bitplane-v1.md) supporta import validato e salvataggio/caricamento; occupa gli stessi byte di Ternary2.
+`TernaryBitplaneMatrix.FromTernary2` converts losslessly, preserving FP32 scales and separating positive and negative bits. `ToTernary2` reproduces the original payload byte for byte. The new [STB1 format](docs/ternary-bitplane-v1.md) supports validated import and saving/loading; it uses the same number of bytes as Ternary2.
 
-`TernaryBitplaneMatVec.Execute` usa AVX2 dove disponibile e scalar altrimenti. Il confronto con Ternary2 usa identici pesi, scale e input; include tutta la decodifica:
+`TernaryBitplaneMatVec.Execute` uses AVX2 where available and scalar otherwise. The comparison with Ternary2 uses identical weights, scales and inputs; it includes all decoding:
 
 ```sh
 dotnet run --project benchmarks/Satori.Benchmarks -c Release -- --layouts --validate
 dotnet run --project benchmarks/Satori.Benchmarks -c Release -- --layouts --filter '*'
 ```
 
-Report e limiti del confronto: [benchmark dei layout](docs/benchmarks/bitplane-2026-10-12/README.md). La suite critica si può eseguire anche con `DOTNET_EnableAVX2=0` per provare il fallback reale. Per Q8_0/Q4_0 e bitplane, `ExecuteAvx2` esplicito richiede AVX2; usare `Execute` per il dispatch portabile.
+Reports and comparison limits: [layout benchmarks](docs/benchmarks/bitplane-2026-10-12/README.md). The critical suite can also run with `DOTNET_EnableAVX2=0` to test the actual fallback. For Q8_0/Q4_0 and bitplane, explicit `ExecuteAvx2` requires AVX2; use `Execute` for portable dispatch.
 
-## Primo modello selezionato
+## Reference Validation
 
-[Stories15M Q8_0, profilo v1](docs/stories15m-profile-v1.md): modello base TinyStories, 6 layer, hidden 288, contesto 128. Tokenizer e operatori sono fissati; il forward Satori resta da implementare. Le [fixture indipendenti](fixtures/models/stories15m-q8-v1/README.md) includono token, logits completi, stati intermedi e sequenze greedy, confrontati tra FP64 e runtime ufficiale. Il confronto usa gli stessi pesi ricostruiti per distinguere errori di calcolo dalla quantizzazione delle attivazioni del riferimento.
+Small-model inference code and independent numerical fixtures are laboratory regression material. They do not define the supported product models, execution dimensions or tokenizer contracts. Multi-model inference, representative coding workloads and end-to-end ternary execution remain governed by [the product requirements](TASKS.md#mandatory-product-requirements).
 
-## Operatori del primo modello
+Tests with `Category=ModelIntegration` require the real corpus: `python tools/download_gguf_corpus.py`. For the offline suite without weights, use `--filter 'Category!=ModelIntegration'`.
 
-Implementati RMSNorm, RoPE, attention causale, SwiGLU, somma residuale, lettura delle norme F32 e gather delle embedding Q8_0 per Stories15M. Operatori verificati singolarmente contro NumPy FP64, senza allocazioni durante il calcolo. Contratto e riproduzione in [docs/stories15m-operators.md](docs/stories15m-operators.md). Tokenizer Stories15M implementato e verificato sui sedici casi ufficiali, con decodifica UTF-8 in streaming e fixture offline. [Contratto tokenizer](docs/stories15m-tokenizer.md). `StoriesModel.Forward` ricalcola un prefisso fino a 128 token e restituisce i logits dell’ultimo token dai pesi Q8_0 mappati. [Contratto e verifica numerica](docs/stories15m-forward.md). `StoriesModel.CreateSession` fornisce la cache incrementale FP32: 128 token, reset e zero allocazioni a regime, con logits identici al ricalcolo completo. [Contratto cache](docs/stories15m-cache.md). Generazione greedy disponibile dalla console: prompt, cache, continuazione UTF-8 e arresto per EOS/budget/contesto. [Avvio e contratto](docs/stories15m-generation.md).
+## Vulkan Backend
 
-I test `Category=ModelIntegration` richiedono il corpus reale: `python tools/download_gguf_corpus.py`. Per la suite offline senza pesi usare `--filter 'Category!=ModelIntegration'`.
+The [Vulkan contract](docs/vulkan-backend-v1.md) fixes Silk.NET.Vulkan 2.23.0, Vulkan 1.1 / SPIR-V 1.3, buffer ownership and a synchronous public API. Optional device features are capability-gated with a verified fallback. The [minimal compute path](docs/vulkan-minimal-path.md) has been verified on the host Intel Arc GPU with Khronos synchronization validation. Hardware tests are separate from CPU tests and require GPU/layer access. Reusable Q8_0 MatVec and FP32 operator primitives remain available; Model-specific offload, resident graphs and planner have been removed.
 
-## Generare testo
+Resident Vulkan Q8_0 MatVec and diagnostic timings: [implementation and evidence](docs/vulkan-q8-matvec.md).
 
-```sh
-dotnet run --project src/Satori.Console -c Release --no-build -- generate .temp/gguf-corpus/stories15M-q8_0.gguf "Once upon a time" 12
-```
-
-Restituisce `, there was a little girl named Lily. She loved`. Stampa solo la continuazione; conteggi e motivo di arresto sono su stderr. Default 32 nuovi token, contesto massimo 128 incluso BOS. Modello richiesto: artefatto Stories15M Q8_0 fissato. Sampling disponibile con `--temperature 0.8 --top-k 40 --top-p 0.9 --seed 123`; temperature zero mantiene greedy. [Regole e API](docs/stories15m-generation.md#sampling-configurabile). Benchmark end-to-end previsto in T26.
+Console generation uses the CPU reference fixture. Backend selection, device selection, plan-cache and resident-path generation options are no longer supported. Published model-level GPU measurements are historical data, not current runtime capabilities.

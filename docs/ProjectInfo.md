@@ -1,5 +1,7 @@
-# Satori project decisions
+# Satori project documentation
 
-[Vulkan resident session contract](adr/current/vulkan-resident.md) fixes ownership, buffer budget, operator ABI, numerical precision and failure transitions for the optimization sequence. [Decision manifest](adr/manifest.yaml) locates historical records.
+[Product requirements and execution status](../TASKS.md) govern the multi-model roadmap, supported capabilities, quantized formats and representative performance workloads. No regression model defines the product architecture or target.
 
-Existing baseline contracts: [Vulkan](vulkan-backend-v1.md), [model profile](stories15m-profile-v1.md), [optimization plan](vulkan-optimization-plan.md). CPU remains the default; GPU promotion requires numerical/lifetime gates and measured advantage.
+Reusable technical contracts: [GGUF](gguf-subset-v1.md), [mapped weights](mapped-weights.md), [Vulkan](vulkan-backend-v1.md), [Q8 MatVec](vulkan-q8-matvec.md), [FP32 operators](vulkan-transformer-operators.md).
+
+Model-specific guides and optimization narratives have been removed. Raw historical measurements and regression fixtures remain available as verification data.

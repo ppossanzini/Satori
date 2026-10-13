@@ -36,7 +36,7 @@ Compile explicitly with `glslangValidator -V --target-env vulkan1.1 -S comp -e m
 
 Check binary length divisible by four, SPIR-V magic/version and manifest hash before creating a module. Set 0 uses std430 storage buffers: binding 0 input, binding 1 output for the minimal path. Push constant at byte 0 is an unsigned 32-bit element count; remaining bytes are absent unless the kernel manifest declares them. Dispatch ceil(count/64) workgroups and guard the final partial group. No out-of-bounds vector loads or output aliasing.
 
-Quantized MatVec later uses a separate declared layout, initially Q8_0 from the Stories15M profile. Packed bytes are transported in uint words with explicit shifts/masks and signed extension; FP16 scales are converted to FP32 without requiring FP16 arithmetic. Padding and tensor offsets are specified and verified with the kernel, never obtained by casting arbitrary mapped addresses. This contract adds no Q8 shader or numerical tolerance today.
+Quantized MatVec later uses a separate declared layout, initially Q8_0 from the verification corpus. Packed bytes are transported in uint words with explicit shifts/masks and signed extension; FP16 scales are converted to FP32 without requiring FP16 arithmetic. Padding and tensor offsets are specified and verified with the kernel, never obtained by casting arbitrary mapped addresses. This contract adds no Q8 shader or numerical tolerance today.
 
 ## Memory and ownership
 
@@ -76,7 +76,7 @@ Factory shape: `VulkanContext.TryCreate(options, out context, out availability)`
 | Device lost during submission/wait | Context becomes Faulted, never reused; no partial readback committed; perform permitted lost-device teardown |
 | Unrelated exception or invalid application input | Propagate; no automatic retry |
 
-Caller policy is explicit: Cpu skips Vulkan; Auto may use CPU for the known unavailability cases and reports the reason; VulkanRequired fails if Vulkan cannot execute. The [model composition](stories15m-vulkan-offload.md) consumes this policy; automatic fallback is initialization-only. Required GPU verification cannot pass by falling back to CPU.
+Caller policy is explicit: Cpu skips Vulkan; Auto may use CPU for the known unavailability cases and reports the reason; VulkanRequired fails if Vulkan cannot execute. The model composition consumes this policy; automatic fallback is initialization-only. Required GPU verification cannot pass by falling back to CPU.
 
 Output is committed only after successful wait/readback; failures leave caller output unchanged. Before model integration, GPU failure can retry the whole stateless operation on CPU. For stateful offload, recovery must reconstruct a fresh CPU session from committed token history and preserved sampling state; never continue a partially updated KV cache or emit the same token twice. Device loss during execution is therefore not silently recoverable inside the low-level backend.
 

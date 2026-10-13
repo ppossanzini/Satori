@@ -1,5 +1,7 @@
 # Q8_0 e Q4_0 su pesi reali
 
+The filenames below identify historical verification artifacts only; they do not define supported product models or the engine target.
+
 Corpus: [ggml-org/tiny-llamas](https://huggingface.co/ggml-org/tiny-llamas/tree/99dd1a73db5a37100bd4ae633f4cfce6560e1567), revisione `99dd1a73db5a37100bd4ae633f4cfce6560e1567`. File pubblici scaricati soltanto nello spazio temporaneo, non distribuiti nel repository.
 
 | File | Byte | SHA-256 |

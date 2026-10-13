@@ -1,3 +1,7 @@
+# Verification history
+
+Historical task entries describe their original scope and may mention removed implementations. Current product requirements and executable work are defined only in TASKS.md.
+
 # Registro di esecuzione
 
 ## T11 — 2026-10-12 — Completato
@@ -238,7 +242,7 @@ Skill applicate: phase-development-project-conventions, phase-development-task-e
 
 Added opt-in host intervals for upload (map/copy/cache/unmap), command recording, submission preparation, QueueSubmit, fence wait, post-wait validation, query retrieval and readback. Successful MatVec counters expose submissions, waits, transferred bytes and instrumented-call counts. Explicit model options independently enable GPU timestamps and host phases; diagnostic options do not enter Auto planner selection.
 
-Published six sequential process reports: three per timestamp mode, each with three warmups and seven measured runs on the existing eleven-token workload. Every checked prefix passes CPU/GPU numerical gates. Each measured run has 473 submissions/waits, 2,865,280 vector bytes, zero managed hot allocations and phase deltas summing to host duration within 1e-6 ms. Timestamp-off decode medians span 149.783–157.967 ms versus CPU 3.720–5.646 ms. Fence wait dominates; it overlaps device execution and cannot be equated to pure host overhead or transfer time. No speedup claimed. [Report](docs/vulkan-call-phases.md).
+Published six sequential process reports: three per timestamp mode, each with three warmups and seven measured runs on the existing eleven-token workload. Every checked prefix passes CPU/GPU numerical gates. Each measured run has 473 submissions/waits, 2,865,280 vector bytes, zero managed hot allocations and phase deltas summing to host duration within 1e-6 ms. Timestamp-off decode medians span 149.783–157.967 ms versus CPU 3.720–5.646 ms. Fence wait dominates; it overlaps device execution and cannot be equated to pure host overhead or transfer time. No speedup claimed. Report.
 
 Release build: zero warnings/errors. Thirteen existing GPU/policy tests pass with Khronos SyncVal; 116 CPU tests pass separately. No new implementation-mirroring tests. Local validation package and scripts were confined to `.temp/t32` and removed after publication. Native shader/algorithm unchanged.
 
@@ -248,7 +252,7 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 
 Separated device/binary identity, cache lookup and calibration. Auto now returns a validated CPU model before constructing GPU matrices when the matching cache selects CPU. Cached GPU choices retain resident construction without recalibration; invalid/missing caches retain the numerical gate and measured selection. Required and unavailable-device behavior remain intact. Initialization snapshots expose candidate device and Q8 resource/work counters without requiring an active GPU model.
 
-Published [startup evidence](docs/stories15m-planner-startup.md): three independent measurement groups, each three discarded fresh-process warmups plus seven measured processes per version, alternating order. Baseline backend a704883, identical runner scope and separate binary-valid caches. Runtime initialization medians change 432.616→214.766, 418.548→217.648 and 414.409→234.402 ms (43.4–50.4% reduction). Every optimized CPU cache hit has zero matrices, weight/matrix allocation bytes and dispatches/transfers. Context creation remains; no inference speedup is claimed.
+Published startup evidence: three independent measurement groups, each three discarded fresh-process warmups plus seven measured processes per version, alternating order. Baseline backend a704883, identical runner scope and separate binary-valid caches. Runtime initialization medians change 432.616→214.766, 418.548→217.648 and 414.409→234.402 ms (43.4–50.4% reduction). Every optimized CPU cache hit has zero matrices, weight/matrix allocation bytes and dispatches/transfers. Context creation remains; no inference speedup is claimed.
 
 Real process checks cover fresh/identical/invalid identity/invalid samples/malformed cache, and an explicitly synthetic cached GPU choice (not performance evidence). Output is Once/token 9038 throughout successful runs. CLI checks Required, unavailable-driver Auto/Required and invalid model failure with a valid cache. Build: zero warnings/errors; two policy tests pass. CPU suite: 116 pass when run alone; first run had the previously observed transient allocation assertion (7,752 bytes), with 115 others passing. No numerical/native synchronization changes; T32 SyncVal evidence retained. No obvious new unit tests. Task-local baseline/caches/scripts removed after publication; shared corpus preserved.
 
@@ -319,3 +323,7 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Auto now validates and measures all three whole-model paths with timestamps/validation disabled; the graph/layout/operator protocol participates in cache identity. Eight process cache cases pass, including old/missing/invalid resident data and both synthetic cached GPU branches. Three independent short/long-context reports show CPU 4.090–5.754 ms, legacy 142.004–193.679 ms, resident 60.457–80.819 ms per append. CPU remains selected. Three critical policy tests pass; build without warnings/errors. docs/stories15m-planner.md records the exact governing workload and limitations.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## Model-specific documentation cleanup — 2026-10-13
+
+Removed sixteen model-specific guides, stale optimization narratives and fixture prose. README, TASKS and ProjectInfo now direct development to the multi-model requirements. Removed links to deleted guides; numerical fixtures, raw measurements and production code were preserved. Documentation-only verification: local Markdown link scan; no runtime tests added or run. Skills: phase-development-project-conventions and base-dossier-writing.

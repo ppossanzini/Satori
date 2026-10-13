@@ -1,0 +1,154 @@
+{
+  "verified": "2026-10-13",
+  "source": "Hugging Face API models?blobs=true; file metadata only",
+  "repositories": [
+    {
+      "repo": "unsloth/Qwen3-4B-GGUF",
+      "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+      "files": [
+        {
+          "rfilename": "Qwen3-4B-Q4_K_M.gguf",
+          "blobId": "da126f98bdac03e2660abb8279ff0dd0cd73ff61",
+          "size": 2497281312,
+          "lfs": {
+            "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
+            "size": 2497281312,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-4B-UD-IQ1_M.gguf",
+          "blobId": "06aa5830d9ad3990ecd7d27e46765af0ce387173",
+          "size": 1143484192,
+          "lfs": {
+            "sha256": "be85300f9bee244206991b46631eb937ff46917a241ad5e396fcb8beee4fc55b",
+            "size": 1143484192,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-4B-UD-IQ1_S.gguf",
+          "blobId": "53daba5f57abbf44f84942fb815b0bfaf16a4834",
+          "size": 1083150112,
+          "lfs": {
+            "sha256": "bdc1138cb754d50dd4cc226597d307dd1f011710a8ddf8c68bb25e7fd215e470",
+            "size": 1083150112,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-4B-UD-IQ2_M.gguf",
+          "blobId": "5dc187f9dc5b00a967ada93904008b3ae9417123",
+          "size": 1532931872,
+          "lfs": {
+            "sha256": "c9ae27462f4edf0fdce39d41f6c129be7907d1c4ebe26c1298b30bc1bbac6c9f",
+            "size": 1532931872,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-4B-UD-IQ2_XXS.gguf",
+          "blobId": "03901a4b390972d85181c12bdc0bf398a78e7726",
+          "size": 1255345952,
+          "lfs": {
+            "sha256": "2c41173a2bcd7a5c1f53524cb0efef1f5ee647523d8c1988be71a943d9a70e5c",
+            "size": 1255345952,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-4B-UD-IQ3_XXS.gguf",
+          "blobId": "0f15325de86bbce01cf84ad57bafcba043ed41d9",
+          "size": 1674376992,
+          "lfs": {
+            "sha256": "f288d0748fca57526304df6e4648b126f7e900ef48b4adbea4ac553063593306",
+            "size": 1674376992,
+            "pointerSize": 135
+          }
+        }
+      ]
+    },
+    {
+      "repo": "unsloth/Qwen3-8B-GGUF",
+      "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+      "files": [
+        {
+          "rfilename": "Qwen3-8B-Q4_K_M.gguf",
+          "blobId": "d9379be7f3f12338fec22f722090bd70345d7dc9",
+          "size": 5027784512,
+          "lfs": {
+            "sha256": "120307ba529eb2439d6c430d94104dabd578497bc7bfe7e322b5d9933b449bd4",
+            "size": 5027784512,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-8B-UD-IQ1_M.gguf",
+          "blobId": "b335eb07e1d0cf63f5441d709790de587921c278",
+          "size": 2396489536,
+          "lfs": {
+            "sha256": "04d2d05a45283155fabfaa410731dcf20c90fd3c182b1fda5a1ad6abb034cbe6",
+            "size": 2396489536,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-8B-UD-IQ1_S.gguf",
+          "blobId": "308a10bcd107af259ccb1d802b43e0cd6f0f1d4f",
+          "size": 2275379008,
+          "lfs": {
+            "sha256": "210ada67841bb71977b869095daf9ca70e93592eec9857144f7821ce0fce6f5d",
+            "size": 2275379008,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-8B-UD-IQ2_M.gguf",
+          "blobId": "6fad736ad51ab69d69aa970b653875fc4cbb0adb",
+          "size": 3110897472,
+          "lfs": {
+            "sha256": "1dfd67f311a5a82f57ecc1763b54884066ccf1727c45cbe1a619f85ac96368b2",
+            "size": 3110897472,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-8B-UD-IQ2_XXS.gguf",
+          "blobId": "682b5d63682eef61c0a61e3b9582c32397b9b73c",
+          "size": 2605221696,
+          "lfs": {
+            "sha256": "b22bc929d9d093bf7a4f3b4086873a02f7dc4731d135a215429c60d27ce27a89",
+            "size": 2605221696,
+            "pointerSize": 135
+          }
+        },
+        {
+          "rfilename": "Qwen3-8B-UD-IQ3_XXS.gguf",
+          "blobId": "beb773eee978f093ddaa2aedc75b193125b85d0f",
+          "size": 3410265920,
+          "lfs": {
+            "sha256": "495e28b50d2373d0f29a439be9c568074596a296e67eccb69330f27ffb4be28a",
+            "size": 3410265920,
+            "pointerSize": 135
+          }
+        }
+      ]
+    },
+    {
+      "repo": "unsloth/Qwen2.5-Coder-14B-Instruct-GGUF",
+      "revision": "388f3f20271ef903bb2dbe7d8236158903e7edb3",
+      "files": [
+        {
+          "rfilename": "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf",
+          "blobId": "796906585059b2766baac55b9d6924fc4bfd27b1",
+          "size": 8988110240,
+          "lfs": {
+            "sha256": "13dec282d3ac9a87896248d5f69187102fad7c56315c553d2fab5403121702fe",
+            "size": 8988110240,
+            "pointerSize": 135
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -331,3 +331,7 @@ Removed sixteen model-specific guides, stale optimization narratives and fixture
 ## Local quantized-model and kernel scouting — 2026-10-13
 
 Inspected DS4 small, AirLLM-plus and AirLLM at verified revisions, plus official HF artifacts/configs for seven candidate model repositories. Published exact file sizes/hashes, estimated KV budgets and architecture/format gaps. Recommended a candidate portfolio rather than a model-named runtime. DS4 supplies quantized-kernel/residency ideas; AirLLM supplies layer streaming; AirLLM-plus uses mock compute and is not inference performance evidence. No model weights downloaded or external code executed. JSON and local links verified; no runtime tests needed for this research-only task. Skills: phase-scouting-solution-scouting, phase-scouting-technical-feasibility and base-dossier-writing.
+
+## Q4_K_M and UD-IQ scouting — 2026-10-13
+
+Evaluated mixed quantization recipes, verified Unsloth artifact revisions/sizes and documented codec, CPU/Vulkan and quality gaps. Proposed Q4_K/Q6_K first, then an IQ3 comparison on the same model; IQ2 for capacity and IQ1 exploratory. No weights downloaded, binary tensor inventory or performance claims made. Evidence JSON parsed; documentation whitespace checked. Skills: phase-scouting-solution-scouting and base-dossier-writing.

@@ -9,7 +9,7 @@ Dimensioni effettive degli artefatti ufficiali Hugging Face, in GB decimali. KV 
 | Candidato / fonte ufficiale | Artefatti verificati, GB | KV F32 a 2K | Ruolo proposto |
 |---|---:|---:|---|
 | [Qwen2.5-Coder 1.5B Instruct](https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF) | Q4_0 1,066; Q8_0 1,895 | 112 MiB | Prima integrazione coding e confronti rapidi Q4/Q8 |
-| [Qwen2.5-Coder 7B Instruct](https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF) | Q4_0 4,431; Q8_0 8,099; Q4_K_M 4,683; Q2_K 3,016 | 224 MiB | Primo carico coding rappresentativo; Q4_0 prima, K dopo |
+| [Qwen2.5-Coder 7B Instruct](https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF) | Q4_0 4,431; Q8_0 8,099; Q4_K_M 4,683; Q2_K 3,016 | 224 MiB | Primo carico coding rappresentativo; confronto Q4_0/Q4_K_M |
 | [Qwen2.5-Coder 14B Instruct](https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct-GGUF) | Q4_0 8,518; Q8_0 15,702; Q4_K_M 8,988; Q2_K 5,770 | 768 MiB | Candidato CPU successivo con budget esplicito; Q8 non adatto al budget 16 GB |
 | [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) | Q8_0 4,280; Q4_K_M 2,497 | 576 MiB | Seconda architettura e carico generalista; Q8 evita inizialmente nuovi codec |
 | [Qwen3 8B](https://huggingface.co/Qwen/Qwen3-8B-GGUF) | Q8_0 8,710; Q4_K_M 5,028 | 576 MiB | Alternativa generalista più pesante, dopo 4B |
@@ -26,7 +26,7 @@ Qwen2 richiede anche bias delle proiezioni pertinenti e RoPE/epsilon dal modello
 
 Q2_K permette un candidato coding 14B da 5,77 GB di pesi, ma richiede un nuovo codec/kernel e una prova di qualità: ridurre il file non prova che il coding resti utile. Non è ternary.
 
-Q4_K_M è una politica di quantizzazione mista, non Q4_0 rinominato: verificare i tipi tensoriali, inclusi eventuali Q6_K. NF4/GPTQ/AWQ non sono equivalenti a GGUF Q4_0. Il nome del file non prova che tutti i tensori siano supportati.
+[Valutazione Q4_K_M e UD-IQ](quantization-candidates.md): ricette miste, candidati Unsloth, costo dei kernel e prove proposte. NF4/GPTQ/AWQ non sono equivalenti a GGUF Q4_0. Il nome del file non prova che tutti i tensori siano supportati.
 
 BitNet usa W1.58A8, BitLinear, subln, ReLU² e tokenizer Llama 3; il GGUF I2_S non è STQ2/STB1. Vanno rispettate scale e quantizzazione delle attivazioni, non convertiti arbitrariamente i pesi di un modello ordinario in ternary. Riferimenti: [scheda ufficiale](https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf), [kernel BitNet](https://github.com/microsoft/BitNet/blob/main/src/ggml-bitnet-lut.cpp).
 
@@ -49,7 +49,7 @@ Ricerca coperta: repository richiesti, ggml/BitNet, asset locali e skill disponi
 | Capacità | Rischio dominante | Stato / prova necessaria |
 |---|---|---|
 | Interpretare modelli differenti senza API nominali | Tokenizer, GQA, QK norm, forme e tipi misti | Gap noto; dimostrare almeno due topologie con stessi contratti e riferimenti indipendenti |
-| Conservare pesi compressi durante il calcolo | Differenze tra codec/scale/attivazioni | Codec base noti; verificare I2_S e codec K separatamente |
+| Conservare pesi compressi durante il calcolo | Differenze tra codec/scale/attivazioni | Codec base noti; verificare I2_S, K e IQ separatamente |
 | Generare codice utile entro 16 GB | Qualità Q4 e memoria di contesto/scratch | Sconosciuto sul target; prova coding + picco RAM e TTFT/decode a 2K/4K |
 | Usare SSD quando i pesi non entrano | Miss per token e I/O non nascosto | Sconosciuto sul target; misurare byte letti/token, hit rate e throughput SSD reale |
 
@@ -60,7 +60,7 @@ Capacità decisiva: generare su un modello coding utile entro RAM e latenza inte
 1. Inventario dei tensori e capability matrix per Qwen2.5-Coder 1.5B/7B, Qwen3 4B e BitNet 2B, prima di scaricare pesi completi.
 2. Runtime/sessioni generici e tokenizer verificati; Q4_0/Q8_0 CPU su coding piccolo e 7B, senza adattare il motore a un nome.
 3. Percorso BitNet I2_S/W1.58A8 e seconda architettura; confronti numerici e qualità distinti dai soli codec.
-4. Benchmark del target CPU/Vulkan con RAM condivisa, prefill e decode separati; poi Q4_K/Q6_K se la qualità lo giustifica.
+4. Benchmark del target CPU/Vulkan con RAM condivisa, prefill e decode separati; Q4_K/Q6_K come prima estensione e UD-IQ3_XXS come confronto successivo, secondo la valutazione dei formati.
 5. Streaming SSD e MoE solo con un caso che non entra in RAM e metriche I/O che giustificano il costo.
 
 Questo è scouting, non autorizzazione implicita a implementare la sequenza o selezione definitiva di un modello. Non cambia i requisiti di TASKS.md.

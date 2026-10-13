@@ -7,6 +7,7 @@
 - [Contratti runtime da restringere al percorso selezionato](runtime-contracts-v1.md).
 - [Asset e capacità riutilizzabili](reusable-assets-v1.md).
 - [Manifest del confronto](comparison-manifest-v1.md), [corpus C#](corpus-csharp-v1.md), [carico concorrente](comparison-workload-v1.md).
+- [Percorso selezionato](selected-path-v1.md).
 - [Misure di riferimento dei candidati](benchmarks/comparison-2026-10-13/README.md).
 - [Scouting](scouting/dossier.md) e [memoria, APEX, Bonsai e streaming](scouting/applicability-summary.md).
 

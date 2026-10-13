@@ -354,6 +354,28 @@ is a working set; memory measured at minimal context, so 2K/4K add KV; no qualit
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW04 — 2026-10-13 — Completed
+
+Selected the primary path with the owner: **Qwen2.5-Coder 7B Instruct Q4_K_M** (dense `qwen2`), resident
+memory policy, contexts 2048 and 4096. Recorded in `docs/selected-path-v1.md` with the required capabilities
+and the memory policy. External baseline: upstream llama.cpp `bfe65e1dfa8f1afed8a2158e83e5d2a3d6db5444`.
+
+No candidate passed every threshold on the Intel host, so the selection rests on the closest fit: memory
+7504 MiB inside the 12 GB budget, decode 2.94 tok/s (-2%) and TTFT 92 s. The owner kept the latency
+thresholds and required them met by optimization, not by changing the artifact.
+
+The only missing capability for this path is the Q4_K and Q6_K codecs and their MatVec, with AVX2 kernels.
+MoE, hybrid attention, ternary and IQ codecs, vision and the 262144-token context are out of scope.
+
+Verification: the decision names the artifact, the constraints and the exact missing capabilities; the
+artifact and runtime are pinned and measured (`docs/benchmarks/comparison-2026-10-13/`). The quality gate
+against the frozen C# corpus remains open.
+
+Limits: quality is not yet measured, so the selection is provisional on that axis; the primary Geekom A5 is
+not measured.
+
+Skills: phase-development-task-execution, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

@@ -112,7 +112,9 @@ public sealed class GgufFile : IDisposable
             throw cursor.Error("Missing or invalid general.architecture");
         if (Get<string>("general.type", 8, "model") != "model") throw new NotSupportedException("Only model files are supported.");
         _ = Get<uint>("general.file_type", 4, 0);
-        if (Get<ushort>("split.count", 2, 1) != 1 || Get<ushort>("split.no", 2, 0) != 0)
+        // split.count is the number of files in a sharded set. Writers may emit 0 for a single, unsharded
+        // file (observed in published Qwen2.5-Coder artifacts); accept 0 or 1, reject real sharding.
+        if (Get<ushort>("split.count", 2, 1) is not (0 or 1) || Get<ushort>("split.no", 2, 0) != 0)
             throw new NotSupportedException("Sharded GGUF is unsupported.");
         int splitCount = Get<int>("split.tensors.count", 5, (int)tensorCount);
         if (splitCount != tensorCount) throw cursor.Error("Invalid split.tensors.count");
@@ -139,10 +141,11 @@ public sealed class GgufFile : IDisposable
             (int block, int bytes) = type switch
             {
                 0 => (1, 4), 1 => (1, 2), 2 => (32, 18), 8 => (32, 34),
+                12 => (256, 144), 14 => (256, 210),
                 _ => throw new NotSupportedException($"Tensor type {type} is unsupported.")
             };
-            quantized |= block == 32;
-            if (dimensions[0] % block != 0) throw cursor.Error("Quantized row is not a multiple of 32");
+            quantized |= block != 1;
+            if (dimensions[0] % block != 0) throw cursor.Error($"Quantized row is not a multiple of {block}");
             long length = checked(elements / block * bytes);
             long offset = cursor.Count(cursor.Unsigned(8));
             if (offset % alignment != 0) throw cursor.Error("Unaligned tensor offset");

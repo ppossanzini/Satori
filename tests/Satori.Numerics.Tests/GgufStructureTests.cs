@@ -62,6 +62,25 @@ public sealed class GgufStructureTests
         Assert.Contains("File limit", error.Message);
     }
 
+    [Theory]
+    [InlineData(0, 0, false)]  // single, unsharded: published artifacts declare split.count 0
+    [InlineData(1, 0, false)]  // canonical single file
+    [InlineData(2, 0, true)]   // real sharding is rejected
+    [InlineData(1, 1, true)]   // a non-zero split.no is rejected
+    public void SplitCountZeroIsTreatedAsUnsharded(int splitCount, int splitNo, bool rejected)
+    {
+        byte[] prefix = GgufContainerFixture.Prefix(32, writer =>
+        {
+            GgufContainerFixture.String(writer, "split.count"); writer.Write(2u); writer.Write((ushort)splitCount);
+            GgufContainerFixture.String(writer, "split.no"); writer.Write(2u); writer.Write((ushort)splitNo);
+        }, 2);
+        using var temp = new MappedFileFixture(prefix.Length + 64, 0, prefix);
+        if (rejected)
+            Assert.Throws<NotSupportedException>(() => new GgufFile(temp.Path));
+        else
+            using (var file = new GgufFile(temp.Path)) Assert.Equal(2, file.Tensors.Count);
+    }
+
     [Fact]
     public void SparseTensorBeyondTwoGiBUsesInt64Windows()
     {
@@ -131,5 +150,22 @@ public sealed class GgufStructureTests
             using var temp = new MappedFileFixture(prefix.Length + 128, 0, prefix);
             Assert.Throws<NotSupportedException>(() => new GgufFile(temp.Path));
         }
+    }
+
+    [Fact]
+    public void KQuantizedTypesAreAcceptedByTheExtendedProfile()
+    {
+        // Q4_K (2 super-blocks of 144 B = 288 B at offset 0) then Q6_K (1 super-block of 210 B at offset 288).
+        byte[] prefix = GgufContainerFixture.Prefix(32, writer =>
+        {
+            GgufContainerFixture.String(writer, "general.quantization_version"); writer.Write(4u); writer.Write(2u);
+        }, 1, [("q4k", [256, 2], 12, 0), ("q6k", [256, 1], 14, 288)]);
+        using var temp = new MappedFileFixture(prefix.Length + 512, 0, prefix);
+        using var file = new GgufFile(temp.Path);
+        Assert.Equal(2, file.Tensors.Count);
+        Assert.Equal(12u, file.Tensors["q4k"].Type);
+        Assert.Equal(14u, file.Tensors["q6k"].Type);
+        Assert.True(GgufTypes.Lookup(12).Supported);
+        Assert.True(GgufTypes.Lookup(14).Supported);
     }
 }

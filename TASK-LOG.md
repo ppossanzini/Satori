@@ -444,6 +444,28 @@ DW06.4 and still needs the AVX2 kernels and the forward parity check.
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW06.3 — 2026-10-13 — Completed
+
+Made the Q4_K_M file executable end to end. Extended the strict reader `GgufFile` to accept type 12 (Q4_K,
+256/144) and type 14 (Q6_K, 256/210), fixed `quantized` to mean any non-F32/F16 type, and generalized the
+row multiple check to the block size. Added `QuantizedRow.DecodeRow` for any supported format and routed
+`GgufQuantizedMatrix.ReadRow` (embedding lookup) through it, so a Q4_K/Q6_K embedding tensor decodes.
+
+Verification: Release build without warnings. `describe` on the pinned Qwen2.5-Coder 7B Q4_K_M reports
+`Executable: yes` (weights 4677120000, plan 4912439296 at 2048). A real generation on that file succeeds
+with a coherent completion (prompt `def add(a, b):` → text ` # defining a function`, stop `TokenLimit`),
+proving every tensor type of the artifact is decoded with no silent fallback; the process held 4.68 GB RSS
+equal to the compressed weights, with no permanent expansion. `GgufStructureTests` adds a container with a
+Q4_K and a Q6_K tensor that the strict reader accepts, and asserts both types are supported in the profile.
+
+Reproduce: `dotnet run --project src/Satori.Console -c Release -- describe .temp/deepseek/dw02/models/qwen2.5-coder-7b-instruct-q4_k_m.gguf 2048`
+and `dotnet run --project src/Satori.Console -c Release -- text <same file> "def add(a, b):" 4 --context 512`.
+
+Limits: the scalar K kernels make the 7B forward slow (~195 s for six prompt tokens); DW06.5–DW06.7 address
+this. Numerical parity against an independent reference is DW06.4.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

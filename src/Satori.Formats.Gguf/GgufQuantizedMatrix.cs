@@ -45,11 +45,17 @@ public sealed class GgufQuantizedMatrix
 
     public void ReadRow(int row, Span<float> output)
     {
-        if (Shape.Format != BlockQuantization.Q8_0) throw new NotSupportedException("Embedding requires Q8_0.");
+        if (Shape.Format == BlockQuantization.Q4_0) throw new NotSupportedException("Q4_0 embedding rows are not supported.");
         if ((uint)row >= (uint)Shape.Rows || output.Length != Shape.Columns) throw new ArgumentOutOfRangeException(nameof(row));
         int rowBytes = Shape.ByteLength / Shape.Rows;
         _file.ReadTensor(_name, checked((long)row * rowBytes), rowBytes,
-            static (bytes, destination) => QuantizedRow.DecodeQ8(bytes, destination), output);
+            static (bytes, state) => QuantizedRow.DecodeRow(bytes, state.Shape, state.Output), new RowExecution(Shape, output));
+    }
+
+    private readonly ref struct RowExecution(QuantizedMatrixShape shape, Span<float> output)
+    {
+        public QuantizedMatrixShape Shape { get; } = shape;
+        public Span<float> Output { get; } = output;
     }
 
     private readonly ref struct Execution(QuantizedMatrixShape shape, ReadOnlySpan<float> input, Span<float> output)

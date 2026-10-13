@@ -395,6 +395,32 @@ quality corpus must be frozen before DW06.8.
 
 Skills: phase-development-task-execution, base-dossier-writing.
 
+## DW06.1 — 2026-10-13 — Completed
+
+Implemented the GGML Q4_K super-block codec in `src/Satori.Core/Q4KCodec.cs` from the pinned ggml layout
+(144 bytes per 256 weights: FP16 `d`, FP16 `dmin`, `scales[12]`, `qs[128]`; `GetScaleMin`, `DotBlock`,
+`DecodeBlock`, `AreScalesFinite`). Registered the format: `BlockQuantization.Q4_K`, a per-format block
+geometry in `QuantizedMatrixShape` (block 256, 144 bytes), a scalar Q4_K branch in `QuantizedMatVec`
+(two-scale validation, and an explicit exclusion from the AVX2 path until DW06.5), the type id 12 in
+`GgufTypes`, and the type 12 mapping in `GgufQuantizedMatrix`.
+
+Verification: Release build without warnings; 170/170 numerics tests passed. The independent FP64 oracle
+`tools/q4k_reference.py` writes `fixtures/operators/q4k-v1.json` from the ggml layout without calling
+Satori; its decoder never reuses the C# code. `Q4KCodecTests` checks the reconstruct and the dot on eight
+blocks (zero, positive, negative min, extremes, four random) and rejects a non-finite super-scale. Tolerance
+1e-3 + 1e-4 x |ref| on weights (FP64 reference vs FP32 decode) and 1e-2 + 1e-4 x |ref| on the dot.
+
+Two existing tests asserted Q4_K was unsupported and were updated for the new profile: `GgufInventoryTests`
+now expects only Q6_K as unsupported, and `ModelDescriptorTests` now uses Q6_K as the format gap.
+
+Reproduce: `python3 tools/q4k_reference.py` then
+`dotnet test tests/Satori.Numerics.Tests -c Release --filter "FullyQualifiedName~Q4KCodecTests"`.
+
+Limits: scalar only; a Q4_K_M artifact still needs a Q6_K codec for its output and part of `ffn_down`, so
+the path is not executable yet.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

@@ -110,7 +110,9 @@ public sealed class ModelDescriptorTests
         var definition = GgufModelLoader.Load(temp.Path);
 
         Assert.False(definition.Capabilities.IsExecutable);
-        Assert.Contains(definition.Capabilities.Gaps, g => g.Kind == "tensor-format" && g.Detail == "Q4_K(12)");
+        // Q4_K is supported since DW06.1; Q6_K still is not, so it is the format gap here.
+        Assert.DoesNotContain(definition.Capabilities.Gaps, g => g.Kind == "tensor-format" && g.Detail == "Q4_K(12)");
+        Assert.Contains(definition.Capabilities.Gaps, g => g.Kind == "tensor-format" && g.Detail == "Q6_K(14)");
         Assert.Contains(definition.Capabilities.Gaps, g => g.Kind == "architecture");
         Assert.Null(definition.Shape);
     }

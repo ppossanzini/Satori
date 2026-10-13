@@ -5,11 +5,13 @@ namespace Satori.Core;
 
 public static class QuantizedMatVec
 {
-    /// <summary>Selects AVX2 when available, otherwise scalar, on previously validated immutable weights.</summary>
+    /// <summary>Selects AVX2 when available for its formats, otherwise scalar, on validated immutable weights.</summary>
     public static void Execute(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input, Span<float> output)
     {
-        if (Avx2.IsSupported) ExecuteAvx2(data, shape, input, output);
-        else ExecuteScalar(data, shape, input, output);
+        if (Avx2.IsSupported && shape.Format is BlockQuantization.Q8_0 or BlockQuantization.Q4_0)
+            ExecuteAvx2(data, shape, input, output);
+        else
+            ExecuteScalar(data, shape, input, output);
     }
 
     public static void ExecuteAvx2(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input, Span<float> output)
@@ -23,7 +25,13 @@ public static class QuantizedMatVec
     {
         if (data.Length != shape.ByteLength) throw new ArgumentException("Incorrect quantized payload length.", nameof(data));
         for (int offset = 0; offset < data.Length; offset += shape.BlockBytes)
-            if (!float.IsFinite(Scale(data[offset..]))) throw new InvalidDataException($"Nonfinite block scale at {offset}.");
+        {
+            var block = data[offset..];
+            bool finite = shape.Format == BlockQuantization.Q4_K
+                ? Q4KCodec.AreScalesFinite(block)
+                : float.IsFinite(Scale(block));
+            if (!finite) throw new InvalidDataException($"Nonfinite block scale at {offset}.");
+        }
     }
 
     /// <summary>Multiplies immutable compressed weights whose scales have already been validated.</summary>
@@ -34,10 +42,15 @@ public static class QuantizedMatVec
         for (int row = 0; row < shape.Rows; row++)
         {
             float total = 0;
-            for (int column = 0; column < shape.Columns; column += 32)
+            for (int column = 0; column < shape.Columns; column += shape.BlockElements)
             {
-                int offset = (row * (shape.Columns / 32) + column / 32) * shape.BlockBytes;
+                int offset = (row * (shape.Columns / shape.BlockElements) + column / shape.BlockElements) * shape.BlockBytes;
                 var block = data.Slice(offset, shape.BlockBytes);
+                if (shape.Format == BlockQuantization.Q4_K)
+                {
+                    total += Q4KCodec.DotBlock(block, input.Slice(column, Q4KCodec.ElementsPerBlock));
+                    continue;
+                }
                 float sum = 0;
                 if (shape.Format == BlockQuantization.Q8_0)
                     for (int j = 0; j < 32; j++) sum += (sbyte)block[2 + j] * input[column + j];

@@ -46,8 +46,10 @@ public sealed class GgufInventoryTests
         var inventory = GgufInventory.Scan(temp.Path);
 
         Assert.False(inventory.ProfileCompatible);
-        Assert.Equal(["Q4_K(12)", "Q6_K(14)"], inventory.UnsupportedTypes.OrderBy(x => x));
-        Assert.All(inventory.Tensors, t => Assert.False(t.Supported));
+        // Q4_K is supported since DW06.1; Q6_K still is not, so only it is reported unsupported.
+        Assert.Equal(["Q6_K(14)"], inventory.UnsupportedTypes.OrderBy(x => x));
+        Assert.True(inventory.Tensors.Single(t => t.Name == "q4k").Supported);
+        Assert.False(inventory.Tensors.Single(t => t.Name == "q6k").Supported);
         Assert.True(inventory.TotalTensorBytesExact);
         Assert.Equal(288 + 210, inventory.TotalTensorBytes);
     }

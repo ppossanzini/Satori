@@ -339,3 +339,7 @@ Evaluated mixed quantization recipes, verified Unsloth artifact revisions/sizes 
 ## Repository ideas and APEX/Bonsai applicability — 2026-10-13
 
 Consolidated applicability of DS4, AirLLM and AirLLM-plus for bounded residency, layer/expert streaming and compressed kernels. Added APEX as a MoE streaming/cache candidate and Bonsai PTQ1_0/PQ2_0 as distinct ternary/rotation paths; verified artifact metadata and Prism codec definitions. No weights downloaded or inference performed. JSON and local links checked; no runtime tests for documentation-only work.
+
+## DeepSeek implementation plan — 2026-10-13
+
+Created DeepSeek_todo.md with forty ordered tasks, contract gates, per-task outputs/checks/exclusions and commit policy. Covers generic CPU inference, K/IQ, BitNet, APEX bounded streaming/expert cache, Bonsai codecs/rotations and measured Vulkan. Critical-only testing; performance acceptance requires declared targets. Documentation links and whitespace verified; no runtime tests needed. Skill: analysis-piano-task.

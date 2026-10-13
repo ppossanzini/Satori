@@ -35,7 +35,7 @@ Le reference numeriche usano gli stessi pesi e tolleranze motivate per operatore
 |---|---|---|---|
 | [x] DW01 | Verificare asset e capacità riutilizzabili | Nessuna | Inventario conciso di codice, reference e report disponibili. Collegare evidenze per ogni capacità; dichiarare quelle non verificate. Nessun ampliamento del runtime. |
 | [x] DW02 | Fissare candidati, runtime e carico concorrente | DW01 | Manifest di Qwen2.5-Coder 7B Q4_K_M, Tiel-Coder APEX-I-NanoPlus e Bonsai-2 27B PTQ1_0: revisioni, hash, licenze, runtime compatibili, hardware e configurazioni secondo la matrice di test del protocollo. Eseguire prima sul riferimento principale; distinguere budget runtime e RAM fisica. Corpus C# congelato, contesti e workload IDE/browser/build riproducibili. Risolvere eventuali discrepanze di provenienza APEX prima delle reference. |
-| [ ] DW03 | Chiudere le soglie aperte del protocollo | DW02 | Ottenere dal responsabile le decisioni richieste dal protocollo. Proporre valori motivati dalle prove preliminari del carico concorrente; non approvarli autonomamente. Registrare baseline senza inferenza, limiti delle risorse e criteri di accettazione. |
+| [x] DW03 | Chiudere le soglie aperte del protocollo | DW02 | Ottenere dal responsabile le decisioni richieste dal protocollo. Proporre valori motivati dalle prove preliminari del carico concorrente; non approvarli autonomamente. Registrare baseline senza inferenza, limiti delle risorse e criteri di accettazione. |
 
 Gli inventari in [capability matrix](docs/capability-matrix-v1.md) sono evidenza disponibile. I [contratti runtime](docs/runtime-contracts-v1.md) vanno ristretti dopo la selezione, non implementati integralmente prima del confronto.
 

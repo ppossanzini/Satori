@@ -309,6 +309,25 @@ candidate measurement beyond the load confirmation.
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW03 — 2026-10-13 — Completed
+
+Closed the open protocol thresholds from the owner's decisions and recorded them in
+`docs/validation-protocol-v1.md` section 8: TTFT at 2K ≤ 60 s and decode at 2K ≥ 3 tok/s; build slowdown
+≤ 25% versus the no-inference baseline; maximum cancellation latency ≤ 2 s; no sustained swap during the
+observation window; Vulkan benefit deferred until a path is selected. IDE interaction latency stays
+reported as data. Recorded the no-inference baseline (`dotnet build Satori.sln -c Release --no-restore
+-m:1` = 1.55 s steady state over three runs on the Intel host) and the resource limits (8 inference
+threads, context 2048 and 4096, 12 GB runtime ceiling).
+
+Verification: thresholds and baseline written in the protocol section that owns them; no implementation
+change.
+
+Limits: thresholds are provisional to this CPU build; they were motivated by the DW02 reference-load
+figures, which are not the batched measurements. The corpus and workload proposals are still pending owner
+freeze.
+
+Skills: phase-development-task-execution, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

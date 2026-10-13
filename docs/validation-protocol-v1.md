@@ -1,30 +1,20 @@
 # Validation Protocol v1
 
-Status: DS04. Fixes the corpus, references, hardware, measurements and criteria used to judge every later
-task. Correctness, quality and performance are kept separate: a kernel can be numerically exact and the
-model still unusable, or a model can be useful while a kernel is wrong.
-
-Numeric acceptance thresholds are an owner decision and are listed in section 7 as open items; they are
-not invented here.
+Status: product comparison protocol for P01–P08 in [the execution plan](../TASKS.md). Correctness, coding quality and PC responsiveness are separate acceptance dimensions.
 
 ## 1. Artifacts Under Test
 
-Selected from the DS02 capability matrix at the pinned revisions recorded in
-`docs/scouting/inventories/manifest.json`. A comparison always uses the same artifact, tokenizer, context
-and sampling; results from different quantizations of the same weights are never required to produce
-identical tokens.
-
-| Role | Artifact | Why |
+| Role | Candidate | Comparison purpose |
 |---|---|---|
-| Small coding, dense | Qwen2.5-Coder 1.5B (q8_0, q4_0, q4_k_m) | fast loop; q8_0 pure, q4_0/q4_k_m exercise Q6_K and Q4_K |
-| Coding, representative | Qwen2.5-Coder 7B (q4_k_m) | first load that matters for R-PERF |
-| Second architecture | Qwen3 4B (Q8_0, Q4_K_M) | explicit head dimension, Q/K norm |
-| Native ternary | BitNet b1.58 2B (i2_s) | R-QUANT ternary path |
-| Hybrid MoE | Tiel-Coder APEX-I-NanoPlus | partial residency, cache/streaming |
-| Ternary g128 + rotation | Ternary-Bonsai-2 27B (PTQ1_0, PQ2_0) | codec + Hadamard path |
+| Coding baseline | Qwen2.5-Coder 7B Q4_K_M | Resident coding reference |
+| Hybrid MoE | Tiel-Coder APEX-I-NanoPlus | Coding utility with bounded expert residency |
+| Ternary | Bonsai-2 27B PTQ1_0 | Coding utility with compressed resident weights where feasible |
 
-The regression fixture `stories15m-q8-v1` stays as a fast laboratory fixture and does not define product
-performance.
+P01 pins artifact revisions, hashes, licenses, compatible reference runtime versions and settings. Existing descriptor evidence is in `docs/scouting/inventories/manifest.json`. PQ2_0 is a conditional follow-up if PTQ1_0 exposes a codec-specific limit. Qwen 1.5B, Qwen3 and BitNet remain laboratory/scouting artifacts, not mandatory product milestones.
+
+P02 compares candidates in compatible reference runtimes. P03 selects one primary Satori path. Later engine comparisons use the same artifact, tokenizer, context and sampling. Different models or quantizations are compared by task success, not token identity.
+
+The `stories15m-q8-v1` fixture establishes laboratory regression only.
 
 ## 2. Numerical Correctness
 
@@ -51,14 +41,22 @@ Separate from kernel parity.
 - **Long outputs**: generation of at least the long-form budget (section 5) to expose repetition, truncation
   and context loss.
 - Prompts used for quality are not used for quantization calibration.
-- No advertised benchmark is accepted as an oracle.
+- No advertised benchmark is accepted as an oracle. P01 freezes the task count, task difficulty, prompts and success criteria before candidate comparison. Report the numerator and denominator with every pass rate.
 
 ## 4. Hardware and Environment
 
-- Target class: Intel/AMD x64 mini PC with 16 GB RAM, integrated or discrete GPU where present.
-- Each report names CPU/GPU model, RAM, OS, .NET SDK (from `global.json`), backend and driver.
-- 2K and 4K contexts are measured when the artifact and budget allow; a context that does not fit is
-  reported as not measured, not estimated.
+| Role | Test machine | RAM | OS |
+|---|---|---|---|
+| Primary | Geekom A5, Ryzen 7 | 32 GB | Arch Linux |
+| Secondary, Apple Silicon reference comparison | MacBook Air M4 | 16 GB unified | Record installed OS/version before testing |
+| Secondary, Intel comparison | Intel Evo | 32 GB | Record installed OS/version before testing |
+
+- P01 records exact CPU/GPU models, storage, available memory, OS/kernel, power mode, runtime and driver versions. Ryzen 7 and Intel Evo labels do not identify exact processors.
+- The primary comparison runs on the Geekom A5. Repeat on secondary machines where compatible reference runtimes are available; report unavailable configurations explicitly.
+- Physical RAM and the runtime operating budget are separate. The existing runtime ceiling in section 8 applies on 32 GB machines too. Report any larger-budget exploratory configuration separately.
+- A 32 GB host with a runtime memory limit does not establish whole-system behaviour on a 16 GB PC. Declare host RAM and enforcement method in every report.
+- The MacBook comparison does not add Metal or ARM64 Satori implementation to the delivery scope. Reference-runtime results do not establish Satori backend support.
+- Measure 2K and 4K contexts when the artifact and budget allow. Report contexts that do not fit as not measured.
 
 ## 5. Measurements and Separations
 
@@ -76,28 +74,41 @@ For each measured configuration the report separates:
 No `sleep`, theoretical bandwidth or extrapolation from the small fixture is accepted as a measurement.
 CPU/GPU totals are compared on the same model and quantization.
 
-## 6. Manifest and Reproducibility
+## 6. Concurrent Workload and Resource Controls
 
-Every report records: artifact name, revision and SHA-256; tokenizer; context length; sampling parameters;
-backend and device; the exact command line; and the tool version. Regenerable outputs live under
-`.temp/` or `reports/`; durable evidence under `docs/benchmarks/<topic>-<date>/`.
+- P01 fixes the IDE project, browser workload, build command and baseline repetitions on the target PC.
+- Measure build duration and a repeatable IDE interaction latency with inference off and on. Report CPU/GPU load, sustained swap activity and SSD contention.
+- Record runtime thread limits, context limit, cache/prefetch byte limits and backend configuration.
+- Measure cancellation latency during prefill, decode and streamed loading where applicable. Verify state consistency and resource release.
+- Compare resident and streamed configurations where available. Record unsupported reference-runtime configurations explicitly; do not simulate missing expert streaming.
+- A resident configuration that exceeds the budget is a failure for that configuration. A mapped file alone does not prove a bounded resident working set.
 
-## 7. Acceptance Criteria
+## 7. Manifest and Reproducibility
 
-Correctness criteria are fixed above (independent reference within a documented per-operator tolerance).
-Product thresholds are an owner decision. Approved on 2026-10-13:
+Every report records artifact revision and SHA-256, tokenizer, context, sampling, runtime version, backend, device and reproduction command. Record concurrent applications and resource controls. Regenerable outputs live under `.temp/` or `reports/`; durable evidence under `docs/benchmarks/<topic>-<date>/`.
 
-1. Coding quality: minimum **80%** C# compile/run pass rate on the task set for a coding model to count as
-   useful.
-2. Peak RAM: stay under **12 GB** within the 16 GB budget.
-3. Decode rate and TTFT at 2K: **open**; the owner deferred these. Until set, decode/TTFT are reported as
-   data, not an accepted result.
-4. GPU: a Vulkan result must beat CPU by a stated factor; the factor is **to be confirmed before DS39**.
-   Until set, no GPU advantage is declared.
+## 8. Acceptance Criteria
 
-Until a threshold is approved, any value reported by a task is data, not an accepted result.
+| Criterion | Current decision |
+|---|---|
+| C# quality | Minimum 80% compile/run pass rate on the frozen task set |
+| Runtime peak RAM | Under 12 GB for the constrained product configuration, including tests on 32 GB hosts; includes weights, state, scratch, prefetch and staging |
+| TTFT and decode at 2K | TTFT ≤ 60 s and decode ≥ 3 tok/s at context 2048 (owner-approved 2026-10-13) |
+| PC responsiveness | Build slowdown ≤ 25% versus the no-inference baseline; IDE interaction latency is reported as data |
+| Cancellation | Maximum cancellation latency ≤ 2 s (owner-approved 2026-10-13) |
+| Swap and I/O contention | No sustained swap activity during the fixed observation window |
+| Vulkan benefit | Deferred until a Vulkan path is selected |
+
+The RAM ceiling does not establish responsiveness. P01 may propose a smaller operating budget from the concurrent workload. New numerical thresholds require explicit owner approval. Missing thresholds cannot be treated as acceptance. If no candidate meets the fixed criteria, P03 reduces scope or stops the implementation path.
+
+### Recorded baseline (2026-10-13)
+
+No-inference reference on the Intel host (Intel Core Ultra 7 155H, 32 GB, Arch Linux):
+`dotnet build Satori.sln -c Release --no-restore -m:1` = 1.55 s steady state over three runs. Resource
+limits: 8 inference threads, context 2048 and 4096, 12 GB runtime memory ceiling. The concurrent workload
+and its observation window are in [comparison-workload-v1.md](comparison-workload-v1.md).
 
 ## Non-Goals
 
-- No product threshold is set by this document.
-- No comparison with other engines is part of the acceptance decision.
+- No training, vision or quality claim based solely on kernel parity.
+- No product threshold inferred from vendor benchmarks or theoretical bandwidth.

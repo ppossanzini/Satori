@@ -1,0 +1,179 @@
+{
+  "repo": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+  "tokenizer_json_sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+  "fixture_gguf_sha256": "69055d10fe324b87132d2b1f57fe8337b2667ad71a817ff5b88eef36bc6d3f2e",
+  "vocabulary_size": 151665,
+  "merge_count": 151387,
+  "bos_token_id": 0,
+  "eos_token_id": 0,
+  "libraries": {
+    "tokenizers": "0.23.2",
+    "transformers": "5.19.0",
+    "python": "3.14.8"
+  },
+  "cases": [
+    {
+      "name": "italian",
+      "text": "Ciao, come stai? Oggi è una bella giornata, vero?",
+      "ids": [
+        34,
+        22516,
+        11,
+        2525,
+        357,
+        2143,
+        30,
+        40837,
+        8212,
+        11422,
+        5093,
+        96460,
+        59010,
+        459,
+        11,
+        78287,
+        30
+      ]
+    },
+    {
+      "name": "code_csharp",
+      "text": "public static int Add(int a, int b) => a + b;\n// somma due interi\n",
+      "ids": [
+        888,
+        1099,
+        526,
+        2691,
+        1548,
+        264,
+        11,
+        526,
+        293,
+        8,
+        589,
+        264,
+        488,
+        293,
+        280,
+        322,
+        1757,
+        1728,
+        4152,
+        946,
+        72,
+        198
+      ]
+    },
+    {
+      "name": "unicode_emoji",
+      "text": "Fatto! 🙂🚀 fine.",
+      "ids": [
+        37,
+        16755,
+        0,
+        27484,
+        145836,
+        6915,
+        13
+      ]
+    },
+    {
+      "name": "unicode_cjk",
+      "text": "你好世界，こんにちは。",
+      "ids": [
+        108386,
+        99489,
+        3837,
+        89015,
+        1773
+      ]
+    },
+    {
+      "name": "unicode_accents",
+      "text": "àèìòù ÀÈÌÒÙ ç ñ straße",
+      "ids": [
+        6362,
+        4458,
+        23531,
+        22190,
+        14926,
+        64281,
+        142505,
+        144201,
+        144086,
+        144174,
+        18086,
+        1683,
+        109,
+        607,
+        64,
+        23455
+      ]
+    },
+    {
+      "name": "whitespace",
+      "text": "  \n\n  x \t y   ",
+      "ids": [
+        18611,
+        220,
+        856,
+        7018,
+        379,
+        262
+      ]
+    },
+    {
+      "name": "special_tokens",
+      "text": "<|im_start|>user\nè italiano?<|im_end|>\n",
+      "ids": [
+        151644,
+        872,
+        198,
+        4458,
+        59804,
+        30,
+        151645,
+        198
+      ]
+    },
+    {
+      "name": "mixed",
+      "text": "Ciao! def f(): return 42  # è un numero",
+      "ids": [
+        34,
+        22516,
+        0,
+        707,
+        282,
+        4555,
+        470,
+        220,
+        19,
+        17,
+        220,
+        671,
+        11422,
+        650,
+        20050
+      ]
+    },
+    {
+      "name": "empty",
+      "text": "",
+      "ids": []
+    }
+  ],
+  "chat_template_case": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "Sei un assistente utile."
+      },
+      {
+        "role": "user",
+        "content": "Scrivi una funzione in C# che somma due interi."
+      }
+    ],
+    "add_generation_prompt": true,
+    "text": "<|im_start|>system\nSei un assistente utile.<|im_end|>\n<|im_start|>user\nScrivi una funzione in C# che somma due interi.<|im_end|>\n<|im_start|>assistant\n"
+  }
+}

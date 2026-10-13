@@ -45,7 +45,7 @@ Artefatti rappresentativi: Qwen2.5-Coder 1.5B e 7B per coding; Qwen3 4B per QK n
 | Stato / ID | Azione e contesto | Risultato osservabile | Verifica di completamento | Esclusioni |
 |---|---|---|---|---|
 | [x] DS05 | Implementare il descrittore validato di modello | Capability check e piano forme/memoria prima della generazione | Demo su due topologie; test critici per shape incompatibili, overflow e capability mancanti | Forward |
-| [ ] DS06 | Implementare il tokenizer BPE richiesto | Encoding/decoding, token speciali e template conformi agli artefatti scelti | Identità con sequenze ufficiali su italiano, codice, Unicode e token speciali | Tokenizer universale |
+| [x] DS06 | Implementare il tokenizer BPE richiesto | Encoding/decoding, token speciali e template conformi agli artefatti scelti | Identità con sequenze ufficiali su italiano, codice, Unicode e token speciali | Tokenizer universale |
 | [ ] DS07 | Implementare gli operatori CPU mancanti per Qwen2/Qwen3 | Bias pertinenti, GQA, QK norm, RoPE e proiezioni con dimensioni indipendenti | Reference indipendenti per ciascun operatore; riuso di quelli esistenti quando conformi | MoE e attenzione ricorrente |
 | [ ] DS08 | Implementare il forward generico CPU | Logits mediante descrittore e registro operatori | Intermedi/logits conformi al riferimento su due topologie; Q4_0/Q8_0 già supportati | Sampling e streaming |
 | [ ] DS09 | Implementare lo stato incrementale della sessione | KV dimensionata dal modello, reset, limiti e lifetime | Logits incrementali contro full recomputation; pieno contesto, reset, dispose e budget | Persistenza SSD della KV |

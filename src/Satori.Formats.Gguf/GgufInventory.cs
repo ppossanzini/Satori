@@ -13,7 +13,8 @@ public sealed record GgufTensorDescriptor(
 
 /// <summary>Metadata entry with its declared type and decoded scalar value (arrays are described, not materialised).</summary>
 public sealed record GgufMetadataDescriptor(
-    string Key, uint Type, string TypeName, uint? ElementType, string? ElementTypeName, long? ElementCount, object? Value);
+    string Key, uint Type, string TypeName, uint? ElementType, string? ElementTypeName, long? ElementCount,
+    object? Value, long Offset, long ByteLength);
 
 /// <summary>
 /// Read-only descriptor inventory of a GGUF container: header, metadata and tensor directory, without
@@ -70,7 +71,7 @@ public sealed record GgufInventory(
             long length = cursor.Position - start;
             object? value = type == 9 ? null : DecodeScalar(mapping, start, length, type);
             metadata.Add(new(key, type, GgufTypes.MetadataTypeName(type), elementType,
-                elementType is null ? null : GgufTypes.MetadataTypeName(elementType.Value), elementCount, value));
+                elementType is null ? null : GgufTypes.MetadataTypeName(elementType.Value), elementCount, value, start, length));
         }
 
         uint alignment = ReadAlignment(metadata);
@@ -170,7 +171,7 @@ public sealed record GgufInventory(
         TotalTensorBytesExact,
         ProfileCompatible,
         UnsupportedTypes,
-        Metadata = Metadata.Select(m => new { m.Key, m.TypeName, m.ElementTypeName, m.ElementCount, Value = m.Type == 9 ? null : m.Value }),
+        Metadata = Metadata.Select(m => new { m.Key, m.TypeName, m.ElementTypeName, m.ElementCount, Value = m.Type == 9 ? null : m.Value, m.Offset, m.ByteLength }),
         Tensors = Tensors.Select(t => new
         {
             t.Name, TypeId = t.TypeId, t.TypeName, t.Catalogued, t.Supported,

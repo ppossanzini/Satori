@@ -275,6 +275,40 @@ Limits: covers Satori's own assets only; candidate artifact capability stays own
 
 Skills: phase-development-task-execution, base-dossier-writing.
 
+## DW02 — 2026-10-13 — Completed
+
+Pinned the comparison in `docs/comparison-manifest-v1.md`: the three candidates with repository, revision,
+file, exact size, full-file SHA-256, license, architecture and tensor types; the reference runtimes; the
+test hardware; and the open decisions. APEX provenance was resolved: `general.architecture = qwen35moe`,
+`general.name = Ornith-1.5-35B`, 256 experts / 8 active; card base `ornith-ai/Ornith-1.5-35B-A3B`, MIT. The
+card `qwen3.6`/`qwen3_5_moe`/`qwen35moe` tags are aliases of one Qwen3.5-MoE lineage; the base identity is
+Qwen3.5-MoE, not dense Qwen2/Qwen3.
+
+Reference runtimes built CPU-only from source: upstream llama.cpp `bfe65e1dfa8f1afed8a2158e83e5d2a3d6db5444`
+(0.6.0-dev, ggml 0.26.0) for Qwen and APEX; the Prism fork `e8fd209c975c80aa7fb36a8423571ff3b1b7e955`
+(ggml 0.21.0) for Bonsai. With the server disabled the combined `llama-app` target does not link; the
+`llama-completion` tool is the CLI.
+
+Verification: all three artifacts were downloaded from their pinned revisions and their SHA-256 values match
+the manifest rows. Each loads and generates in its reference runtime: Qwen2.5-Coder 7B Q4_K_M
+(`def add(a, b):` → `return a + b`; prompt eval 7.84 tok/s, eval 2.67 tok/s), APEX-I-NanoPlus
+(load 4.1 s, prompt eval 4.94 tok/s, eval 1.15 tok/s; upstream supports the mixed K/IQ types), Bonsai PTQ1_0
+in the Prism runtime (load 18.9 s, prompt eval 1.01 tok/s, eval 0.52 tok/s). Observation, not a measurement:
+the Bonsai process reached ~22 GB RSS, above the 12 GB budget and the 16 GB target.
+
+Owner decisions recorded: runtimes built on this Intel host (Intel Core Ultra 7 155H, 32 GB, Arch Linux),
+not the primary Geekom A5; the coding corpus and the concurrent workload are proposed in
+`docs/corpus-csharp-v1.md` and `docs/comparison-workload-v1.md` for owner freeze.
+
+Reproduce: `hf download <repo> <file> --revision <sha> --local-dir .temp/deepseek/dw02/models`; build the
+runtimes with the flags in the manifest; run
+`.temp/deepseek/dw02/llama.cpp/build/bin/llama-completion -m <model.gguf> -p "def add(a, b):" -n 8 --temp 0 -t 8 -no-cnv`.
+
+Limits: registry proxy throttled downloads; the corpus and workload are proposals, not yet frozen; no
+candidate measurement beyond the load confirmation.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

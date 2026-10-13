@@ -47,6 +47,28 @@ unverified.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
+## DS03 — 2026-10-13 — Completed
+
+Specified the generic runtime/session and memory-plan contracts in `docs/runtime-contracts-v1.md`: an
+immutable `ModelDefinition` with descriptor-only content and metadata-derived dimensions; a capability
+check producing explicit gaps before any weight read; a scoped `IWeightSource` with resident and streamed
+implementations and shared/tied alias handling; `IInferenceSession` with KV and recurrent state layouts
+selected per layer; a `MemoryBudget` with disjoint categories and `Unified`/`Discrete` domains that avoid
+double counting on integrated GPUs; residency and prefetch; cancellation; and the error/lifetime
+invariants.
+
+Two topologies (dense grouped-query and hybrid MoE) are shown representable by the same definition with no
+nominal dimensions; head dimension is taken from explicit `key_length`/`value_length` when present, never
+from `embedding_length / head_count`. No runtime implementation was added; the requirement stays in
+TASKS.md. Adapters are selected by `ArchitectureId` and never leak a model name into core interfaces.
+
+Verification: two topologies represented without nominal dimensions; budget expressed in bytes with a
+single owner per allocation and no iGPU double counting; error and lifetime invariants written.
+
+Limits: specification only; DS05 onward implements it.
+
+Skills: phase-development-project-conventions, base-dossier-writing.
+
 # Registro di esecuzione
 
 ## T11 — 2026-10-12 — Completato

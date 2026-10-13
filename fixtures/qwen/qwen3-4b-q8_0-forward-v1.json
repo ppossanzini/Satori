@@ -1,5 +1,5 @@
 {
-  "provenance": "independent NumPy float64 implementation of the dense qwen2/qwen3 forward; own GGUF parser and Q8_0 decode, no Satori code",
+  "provenance": "independent NumPy float64 implementation of the dense qwen2/qwen3 forward and greedy continuation; own GGUF parser and Q8_0 decode, no Satori code",
   "model": "qwen3-4b-q8_0.gguf",
   "sha256": "8c2f07f26af9747e41988551106f149b03eb9b5cb6df636027b6bf6278473300",
   "numpy": "2.5.4",
@@ -16,6 +16,7 @@
     "rope_base": 1000000.0,
     "rotary": 128
   },
+  "eos_token_id": 151645,
   "tokens": [
     16,
     13,
@@ -54254,5 +54255,48 @@
         0.9523732607408762
       ]
     }
-  ]
+  ],
+  "greedy": {
+    "prompt": [
+      888,
+      1099,
+      526,
+      2691,
+      1548,
+      264,
+      11,
+      526,
+      293,
+      8,
+      589,
+      264,
+      488,
+      293,
+      280,
+      322,
+      1757,
+      1728,
+      4152,
+      946,
+      72,
+      198
+    ],
+    "tokens": [
+      322,
+      3815,
+      58179,
+      2691,
+      11422,
+      650,
+      58179,
+      1099,
+      78,
+      11,
+      76608,
+      2477
+    ],
+    "eos": 151645,
+    "stop": "length",
+    "max_new": 12
+  }
 }

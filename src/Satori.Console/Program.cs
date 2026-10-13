@@ -1,4 +1,5 @@
 using Satori.Core;
+using Satori.Core.Model;
 using Satori.Backends.Vulkan;
 using System.Runtime.Intrinsics.X86;
 using Satori.Formats.Gguf;
@@ -108,9 +109,61 @@ if (args.Length > 0)
             }
             return 0;
         }
+        if (args[0] == "text")
+        {
+            if (args.Length < 3)
+            {
+                Console.Error.WriteLine("Usage: Satori.Console text <model.gguf> <prompt> [max-new-tokens] [--context N] [--temperature N] [--top-k N] [--top-p N] [--seed N]");
+                return 1;
+            }
+            var options = new TextGenerationOptions(16);
+            var sampling = new SamplingOptions();
+            int context = 2048;
+            int cursor = 3;
+            if (cursor < args.Length && !args[cursor].StartsWith("--", StringComparison.Ordinal))
+            {
+                options = options with { MaxNewTokens = int.Parse(args[cursor++], NumberStyles.None, CultureInfo.InvariantCulture) };
+            }
+            while (cursor < args.Length)
+            {
+                string flag = args[cursor++];
+                if (cursor == args.Length) throw new ArgumentException($"Missing value for {flag}.");
+                string value = args[cursor++];
+                if (flag == "--context")
+                {
+                    context = int.Parse(value, CultureInfo.InvariantCulture);
+                    continue;
+                }
+                sampling = flag switch
+                {
+                    "--temperature" => sampling with { Temperature = double.Parse(value, CultureInfo.InvariantCulture) },
+                    "--top-k" => sampling with { TopK = int.Parse(value, CultureInfo.InvariantCulture) },
+                    "--top-p" => sampling with { TopP = double.Parse(value, CultureInfo.InvariantCulture) },
+                    "--seed" => sampling with { Seed = ulong.Parse(value, CultureInfo.InvariantCulture) },
+                    _ => throw new ArgumentException($"Unknown option: {flag}.")
+                };
+            }
+            sampling.Validate();
+            options = options with { Sampling = sampling };
+
+            var definition = GgufModelLoader.Load(args[1]);
+            if (!definition.Capabilities.IsExecutable)
+                throw new NotSupportedException($"Model is not executable: {definition.Capabilities}");
+            var tokenization = GgufBpeTokenizer.Read(args[1]);
+            var tokenizer = GgufBpeTokenizer.Open(args[1]);
+            using var file = new GgufFile(args[1]);
+            using var store = new GgufWeightStore(file);
+            using var session = new DenseSession(definition, store, context);
+            var generator = new TextGenerator(session, tokenizer, tokenization.EosTokenId);
+            long started = Environment.TickCount64;
+            var generation = generator.Generate(args[2], options);
+            Console.WriteLine(generation.Text);
+            Console.Error.WriteLine($"{generation.Stop}; prompt: {generation.PromptTokens.Count}; generated: {generation.GeneratedTokens.Count}; context: {context}; elapsed_ms: {Environment.TickCount64 - started}");
+            return 0;
+        }
         if (args.Length != 2 || args[0] is not ("save" or "run"))
         {
-            Console.Error.WriteLine("Usage: Satori.Console [save <new-file> | run <file> | inventory <file.gguf> [--json] | describe <model.gguf> [context] | generate <model.gguf> <prompt> [max-new-tokens]]");
+            Console.Error.WriteLine("Usage: Satori.Console [save <new-file> | run <file> | inventory <file.gguf> [--json] | describe <model.gguf> [context] | text <model.gguf> <prompt> [max-new-tokens] | generate <model.gguf> <prompt> [max-new-tokens]]");
             return 1;
         }
         if (args[0] == "save")

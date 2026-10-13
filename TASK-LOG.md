@@ -228,6 +228,32 @@ F32 only. Contract in `docs/model-session.md`.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
+## DS10 — 2026-10-13 — Completed
+
+Connected generation to the session: `ITextTokenizer` (implemented by `BpeTokenizer`) and `TextGenerator`,
+which encodes the prompt, forwards it once, then samples each next token with the shared `TokenSampler`
+(temperature 0 = greedy) and appends it, stopping at the end-of-sequence token, the token limit or the
+session context. Reused rather than reimplemented: `DenseSession`, `TokenSampler`/`GreedyTokenSelector`,
+`BpeTokenizer`. Added the generic `text` console command; no model name appears in the generator or command.
+
+Verification: Release build without warnings; 161/161 numerics tests passed. `TextGeneratorTests` (offline,
+synthetic weights) cover greedy equals a manual sampler loop, default greedy, EOS stop, `ContextFull`,
+seeded sampling equals the shared sampler, and argument validation. `QwenForwardTests` adds greedy parity
+against the independent float64 reference: from a code prompt taken from the official tokenizer fixture, the
+greedy continuation is token-identical on Qwen2.5-Coder 1.5B (`322 21198 33264 3815 88112 4330 15230 1757 1728 198 322 1531`)
+and Qwen3 4B (`322 3815 58179 2691 11422 650 58179 1099 78 11 76608 2477`). The reference tool now emits the
+greedy oracle (`--greedy`, `--greedy-prompt`). Console demo on the 1.5B file printed
+` // return a + b;\n\n// int` with stop `TokenLimit`.
+
+Reproduce: `python3 tools/download_qwen_models.py`, regenerate the references with
+`python3 tools/qwen_forward_reference.py <model> <fixture> --greedy 12 --greedy-prompt <ids>`, then
+`dotnet test tests/Satori.Numerics.Tests -c Release --filter "FullyQualifiedName~QwenForwardTests"`.
+
+Limits: no KV prompt caching, no streaming output, no chat template (later tasks). Seed verification was not
+required because the sampling path was not modified. Contract in `docs/text-generation.md`.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

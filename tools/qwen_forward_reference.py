@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Independent float64 forward reference for a dense qwen2/qwen3 GGUF artifact.
+"""Independent float64 forward and greedy reference for a dense qwen2/qwen3 GGUF artifact.
 
 A second implementation written from the published architecture description and the GGUF layout, with no
 Satori code involved: it parses the container itself, decodes Q8_0/F32 tensors byte by byte, implements the
-forward pass in float64 and writes a fixture the C# forward is compared against.
+forward pass in float64 and writes a fixture the C# forward and generator are compared against.
 
 Memory: weight tensors are decoded one at a time to float64 and released after their layer, except the
 token embedding, which is needed both as the lookup table and (when tied) as the output projection. This
 keeps the peak bounded well below any full-model expansion.
 
 Usage:
-  qwen_forward_reference.py <model.gguf> <output.json> [--tokens 16,13,30,5,100,200] [--top 32] [--samples 64]
+  qwen_forward_reference.py <model.gguf> <output.json> [--tokens 16,13,30,5,100,200] [--top 32]
+                            [--samples 64] [--greedy 8]
 """
 import argparse
 import hashlib
@@ -141,6 +142,118 @@ def softmax(x):
     return e / np.sum(e, axis=-1, keepdims=True)
 
 
+class Model:
+    """Float64 forward for one dense qwen2/qwen3 container."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.container = Container(path)
+        meta = self.container.metadata
+        architecture = meta['general.architecture']
+        self.architecture = architecture
+        self.layers = int(meta[f'{architecture}.block_count'])
+        self.embedding = int(meta[f'{architecture}.embedding_length'])
+        self.feed_forward = int(meta[f'{architecture}.feed_forward_length'])
+        self.query = int(meta[f'{architecture}.attention.head_count'])
+        self.kv_heads = int(meta.get(f'{architecture}.attention.head_count_kv', self.query))
+        self.eps = float(meta[f'{architecture}.attention.layer_norm_rms_epsilon'])
+        self.base = float(meta[f'{architecture}.rope.freq_base'])
+        self.head_dim = int(meta.get(f'{architecture}.attention.key_length', self.embedding // self.query))
+        self.rotary = int(meta.get(f'{architecture}.rope.dimension_count', self.head_dim))
+        self.emb = self.container.matrix('token_embd.weight')
+        self.vocabulary = int(meta.get(f'{architecture}.vocab_size', self.emb.shape[0]))
+        output_name = 'output.weight' if 'output.weight' in self.container.tensors else 'token_embd.weight'
+        self.output = self.container.matrix(output_name) if output_name != 'token_embd.weight' else self.emb
+        self.eos = self.container.metadata.get('tokenizer.ggml.eos_token_id')
+
+    def config(self) -> dict:
+        return dict(layers=self.layers, embedding=self.embedding, head_count=self.query,
+                    head_count_kv=self.kv_heads, head_dim=self.head_dim, feed_forward=self.feed_forward,
+                    vocabulary=self.vocabulary, epsilon=self.eps, rope_base=self.base, rotary=self.rotary)
+
+    def logits(self, tokens, stages=None):
+        """Float64 logits of the final position. When `stages` is a list, first/last-layer intermediates are
+        appended to it."""
+        container = self.container
+        query, kv_heads, head_dim, rotary = self.query, self.kv_heads, self.head_dim, self.rotary
+        group = query // kv_heads
+        count = len(tokens)
+        last = count - 1
+
+        hidden = self.emb[np.array(tokens)].copy()
+        x_norm = np.zeros_like(hidden)
+        mask = np.triu(np.ones((count, count)), k=1).astype(bool)
+
+        def record(layer, stage, values):
+            if stages is not None:
+                stages.append(dict(layer=layer, stage=stage, values=np.asarray(values, dtype=np.float64).ravel().tolist()))
+
+        for layer in range(self.layers):
+            track = stages is not None and layer in (0, self.layers - 1)
+            prefix = f'blk.{layer}.'
+            attn_norm = container.vector(prefix + 'attn_norm.weight')
+            ffn_norm = container.vector(prefix + 'ffn_norm.weight')
+            wq = container.matrix(prefix + 'attn_q.weight')
+            wk = container.matrix(prefix + 'attn_k.weight')
+            wv = container.matrix(prefix + 'attn_v.weight')
+            wo = container.matrix(prefix + 'attn_output.weight')
+            wg = container.matrix(prefix + 'ffn_gate.weight')
+            wu = container.matrix(prefix + 'ffn_up.weight')
+            wd = container.matrix(prefix + 'ffn_down.weight')
+            has_bias = prefix + 'attn_q.bias' in container.tensors
+            has_head_norm = prefix + 'attn_q_norm.weight' in container.tensors
+
+            x_norm[:] = rms_norm(hidden, attn_norm, self.eps)
+            if track:
+                record(layer, 'attn_norm', x_norm[last])
+            q = x_norm @ wq.T
+            k = x_norm @ wk.T
+            v = x_norm @ wv.T
+            if has_bias:
+                q += container.vector(prefix + 'attn_q.bias')
+                k += container.vector(prefix + 'attn_k.bias')
+                v += container.vector(prefix + 'attn_v.bias')
+
+            q = q.reshape(count, query, head_dim)
+            k = k.reshape(count, kv_heads, head_dim)
+            v = v.reshape(count, kv_heads, head_dim)
+            if has_head_norm:
+                q = rms_norm(q, container.vector(prefix + 'attn_q_norm.weight'), self.eps)
+                k = rms_norm(k, container.vector(prefix + 'attn_k_norm.weight'), self.eps)
+            for position in range(count):
+                q[position] = rope_half(q[position], head_dim, position, self.base, rotary)
+                k[position] = rope_half(k[position], head_dim, position, self.base, rotary)
+            if track:
+                record(layer, 'q', q[last])
+
+            context = np.zeros((count, query, head_dim))
+            for head in range(query):
+                kv_head = head // group
+                scores = q[:, head, :] @ k[:, kv_head, :].T / np.sqrt(head_dim)
+                context[:, head, :] = softmax(np.where(mask, -np.inf, scores)) @ v[:, kv_head, :]
+            if track:
+                record(layer, 'attn_ctx', context[last])
+
+            hidden += context.reshape(count, query * head_dim) @ wo.T
+            if track:
+                record(layer, 'attn_residual', hidden[last])
+
+            x_norm[:] = rms_norm(hidden, ffn_norm, self.eps)
+            gate = x_norm @ wg.T
+            activated = (gate / (1 + np.exp(-gate))) * (x_norm @ wu.T)
+            if track:
+                record(layer, 'ffn_act', activated[last])
+            hidden += activated @ wd.T
+            if track:
+                record(layer, 'out', hidden[last])
+
+            del attn_norm, ffn_norm, wq, wk, wv, wo, wg, wu, wd, q, k, v, context, gate, activated
+
+        x_norm[:] = rms_norm(hidden, container.vector('output_norm.weight'), self.eps)
+        record(-1, 'final_norm', x_norm[last])
+        return x_norm[last] @ self.output.T
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('model', type=Path)
@@ -148,116 +261,44 @@ def main() -> int:
     parser.add_argument('--tokens', default='16,13,30,5,100,200')
     parser.add_argument('--top', type=int, default=32)
     parser.add_argument('--samples', type=int, default=64)
+    parser.add_argument('--greedy', type=int, default=8)
+    parser.add_argument('--greedy-prompt', default=None,
+                        help='comma-separated token ids for the greedy continuation (default: --tokens)')
     args = parser.parse_args()
 
     tokens = [int(t) for t in args.tokens.split(',')]
-    container = Container(args.model)
-    meta = container.metadata
-    architecture = meta['general.architecture']
-    query = int(meta[f'{architecture}.attention.head_count'])
-    kv_heads = int(meta.get(f'{architecture}.attention.head_count_kv', query))
-    embedding = int(meta[f'{architecture}.embedding_length'])
-    layers = int(meta[f'{architecture}.block_count'])
-    eps = float(meta[f'{architecture}.attention.layer_norm_rms_epsilon'])
-    base = float(meta[f'{architecture}.rope.freq_base'])
-    head_dim = int(meta.get(f'{architecture}.attention.key_length', embedding // query))
-    vocabulary = int(meta.get(f'{architecture}.vocab_size', 0))
-    rotary = int(meta.get(f'{architecture}.rope.dimension_count', head_dim))
-
-    emb = container.matrix('token_embd.weight')
-    if vocabulary == 0:
-        vocabulary = emb.shape[0]
-    output_name = 'output.weight' if 'output.weight' in container.tensors else 'token_embd.weight'
-    output = container.matrix(output_name) if output_name != 'token_embd.weight' else emb
-
-    hidden = emb[np.array(tokens)].copy()
-    x_norm = np.zeros_like(hidden)
-    positions = np.arange(len(tokens))
-    last = len(tokens) - 1
-    group = query // kv_heads
+    model = Model(args.model)
     stages = []
-
-    def record(layer, stage, values):
-        stages.append(dict(layer=layer, stage=stage, values=np.asarray(values, dtype=np.float64).ravel().tolist()))
-
-    for layer in range(layers):
-        track = layer in (0, layers - 1)
-        prefix = f'blk.{layer}.'
-        attn_norm = container.vector(prefix + 'attn_norm.weight')
-        ffn_norm = container.vector(prefix + 'ffn_norm.weight')
-        wq = container.matrix(prefix + 'attn_q.weight')
-        wk = container.matrix(prefix + 'attn_k.weight')
-        wv = container.matrix(prefix + 'attn_v.weight')
-        wo = container.matrix(prefix + 'attn_output.weight')
-        wg = container.matrix(prefix + 'ffn_gate.weight')
-        wu = container.matrix(prefix + 'ffn_up.weight')
-        wd = container.matrix(prefix + 'ffn_down.weight')
-        has_bias = prefix + 'attn_q.bias' in container.tensors
-        has_head_norm = prefix + 'attn_q_norm.weight' in container.tensors
-
-        x_norm[:] = rms_norm(hidden, attn_norm, eps)
-        if track:
-            record(layer, 'attn_norm', x_norm[last])
-        q = x_norm @ wq.T
-        k = x_norm @ wk.T
-        v = x_norm @ wv.T
-        if has_bias:
-            q += container.vector(prefix + 'attn_q.bias')
-            k += container.vector(prefix + 'attn_k.bias')
-            v += container.vector(prefix + 'attn_v.bias')
-
-        q = q.reshape(len(tokens), query, head_dim)
-        k = k.reshape(len(tokens), kv_heads, head_dim)
-        v = v.reshape(len(tokens), kv_heads, head_dim)
-        if has_head_norm:
-            q = rms_norm(q, container.vector(prefix + 'attn_q_norm.weight'), eps)
-            k = rms_norm(k, container.vector(prefix + 'attn_k_norm.weight'), eps)
-        for position in range(len(tokens)):
-            q[position] = rope_half(q[position], head_dim, int(positions[position]), base, rotary)
-            k[position] = rope_half(k[position], head_dim, int(positions[position]), base, rotary)
-        if track:
-            record(layer, 'q', q[last])
-
-        context = np.zeros((len(tokens), query, head_dim))
-        mask = np.triu(np.ones((len(tokens), len(tokens))), k=1).astype(bool)
-        for head in range(query):
-            kv_head = head // group
-            scores = q[:, head, :] @ k[:, kv_head, :].T / np.sqrt(head_dim)
-            context[:, head, :] = softmax(np.where(mask, -np.inf, scores)) @ v[:, kv_head, :]
-        if track:
-            record(layer, 'attn_ctx', context[last])
-
-        hidden += context.reshape(len(tokens), query * head_dim) @ wo.T
-        if track:
-            record(layer, 'attn_residual', hidden[last])
-
-        x_norm[:] = rms_norm(hidden, ffn_norm, eps)
-        gate = x_norm @ wg.T
-        activated = (gate / (1 + np.exp(-gate))) * (x_norm @ wu.T)
-        if track:
-            record(layer, 'ffn_act', activated[last])
-        hidden += activated @ wd.T
-        if track:
-            record(layer, 'out', hidden[last])
-
-        del attn_norm, ffn_norm, wq, wk, wv, wo, wg, wu, wd, q, k, v, context, gate, activated
-
-    x_norm[:] = rms_norm(hidden, container.vector('output_norm.weight'), eps)
-    record(-1, 'final_norm', x_norm[last])
-    logits = x_norm[last] @ output.T
+    logits = model.logits(tokens, stages)
 
     order = np.argsort(logits)[::-1]
-    sample_indices = sorted({int(i) for i in np.linspace(0, vocabulary - 1, args.samples).astype(np.int64)})
+    sample_indices = sorted({int(i) for i in np.linspace(0, model.vocabulary - 1, args.samples).astype(np.int64)})
+
+    # Greedy continuation from a realistic prompt: argmax appended repeatedly, stopping at EOS. The prompt
+    # ids come from the official tokenizer (fixtures/tokenizers), independent of the C# generator.
+    greedy_prompt = ([int(t) for t in args.greedy_prompt.split(',')]
+                     if args.greedy_prompt is not None else list(tokens))
+    greedy = []
+    eos = int(model.eos) if model.eos is not None else None
+    stop = 'length'
+    current = list(greedy_prompt)
+    for _ in range(args.greedy):
+        step = int(np.argmax(model.logits(current)))
+        if eos is not None and step == eos:
+            stop = 'eos'
+            break
+        greedy.append(step)
+        current.append(step)
+
     result = dict(
-        provenance='independent NumPy float64 implementation of the dense qwen2/qwen3 forward; '
-                   'own GGUF parser and Q8_0 decode, no Satori code',
+        provenance='independent NumPy float64 implementation of the dense qwen2/qwen3 forward and greedy '
+                   'continuation; own GGUF parser and Q8_0 decode, no Satori code',
         model=args.model.name,
         sha256=hashlib.sha256(args.model.read_bytes()).hexdigest(),
         numpy=np.__version__,
-        architecture=architecture,
-        config=dict(layers=layers, embedding=embedding, head_count=query, head_count_kv=kv_heads,
-                    head_dim=head_dim, feed_forward=int(meta[f'{architecture}.feed_forward_length']),
-                    vocabulary=vocabulary, epsilon=eps, rope_base=base, rotary=rotary),
+        architecture=model.architecture,
+        config=model.config(),
+        eos_token_id=model.eos,
         tokens=tokens,
         argmax=int(order[0]),
         top=[[int(i), float(logits[i])] for i in order[:args.top]],
@@ -265,9 +306,10 @@ def main() -> int:
         logits_sum=float(np.sum(logits)),
         logits_abs_sum=float(np.sum(np.abs(logits))),
         stages=stages,
+        greedy=dict(prompt=greedy_prompt, tokens=greedy, eos=eos, stop=stop, max_new=args.greedy),
     )
     args.output.write_text(json.dumps(result, indent=2) + '\n')
-    print(f'{args.model.name}: argmax={result["argmax"]} vocab={vocabulary} stages={len(stages)}')
+    print(f'{args.model.name}: argmax={result["argmax"]} vocab={model.vocabulary} greedy={greedy} stop={stop}')
     return 0
 
 

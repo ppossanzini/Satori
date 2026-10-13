@@ -114,4 +114,46 @@ public sealed class QwenForwardTests
                 $"{name} incremental logit[{i}]: {session.Logits[i]} vs {extended[i]}");
         Assert.Equal(tokens.Length + 1, session.Position);
     }
+
+    [Theory]
+    [MemberData(nameof(Models))]
+    public void GreedyGenerationMatchesIndependentReference(string name)
+    {
+        string modelPath = Corpus(name);
+        Assert.True(File.Exists(modelPath), $"Missing corpus {modelPath}: run python tools/download_qwen_models.py");
+        var reference = JsonDocument.Parse(File.ReadAllText(Reference(name))).RootElement;
+        var greedy = reference.GetProperty("greedy");
+        int[] prompt = greedy.GetProperty("prompt").EnumerateArray().Select(t => t.GetInt32()).ToArray();
+        int[] expected = greedy.GetProperty("tokens").EnumerateArray().Select(t => t.GetInt32()).ToArray();
+        int eos = greedy.GetProperty("eos").GetInt32();
+        int maxNew = greedy.GetProperty("max_new").GetInt32();
+
+        var definition = GgufModelLoader.Load(modelPath);
+        Assert.Empty(definition.Capabilities.Gaps);
+        var tokenizer = GgufBpeTokenizer.Open(modelPath);
+        using var file = new GgufFile(modelPath);
+        using var weights = new GgufWeightStore(file);
+        using var session = new DenseSession(definition, weights, contextLength: 512);
+        var generator = new TextGenerator(session, tokenizer, eos);
+
+        var result = generator.GenerateFromTokens(prompt, new TextGenerationOptions(maxNew));
+
+        // Greedy output must be token-identical to the independent float64 reference.
+        Assert.Equal(expected, result.GeneratedTokens);
+        Assert.Equal(greedy.GetProperty("stop").GetString() == "eos" ? GenerationStop.EndOfSequence : GenerationStop.TokenLimit, result.Stop);
+        Assert.Equal(prompt.Length + expected.Length, session.Position);
+    }
+
+    /// <summary>DS06 tokenizer identity against the official tokenizer, on the prompt used for DS10.</summary>
+    [Fact]
+    public void TokenizerReproducesOfficialPromptIds()
+    {
+        var official = JsonDocument.Parse(File.ReadAllText(Path.Combine(GgufTests.Root,
+            "fixtures/tokenizers/qwen2.5-coder-1.5b/reference.json"))).RootElement;
+        var codeCase = official.GetProperty("cases").EnumerateArray().First(c => c.GetProperty("name").GetString() == "code_csharp");
+        string text = codeCase.GetProperty("text").GetString()!;
+        int[] officialIds = codeCase.GetProperty("ids").EnumerateArray().Select(t => t.GetInt32()).ToArray();
+        var tokenizer = GgufBpeTokenizer.Open(Corpus("qwen2.5-coder-1.5b-q8_0"));
+        Assert.Equal(officialIds, tokenizer.Encode(text));
+    }
 }

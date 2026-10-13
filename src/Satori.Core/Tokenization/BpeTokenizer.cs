@@ -13,7 +13,7 @@ namespace Satori.Core.Tokenization;
 /// Added (special) tokens are matched on the raw input before the pipeline. Decoding reverses the byte-level
 /// mapping and decodes the accumulated bytes as UTF-8.
 /// </remarks>
-public sealed class BpeTokenizer
+public sealed class BpeTokenizer : ITextTokenizer
 {
     private static readonly UTF8Encoding Utf8 = new(false, false);
 

@@ -1,0 +1,5 @@
+apex-nanoplus	wall_s=13.66	peak_rss_mib=12694	exit=0
+qwen-7b-q4km	wall_s=16.59	peak_rss_mib=7504	exit=0
+bonsai-ptq1_0	wall_s=18.43	peak_rss_mib=5956	exit=0
+apex-nanoplus	wall_s=14.40	peak_rss_mib=12705	exit=0
+bonsai-ptq1_0	wall_s=8.13	peak_rss_mib=5954	exit=0

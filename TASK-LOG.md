@@ -328,6 +328,32 @@ freeze.
 
 Skills: phase-development-task-execution, base-dossier-writing.
 
+## DW04.1–DW04.3 — 2026-10-13 — Completed
+
+Measured the three candidates in their reference runtimes on the Intel comparison host (Intel Core Ultra 7
+155H, 22 logical processors, 32 GB, Arch Linux), 8 threads, f16 KV. Report and raw evidence in
+`docs/benchmarks/comparison-2026-10-13/` (llama-bench JSON per candidate, `memory.tsv`, `measure.py`,
+`run-memory.sh`).
+
+Throughput (`llama-bench -p 2048 -n 128 -r 1 -t 8`): Qwen2.5-Coder 7B Q4_K_M prefill 22.16 tok/s and
+decode 2.94 tok/s; APEX-I-NanoPlus prefill 39.70 tok/s and decode 4.88 tok/s; Bonsai PTQ1_0 prefill 1.37
+tok/s and decode 0.99 tok/s. TTFT at 2K, derived from the prefill rate: 92 s, 52 s and 1490 s.
+
+Peak RSS (one-token run, minimal context): Qwen 7B 7504 MiB, APEX 12705 MiB, Bonsai 5955 MiB. Bonsai is
+close to its 5.95 GB file with no permanent expansion; Qwen exceeds its 4.68 GB file.
+
+Verdict against the DW03 thresholds: Qwen fails TTFT (92>60) and decode (2.94<3), passes memory (7.5<12);
+APEX passes TTFT and decode, fails memory (12.7>12); Bonsai fails TTFT and decode, passes memory
+(5.95<12). No candidate passes every threshold on this host.
+
+Reproduce: build the runtimes as in `docs/comparison-manifest-v1.md`, then run
+`bash docs/benchmarks/comparison-2026-10-13/run-memory.sh` and the `llama-bench` command in the report.
+
+Limits: one host (Intel, not the primary Geekom A5); one repetition; TTFT derived, not measured; peak RSS
+is a working set; memory measured at minimal context, so 2K/4K add KV; no quality measurement here.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

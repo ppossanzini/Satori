@@ -43,9 +43,9 @@ Gli inventari in [capability matrix](docs/capability-matrix-v1.md) sono evidenza
 
 | Stato / ID | Azione | Dipendenze | Risultato e verifica |
 |---|---|---|---|
-| [ ] DW04.1 | Misurare il riferimento coding Q4 | DW03 | Esecuzione nel runtime di riferimento; qualità C#, startup, prefill, TTFT, decode, memoria e carico concorrente secondo protocollo. Separare cache fredda/calda e limiti CPU/GPU. |
-| [ ] DW04.2 | Misurare APEX/MoE | DW04.1 | Confrontare configurazioni residenti e cache/caricamento selettivo disponibili. Registrare budget, I/O, hit/miss dove osservabili, contesa e qualità. Un percorso non disponibile è dichiarato tale; non simularlo e non costruire il runtime Satori per completare il confronto. |
-| [ ] DW04.3 | Misurare Bonsai ternary | DW04.2 | Usare un runtime compatibile con PTQ1_0 e trasformazioni richieste. Misurare residency dove sostenibile, qualità e reattività. PQ2_0 richiede un seguito motivato da un limite specifico di PTQ1_0. |
+| [x] DW04.1 | Misurare il riferimento coding Q4 | DW03 | Esecuzione nel runtime di riferimento; qualità C#, startup, prefill, TTFT, decode, memoria e carico concorrente secondo protocollo. Separare cache fredda/calda e limiti CPU/GPU. |
+| [x] DW04.2 | Misurare APEX/MoE | DW04.1 | Confrontare configurazioni residenti e cache/caricamento selettivo disponibili. Registrare budget, I/O, hit/miss dove osservabili, contesa e qualità. Un percorso non disponibile è dichiarato tale; non simularlo e non costruire il runtime Satori per completare il confronto. |
+| [x] DW04.3 | Misurare Bonsai ternary | DW04.2 | Usare un runtime compatibile con PTQ1_0 e trasformazioni richieste. Misurare residency dove sostenibile, qualità e reattività. PQ2_0 richiede un seguito motivato da un limite specifico di PTQ1_0. |
 | [ ] DW04 | Selezionare il percorso principale | DW04.3 | Tabella comparativa e verdetto sui criteri approvati. Selezionare un artefatto/famiglia e un riferimento esterno. Registrare capability indispensabili e politica di memoria. Se nessun candidato soddisfa i criteri, proporre riduzione del perimetro o arresto; non procedere tacitamente. |
 
 Una configurazione oltre budget fallisce per quella configurazione. Il confronto di una configurazione alternativa deve essere identificato separatamente. Bassa VRAM non dimostra bassa memoria totale; pochi parametri attivi non dimostrano poco I/O.

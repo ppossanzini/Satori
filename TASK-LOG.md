@@ -2,6 +2,14 @@
 
 Historical task entries describe their original scope and may mention removed implementations. Current product requirements and executable work are defined only in TASKS.md.
 
+# Stories-specific optimization removal
+
+Removed Stories-specific Vulkan offload, resident model/layer graphs, measured planner, attribution and benchmark runners, CLI backend options and their four dedicated test files. Preserved CPU Stories15M regression fixtures and reusable Vulkan numerical primitives. Removed the model-specific optimization plan; T46-T50 are cancelled in their previous formulation. Published measurements remain historical evidence.
+
+Verification: Release solution build passed. All 34 CPU Stories regression tests passed. Vulkan hardware verification was blocked by missing Khronos validation layer/debug utils before kernel execution.
+
+Skills: capabilities-dev-problem-solving-methodology, phase-development-project-conventions, base-dossier-writing, run-tests.
+
 # DeepSeek Plan Execution
 
 Tasks DS01–DS40 from DeepSeek_todo.md. One task per commit; no push.
@@ -144,241 +152,334 @@ the default system message is supplied by the caller. Contract in `docs/tokenize
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
-# Registro di esecuzione
+## DS07 — 2026-10-13 — Completed
 
-## T11 — 2026-10-12 — Completato
+Implemented the CPU operators the dense qwen2/qwen3 families need: `TransformerOps.RopeHalf` (half-split
+GPT-NeoX rotary with configurable base and rotary dimension, so partial RoPE and per-model base are
+honoured), `TransformerOps.RmsNormHeads` (per-head RMS norm for `attn_q_norm`/`attn_k_norm`) and
+`TransformerOps.GroupedAttention` (grouped-query attention with a causal prefix). Bias add reuses
+`TransformerOps.Add` and projections reuse the existing Q8_0/Q4_0 MatVec, which already supports independent
+rows and columns: only the three genuinely missing operators were added, per the DS07 rule to reuse
+conformant operators.
 
-Skill: `phase-development-project-conventions`, `phase-development-task-execution`, `capabilities-dev-problem-solving-methodology`, `base-dossier-writing`. Scope: specifica GGUF, catalogo di accettazione e golden sintetiche. Nessuna modifica al runtime o nuovo test xUnit.
+Verification: Release build without warnings; 115/115 offline numerics tests passed, 8 in
+`QwenOperatorTests`. An independent NumPy float64 oracle (`tools/transformer_reference_v2.py`, seed 70207,
+fixture `fixtures/operators/transformer-v2.json`) checks GQA, full and partial RoPE, per-head RMS norm and
+bias add against formulas written without Satori; regeneration is byte-identical. GQA is also shown to
+reduce to plain attention at equal head counts, and the biased projection is checked against a manual
+float64 decode of the same Q8_0 payload. Tolerance 2e-6 + 2e-6 x |reference|.
 
-Contratto fissato in `docs/gguf-subset-v1.md`. Fonti ufficiali verificate alle revisioni riportate nel contratto. Il catalogo `docs/gguf-fixtures-v1.md` distingue casi validi, fuori profilo, corrotti, lifetime e prove numeriche future.
+Reproduce: `python3 tools/transformer_reference_v2.py` then
+`dotnet test tests/Satori.Numerics.Tests -c Release --filter "FullyQualifiedName~QwenOperatorTests"`.
 
-Quattro golden indipendenti dal codice Satori in `fixtures/gguf/v1/`, con generatore deterministico e manifest di hash, offset e risultati attesi. Verificati header, lunghezze, allineamenti, SHA-256, rigenerazione identica e decodifica indipendente dei payload. Q4_0/Q8_0 ricostruiscono gli stessi 32 pesi e producono −8 con un input di uno.
+Limits: MoE and recurrent/hybrid attention excluded (later tasks); bias is a plain vector add, not a fused
+kernel. Contract in `docs/qwen-operators.md`.
 
-Nessun parser GGUF Satori o ufficiale è stato ancora eseguito sulle fixture. Le varianti del catalogo sono criteri per T12–T14, non test già passati. Nessuna build o suite di runtime ripetuta: il task modifica soltanto documenti e dati di riferimento. Controllo diff riuscito. Riferimenti temporanei rimossi dallo spazio di lavoro del task.
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
-Prossimo: T12, nel confine di modulo e dipendenze fissato dal profilo.
+# Execution Log
 
-## T10 — 2026-10-12 — Completato
+## T11 — 2026-10-12 — Completed
 
-Skill: `phase-development-project-conventions`, `phase-development-task-execution`, `capabilities-dev-problem-solving-methodology`. Quest'ultima usata per isolare un errore di sintassi nel test di file corrotti e un'eccezione non intercettata dalla console, correggendoli con verifiche mirate. Test limitati a formato binario, corruzione, identità numerica, disposal e allocazioni.
+Skills: `phase-development-project-conventions`, `phase-development-task-execution`, `capabilities-dev-problem-solving-methodology`, `base-dossier-writing`. Scope: GGUF specification, acceptance catalog and synthetic golden fixtures. No runtime changes or new xUnit tests.
 
-Implementato contenitore STQ2 v1, con header di 32 byte, forma, block size, versione e lunghezza payload. Salvataggio su file nuovo, senza sovrascrittura. Caricamento mapped con validazione completa una volta all'apertura. Forma immutabile interna condivisa; kernel scalar/AVX2 ora ricevono lo stesso span di payload, proveniente da array o mapping, senza duplicare algoritmi. Un callback con stato ref struct mantiene il mapping acquisito per l'intera MatVec senza closure o copia dei pesi.
+Contract pinned in `docs/gguf-subset-v1.md`. Official sources verified at the revisions listed in the contract. The `docs/gguf-fixtures-v1.md` catalog distinguishes valid, out-of-profile, corrupted and lifetime cases, and future numerical checks.
 
-Verifiche finali: build completa Release senza warning/errori; 24/24 test passati con AVX2 attivo e 24/24 con AVX2 disattivato. Cinque nuovi casi xUnit attraversano tutto il corpus con i tre block size, verificano header contro una fixture binaria indipendente, rifiuto di header/payload corrotti o troncati, identità bit per bit dei risultati mapped/owned per ciascun kernel, zero allocazioni dopo warm-up e rifiuto dopo Dispose. I test di T09 continuano a verificare il lifetime concorrente del proprietario riutilizzato.
+Four golden fixtures independent of Satori code in `fixtures/gguf/v1/`, with a deterministic generator and manifest of hashes, offsets and expected results. Headers, lengths, alignments, SHA-256, identical regeneration and independent payload decoding verified. Q4_0/Q8_0 reconstruct the same 32 weights and produce −8 with an input of ones.
 
-Console: salvataggio del file demo e caricamento mapped riusciti; risultato `[4, -2.6666667]` con AVX2 e scalar. Rifiuto di un file non STQ2 con messaggio leggibile e codice di uscita 1, senza stack trace. Dopo la correzione del messaggio, build mirata della console nuovamente riuscita. Il primo tentativo di build dei nuovi test era fallito; i 19 test del vecchio assembly eseguiti allora non sono stati usati come evidenza di T10. Le prove finali sopra riguardano il nuovo assembly con 24 test.
+Neither the Satori nor the official GGUF parser has yet run on the fixtures. Catalog variants are criteria for T12–T14, not already passed tests. No runtime build or suite repeated: the task changes only documents and reference data. Diff check passed. Temporary references removed from the task workspace.
 
-Benchmark: 6/6 misure warm su dimensioni 1024²/2048²/4096² con blocchi 64, 9/9 prove di apertura con identità confermata e 72/72 verifiche numeriche della reference CPU. Zero allocazioni gestite per MatVec in entrambi i percorsi. Per 4096², circa 3,75 ms mapped e 3,76 ms owned in questa esecuzione: comparabili entro la variabilità, senza affermare vantaggi piccoli. Snapshot in `docs/benchmarks/mapped-2026-10-12/`.
+Next: T12, within the module and dependency boundaries fixed by the profile.
 
-Precisazione del criterio di benchmark: file appena scritti e page cache non svuotata; la validazione attraversa il payload. Sono distinti apertura/validazione, primo calcolo successivo e regime caldo; non è stata misurata una lettura SSD realmente fredda. Il criterio T10 è stato reso esplicito nel piano per evitare tale attribuzione.
+## T10 — 2026-10-12 — Completed
 
-Limiti: una matrice per file, payload massimo `int.MaxValue` byte, file immutabile richiesto; nessun checksum, salvataggio atomico o GGUF. Fixture e benchmark temporanei in sottodirectory uniche di `.temp/`, ripulite dai rispettivi proprietari. Il file demo è un output rigenerabile in `reports/`. Il formatter della console non poteva aprire il socket locale nel sandbox: indentazione corretta direttamente, ricompilazione riuscita.
+Skills: `phase-development-project-conventions`, `phase-development-task-execution`, `capabilities-dev-problem-solving-methodology`. The last was used to isolate a syntax error in the corrupted-file test and an uncaught console exception, fixing them with focused checks. Tests limited to binary format, corruption, numerical identity, disposal and allocations.
 
-Traguardo A completato. Prossimo T11: fissare il sottoinsieme GGUF prima di implementare il lettore.
+Implemented the STQ2 v1 container with a 32-byte header, shape, block size, version and payload length. Saving to a new file without overwriting. Mapped loading with full validation once on opening. Shared internal immutable shape; scalar/AVX2 kernels now receive the same payload span from an array or mapping, without duplicating algorithms. A callback with ref struct state keeps the mapping acquired for the entire MatVec without closures or weight copies.
 
-## T09 — 2026-10-12 — Completato
+Final checks: full Release build without warnings/errors; 24/24 tests passed with AVX2 enabled and 24/24 with AVX2 disabled. Five new xUnit cases traverse the entire corpus with all three block sizes, check headers against an independent binary fixture, rejection of corrupted or truncated headers/payloads, bitwise identity of mapped/owned results for each kernel, zero allocations after warm-up and rejection after Dispose. T09 tests continue to verify the reused owner's concurrent lifetime.
 
-Skill: `phase-development-project-conventions`, `phase-development-task-execution`. Scope: proprietario generico del mapping; test solo per invarianti critiche di puntatori, lifetime, concorrenza e allocazioni. Nessuna modifica ai kernel.
+Console: demo file save and mapped load succeeded; result `[4, -2.6666667]` with AVX2 and scalar. Non-STQ2 file rejected with a readable message and exit code 1, without a stack trace. After correcting the message, the focused console build succeeded again. The first build attempt for the new tests failed; the 19 tests of the old assembly run then were not used as T10 evidence. Final checks above refer to the new assembly with 24 tests.
 
-Implementato `MappedWeights`: apertura read-only, processo a 64 bit, offset `long`, finestre di lunghezza `int`, controlli prima dell'esposizione del puntatore. Accesso tramite callback con stato generico anche ref struct; nessuno span restituito. Acquisizione del SafeHandle sotto lock breve, callback fuori dal lock, rilascio del puntatore in `finally`. La chiusura respinge nuove letture, mentre quelle attive mantengono il mapping fino al proprio termine. Risorse parziali del costruttore rilasciate in caso di errore.
+Benchmark: 6/6 warm measurements on sizes 1024²/2048²/4096² with blocks of 64, 9/9 opening trials with identity confirmed and 72/72 numerical CPU reference checks. Zero managed allocations per MatVec on both paths. For 4096², approximately 3.75 ms mapped and 3.76 ms owned in this run: comparable within variability, without claiming small advantages. Snapshot in `docs/benchmarks/mapped-2026-10-12/`.
 
-Verifica: build Release con zero warning/errori; 19/19 test critici complessivi passati. Sei nuovi casi coprono file sparse con lettura oltre 2 GiB, offset non allineati e intervalli invalidi, due lettori concorrenti attivi durante Dispose, Dispose interno alla callback, eccezione della callback e zero allocazioni dopo warm-up con delegate riutilizzato. Identità dei byte confrontata con contenuto noto del file.
+Benchmark criterion clarification: newly written files and no page-cache eviction; validation traverses the payload. Opening/validation, first subsequent computation and warm steady state are distinguished; no actual cold SSD read was measured. The T10 criterion was made explicit in the plan to avoid that attribution.
 
-Fixture create esclusivamente sotto `.temp/t09/<id>/` e rimosse dai rispettivi proprietari. Nessun file temporaneo dell'agente fuori dal progetto.
+Limits: one matrix per file, maximum payload `int.MaxValue` bytes, immutable file required; no checksum, atomic save or GGUF. Temporary fixtures and benchmarks in unique `.temp/` subdirectories, cleaned by their respective owners. The demo file is a regenerable output in `reports/`. The console formatter could not open the local socket in the sandbox: indentation corrected directly, recompilation succeeded.
 
-Limiti: verifica su Linux x64; file immutabile richiesto, nessuna garanzia di residenza RAM, nessun prefetch o buffer GPU. Il callback non trattiene span oltre il proprio termine. Integrazione numerica e benchmark del mapping rinviati a T10. Contratto in `docs/mapped-weights.md`.
+Milestone A completed. Next T11: pin the GGUF subset before implementing the reader.
 
-## T08 — 2026-10-12 — Completato
+## T09 — 2026-10-12 — Completed
 
-Skill applicate: `phase-development-project-conventions`, `phase-development-task-execution`; test nuovi limitati alla correttezza SIMD, alle letture nelle code e alle allocazioni, come richiesto dall'utente.
+Skills: `phase-development-project-conventions`, `phase-development-task-execution`. Scope: generic mapping owner; tests only for critical pointer, lifetime, concurrency and allocation invariants. No kernel changes.
 
-Kernel AVX2: decodifica otto pesi da due byte tramite shift variabili sulle lane, maschere zero/segno sulle attivazioni, accumulo FP32 e riduzione per blocco. Nessun buffer di dequantizzazione. Code da uno a sette elementi elaborate scalar; load vettoriali solo entro il limite dell'input. Nessuna dipendenza FMA o AVX-512. Selezione automatica tramite capacità del runtime, fallback scalar; reference scalar ancora richiamabile esplicitamente.
+Implemented `MappedWeights`: read-only opening, 64-bit process, `long` offsets, `int`-length windows, checks before exposing the pointer. Access through a callback with generic state including ref structs; no returned span. SafeHandle acquisition under a short lock, callback outside the lock, pointer release in `finally`. Disposal rejects new reads while active reads retain the mapping until they finish. Partially acquired constructor resources released on error.
 
-Verifiche finali: build Release senza warning/errori; 13/13 test critici passati con AVX2 attivo e altri 13/13 con `DOTNET_EnableAVX2=0`. I test includono tutti i block size, 27 casi critici e dimensioni che attraversano code SIMD e limiti dei blocchi. Contatore del thread: zero allocazioni gestite dopo warm-up. Demo finale identifica correttamente AVX2 e scalar nei rispettivi processi, con stesso output noto.
+Verification: Release build with zero warnings/errors; 19/19 critical tests passed in total. Six new cases cover sparse files with reads beyond 2 GiB, unaligned offsets and invalid ranges, two concurrent readers active during Dispose, Dispose inside the callback, callback exceptions and zero allocations after warm-up with a reused delegate. Byte identity compared with known file contents.
 
-Prestazioni: due esecuzioni separate, ciascuna con 18 benchmark e 72/72 risultati numerici validi. Vantaggio osservato 27,27–31,88× rispetto al kernel scalar di Satori su Intel Core Ultra 7 155H, per matrici 1024²/2048²/4096² e blocchi 64/128/256. Zero allocazioni per operazione in entrambi i kernel. Snapshot completi in `docs/benchmarks/avx2-2026-10-12/run1/` e `run2/`.
+Fixtures created exclusively under `.temp/t09/<id>/` and removed by their respective owners. No agent temporary files outside the project.
 
-Limiti: job breve in-process, priorità ordinaria perché il sistema nega quella alta; risultati sintetici relativi a questa CPU. Nessun confronto con altri motori, nessuna misura token/s. La selezione automatica usa la disponibilità AVX2; un futuro planner potrà scegliere per forma/hardware. Prossimo task T09: ownership e lifetime del mapping.
+Limits: verified on Linux x64; immutable file required, no guarantee of RAM residency, no prefetch or GPU buffers. The callback does not retain spans beyond its completion. Numerical integration and mapping benchmarks deferred to T10. Contract in `docs/mapped-weights.md`.
 
-## T07 — 2026-10-12 — Completato
+## T08 — 2026-10-12 — Completed
 
-Skill: `phase-development-project-conventions`, `phase-development-task-execution`; nessun nuovo test sui passaggi semplici di configurazione del benchmark.
+Skills applied: `phase-development-project-conventions`, `phase-development-task-execution`; new tests limited to SIMD correctness, tail reads and allocations, as requested by the user.
 
-BenchmarkDotNet 0.14.0 con toolchain in-process, un thread, tre warm-up e tre iterazioni misurate da circa 200 ms. Matrici 1024², 2048², 4096²; blocchi 64/128/256. Setup e quantizzazione esclusi; decodifica inclusa. Report JSON con latenza, deviazione standard, MatVec/s, byte/peso, banda effettiva e allocazioni. Report numerico esteso anche alle nove matrici misurate.
+AVX2 kernel: decodes eight weights from two bytes using variable lane shifts, zero/sign masks on activations, FP32 accumulation and per-block reduction. No dequantization buffer. Tails of one to seven elements processed by the scalar kernel; vector loads only within the input boundary. No FMA or AVX-512 dependency. Automatic selection through runtime capabilities, scalar fallback; scalar reference still explicitly callable.
 
-Verifica: build Release riuscita senza warning/errori; 36/36 combinazioni numeriche passate; 9/9 benchmark conclusi; zero allocazioni gestite per operazione riportate dal diagnoser. Snapshot in `docs/benchmarks/scalar-2026-10-12/`; metodo in `docs/benchmark-method.md`. Report rigenerabili sotto `reports/scalar/`, esclusi da Git.
+Final checks: Release build without warnings/errors; 13/13 critical tests passed with AVX2 enabled and another 13/13 with `DOTNET_EnableAVX2=0`. Tests include all block sizes, 27 critical cases and dimensions crossing SIMD tails and block boundaries. Thread counter: zero managed allocations after warm-up. Final demo correctly identifies AVX2 and scalar in their respective processes, with the same known output.
 
-Limite osservato: priorità alta negata dal sistema e notevole variabilità, con intervalli di confidenza ampi nel job breve. Baseline preliminare; nessuna scelta di block size o promessa di prestazioni. Il confronto con AVX2 richiederà misure ripetute con lo stesso protocollo. Nessun test di modello o GPU.
+Performance: two separate runs, each with 18 benchmarks and 72/72 valid numerical results. Observed advantage 27.27–31.88× over Satori's scalar kernel on Intel Core Ultra 7 155H, for 1024²/2048²/4096² matrices and blocks of 64/128/256. Zero allocations per operation in both kernels. Full snapshots in `docs/benchmarks/avx2-2026-10-12/run1/` and `run2/`.
 
-## T06 — 2026-10-12 — Completato
+Limits: short in-process job, normal priority because the system denies high priority; synthetic results specific to this CPU. No comparison with other engines, no token/s measurement. Automatic selection uses AVX2 availability; a future planner may select by shape/hardware. Next task T09: mapping ownership and lifetime.
 
-Skill: `phase-development-project-conventions`, `phase-development-task-execution`; prosecuzione autorizzata dall'utente, test limitati agli invarianti numerici critici.
+## T07 — 2026-10-12 — Completed
 
-Corpus v1 con xorshift32, seed 1729 e conversione FP32 fissa; nove famiglie per ciascun block size: casuale, zeri, alternanza, sparse, scale piccole/grandi, subnormal, scala massima e singolo peso. Righe e blocchi parziali inclusi. Reference FP64 separata per pesi originali e ricostruiti; report distingue errore sui pesi, errore di quantizzazione sull'output ed errore del kernel. Tolleranza derivata dal bound di accumulo FP32 con termine per underflow.
+Skills: `phase-development-project-conventions`, `phase-development-task-execution`; no new tests for simple benchmark configuration steps.
 
-Verifica: build Release senza warning/errori; 9 casi xUnit complessivi passati, inclusi tre casi che attraversano le 27 combinazioni del corpus. Nessuna modifica al kernel. Il corpus non misura qualità linguistica o velocità.
+BenchmarkDotNet 0.14.0 with in-process toolchain, one thread, three warm-ups and three measured iterations of approximately 200 ms. Matrices 1024², 2048², 4096²; blocks of 64/128/256. Setup and quantization excluded; decoding included. JSON report with latency, standard deviation, MatVec/s, bytes/weight, effective bandwidth and allocations. Numerical report also extended to the nine measured matrices.
 
-## Revisione verifiche — 2026-10-12
+Verification: Release build succeeded without warnings/errors; 36/36 numerical combinations passed; 9/9 benchmarks completed; zero managed allocations per operation reported by the diagnoser. Snapshot in `docs/benchmarks/scalar-2026-10-12/`; method in `docs/benchmark-method.md`. Regenerable reports under `reports/scalar/`, excluded from Git.
 
-Su richiesta dell'utente, eliminati i tre test ovvi FP32 e il progetto Satori.Tests. Il risultato storico T01 sotto descrive la verifica effettuata allora, non test ancora presenti. Le verifiche future dei passaggi semplici usano build/demo; i test sono riservati ai passaggi critici.
+Observed limit: high priority denied by the system and considerable variability, with wide confidence intervals in the short job. Preliminary baseline; no block-size selection or performance promise. Comparison with AVX2 will require repeated measurements under the same protocol. No model or GPU tests.
 
-## T02–T05 — 2026-10-12 — Implementati
+## T06 — 2026-10-12 — Completed
 
-Skill applicate: `phase-development-project-conventions` e `phase-development-task-execution`. L'istruzione esplicita dell'utente di procedere con implementazioni e test solo critici governa questo incremento, senza ulteriori gate di approvazione.
+Skills: `phase-development-project-conventions`, `phase-development-task-execution`; continuation authorized by the user, tests limited to critical numerical invariants.
 
-- T02: specifica Ternary2 v1 fissata con esempio binario indipendente; scale per blocco, padding, soglia, valori non finiti e limiti espliciti.
-- T03: codec con quantizzazione, importazione validata e dequantizzazione; test binari e numerici critici superati.
-- T04: contratto concreto CPU con payload privato posseduto e copia all'importazione. Semplificazione del piano: descrittori generici rinviati finché esiste un solo formato quantizzato; nessun puntatore o lifetime esterno introdotto.
-- T05: MatVec scalar sui blocchi compressi, senza espansione dei pesi. Confronto FP64 indipendente sui medesimi pesi quantizzati, su righe e blocchi parziali per tutti i block size. L'errore rispetto alla matrice FP32 originale rimane una misura distinta da sviluppare nel corpus T06.
+Corpus v1 with xorshift32, seed 1729 and fixed FP32 conversion; nine families per block size: random, zeros, alternating, sparse, small/large scales, subnormal, maximum scale and single weight. Partial rows and blocks included. Separate FP64 references for original and reconstructed weights; report distinguishes weight error, output quantization error and kernel error. Tolerance derived from the FP32 accumulation bound with an underflow term.
 
-Verifiche: build Release senza warning/errori; 6 casi critici xUnit passati; zero allocazioni gestite misurate su 100 esecuzioni dopo warm-up; console con output `[4, -2.6666667]`, 40 byte incluse scale/padding; controllo diff senza errori. Restore e test runner eseguiti con accesso autorizzato per rete/socket locale.
+Verification: Release build without warnings/errors; 9 total xUnit cases passed, including three cases covering the 27 corpus combinations. No kernel changes. The corpus does not measure linguistic quality or speed.
 
-File principali: `docs/ternary2-v1.md`, `src/Satori.Core/Ternary2Matrix.cs`, `src/Satori.Core/Ternary2MatVec.cs`, `src/Satori.Console/Program.cs`, `tests/Satori.Numerics.Tests/`.
+## Verification Policy Revision — 2026-10-12
 
-Limiti: memoria gestita posseduta, non ancora mapping; nessun benchmark di velocità, SIMD o qualità di modello. T06–T07 restano aperti.
+At the user's request, removed the three obvious FP32 tests and the Satori.Tests project. The historical T01 result below describes verification performed then, not tests still present. Future checks of simple steps use builds/demos; tests are reserved for critical behavior.
 
-## T01 — 2026-10-12 — Completato
+## T02–T05 — 2026-10-12 — Implemented
 
-Scope: soluzione, libreria FP32, console, test, configurazione SDK e istruzioni di avvio.
+Skills applied: `phase-development-project-conventions` and `phase-development-task-execution`. The user's explicit instruction to proceed with implementation and critical tests only governs this increment, without further approval gates.
 
-Skill dichiarata: `phase-development-project-conventions`, per adottare struttura e verifiche del progetto. Nessuna skill di server/API: questo incremento è una libreria numerica locale.
+- T02: Ternary2 v1 specification pinned with an independent binary example; per-block scales, padding, threshold, nonfinite values and explicit limits.
+- T03: codec with quantization, validated import and dequantization; critical binary and numerical tests passed.
+- T04: concrete CPU contract with private owned payload and copy on import. Plan simplification: generic descriptors deferred while there is only one quantized format; no external pointer or lifetime introduced.
+- T05: scalar MatVec on compressed blocks, without weight expansion. Independent FP64 comparison on the same quantized weights, on partial rows and blocks for all block sizes. Error against the original FP32 matrix remains a separate measurement to develop in the T06 corpus.
 
-Risultato: soluzione .NET 10/C# 14 con prodotto matrice-vettore FP32 row-major, validazione delle dimensioni e divieto di output sovrapposto agli input. Console con caso noto 2×3. Nessuna quantizzazione implementata in questo task.
+Checks: Release build without warnings/errors; 6 critical xUnit cases passed; zero managed allocations measured over 100 runs after warm-up; console output `[4, -2.6666667]`, 40 bytes including scales/padding; diff check without errors. Restore and test runner executed with authorized network/local-socket access.
 
-Verifiche su Linux x64, SDK 10.0.112:
+Main files: `docs/ternary2-v1.md`, `src/Satori.Core/Ternary2Matrix.cs`, `src/Satori.Core/Ternary2MatVec.cs`, `src/Satori.Console/Program.cs`, `tests/Satori.Numerics.Tests/`.
 
-- `dotnet restore Satori.sln -p:RestoreDisableParallel=true`: riuscito con accesso di rete per NuGet.
-- `dotnet build Satori.sln -c Release --no-restore -m:1`: riuscito, zero warning, zero errori.
-- `dotnet test Satori.sln -c Release --no-build --no-restore -m:1`: 3 test passati; richiesto accesso al socket locale del test runner.
-- `dotnet run --project src/Satori.Console -c Release --no-restore -p:BuildInParallel=false`: output `Satori FP32 MatVec: [9, 4]`, uscita 0.
+Limits: owned managed memory, not yet mapping; no speed, SIMD or model-quality benchmark. T06–T07 remain open.
 
-I limiti del sandbox hanno impedito il primo restore e la prima esecuzione dei test; i tentativi autorizzati sono riusciti senza ridurre i controlli del progetto.
+## T01 — 2026-10-12 — Completed
 
-## T12 — Lettore GGUF
+Scope: solution, FP32 library, console, tests, SDK configuration and startup instructions.
 
-Implementato `Satori.Formats.Gguf`: cataloghi immutabili, scalar typed, array indicizzati, finestre tensoriali e mapping protetto. Validati UTF-8, tipi, dimensioni, overflow, allineamenti, intervalli e limiti del profilo. Core non dipende da GGUF.
+Declared skill: `phase-development-project-conventions`, to adopt project structure and checks. No server/API skills: this increment is a local numerical library.
 
-Verifica: build Release senza warning; 46 test critici passati, inclusi golden, tutti i troncamenti della fixture Q8_0, metadati scalar/array, allineamenti 8/64/4096, file sparse oltre 2 GiB, overlap e lifetime. Corretto un offset errato nella fixture a 8 byte prima della chiusura. Il confronto con un reader ufficiale resta da integrare prima della consegna del gruppo T12–T18.
+Result: .NET 10/C# 14 solution with row-major FP32 matrix-vector product, dimension validation and prohibition of output overlapping inputs. Console with a known 2×3 case. No quantization implemented in this task.
 
-Skill: phase-development-project-conventions e phase-development-task-execution. Autorizzazione utente: avanzamento fino a T18 e test soltanto critici, senza gate intermedi. Non si applicano convenzioni API/server a questa libreria numerica.
+Checks on Linux x64, SDK 10.0.112:
 
-## T13 — MatVec Q8_0 scalar
+- `dotnet restore Satori.sln -p:RestoreDisableParallel=true`: succeeded with network access for NuGet.
+- `dotnet build Satori.sln -c Release --no-restore -m:1`: succeeded, zero warnings, zero errors.
+- `dotnet test Satori.sln -c Release --no-build --no-restore -m:1`: 3 tests passed; required access to the test runner's local socket.
+- `dotnet run --project src/Satori.Console -c Release --no-restore -p:BuildInParallel=false`: output `Satori FP32 MatVec: [9, 4]`, exit code 0.
 
-Core riceve payload e forma senza dipendere da GGUF; l'adapter valida le scale una volta, poi legge il tensore con lifetime protetto. Scala FP16 con segno, accumulo FP32 per blocco. Aggiunto validatore separato per reference FP64 indipendenti.
+Sandbox limits prevented the first restore and test run; authorized attempts succeeded without reducing project checks.
 
-Verifica: build Release pulita, 51 test passati; golden −8, Int8 completo, scale negative/±0/subnormal, rifiuto NaN/Inf, owned/mapped e zero allocazioni. Provato il GGUF pubblico stories15M-q8_0: catalogo di 57 tensori confrontato col reader ufficiale fissato e MatVec di tre tensori reali confrontate con decodifica NumPy FP64. Report in docs/benchmarks/gguf-2026-10-12; nessuna inferenza eseguita. Le quattro golden sono state lette anche dal reader ufficiale, chiudendo la verifica aggiuntiva di T12.
+## T12 — GGUF Reader
 
-Skill: phase-development-project-conventions, phase-development-task-execution. Script reference esterno soltanto nella validazione; nessuna dipendenza runtime da GGML.
+Implemented `Satori.Formats.Gguf`: immutable catalogs, typed scalars, indexed arrays, tensor windows and protected mapping. UTF-8, types, dimensions, overflow, alignments, ranges and profile limits validated. Core does not depend on GGUF.
 
-## T14 — MatVec Q4_0 scalar
+Verification: Release build without warnings; 46 critical tests passed, including golden fixtures, every truncation of the Q8_0 fixture, scalar/array metadata, alignments 8/64/4096, sparse files beyond 2 GiB, overlaps and lifetime. An incorrect offset in the 8-byte-aligned fixture was corrected before completion. Comparison with an official reader remains to be integrated before delivery of the T12–T18 group.
 
-Aggiunto Q4_0 al contratto numerico e all'adapter: nibble bassi e alti nelle due metà distinte di 16 pesi. Stesse forme e attivazioni di Q8_0 nei confronti; nessuna conversione ternaria.
+Skills: phase-development-project-conventions and phase-development-task-execution. User authorization: advance through T18 with critical tests only, without intermediate gates. API/server conventions do not apply to this numerical library.
 
-Verifica: build Release pulita, 55 test critici passati. Golden, tutti i nibble, scale con segno/subnormal e non finite. Catalogo ufficiale e tre MatVec FP64 sul GGUF stories15M-q4_0 verificati; zero allocazioni. Eseguiti sei benchmark BenchmarkDotNet scalar sui due file reali; report completi conservati nella cartella gguf-2026-10-12/scalar. Le latenze rapide del validatore sono diagnostiche; il riferimento prestazionale è BenchmarkDotNet.
+## T13 — Scalar Q8_0 MatVec
 
-Skill: phase-development-project-conventions, phase-development-task-execution.
+Core receives payload and shape without depending on GGUF; the adapter validates scales once, then reads the tensor with a protected lifetime. Signed FP16 scale, per-block FP32 accumulation. Added a separate validator for independent FP64 references.
+
+Verification: clean Release build, 51 tests passed; golden −8, full Int8 range, negative/±0/subnormal scales, NaN/Inf rejection, owned/mapped and zero allocations. Tested the public stories15M-q8_0 GGUF: 57-tensor catalog compared with the pinned official reader and MatVec results from three real tensors compared with NumPy FP64 decoding. Reports in docs/benchmarks/gguf-2026-10-12; no inference executed. The four golden fixtures were also read by the official reader, completing T12's additional verification.
+
+Skills: phase-development-project-conventions, phase-development-task-execution. External reference script only in validation; no runtime dependency on GGML.
+
+## T14 — Scalar Q4_0 MatVec
+
+Added Q4_0 to the numerical contract and adapter: low and high nibbles in two distinct halves of 16 weights. Same shapes and activations as Q8_0 in comparisons; no ternary conversion.
+
+Verification: clean Release build, 55 critical tests passed. Golden fixtures, all nibbles, signed/subnormal and nonfinite scales. Official catalog and three FP64 MatVec results on the stories15M-q4_0 GGUF verified; zero allocations. Six scalar BenchmarkDotNet benchmarks run on the two real files; full reports retained in the gguf-2026-10-12/scalar directory. The validator's quick latencies are diagnostic; the performance reference is BenchmarkDotNet.
+
+Skills: phase-development-project-conventions, phase-development-task-execution.
 
 ## T15 — AVX2 Q8_0/Q4_0
 
-Implementati kernel AVX2 separati dal contenitore, con conversione Int8/nibble in otto lane FP32, riduzione per blocco, senza FMA né espansione completa. Selezione automatica per formato quando AVX2 è disponibile; scalar come fallback.
+Implemented AVX2 kernels separate from the container, with Int8/nibble conversion into eight FP32 lanes, per-block reduction, without FMA or full expansion. Automatic selection by format when AVX2 is available; scalar fallback.
 
-Verifica: build Release pulita; 59 test passati con AVX2 e 59 con AVX2 disabilitato. Reference FP64 indipendenti su entrambi i file pubblici rispettate. Due esecuzioni BenchmarkDotNet, dodici misure ciascuna, zero allocazioni e vantaggio su tutte le forme misurate; confronto e ambiente in docs/benchmarks/gguf-2026-10-12. Il vantaggio autorizza il dispatch automatico su questo percorso, senza generalizzazioni a inferenza o hardware diverso.
+Verification: clean Release build; 59 tests passed with AVX2 and 59 with AVX2 disabled. Independent FP64 references on both public files satisfied. Two BenchmarkDotNet runs, twelve measurements each, zero allocations and an advantage on every measured shape; comparison and environment in docs/benchmarks/gguf-2026-10-12. The advantage supports automatic dispatch on this path, without generalizing to inference or different hardware.
 
-Skill: phase-development-project-conventions, phase-development-task-execution; base-dossier-writing per specifiche e report concisi.
+Skills: phase-development-project-conventions, phase-development-task-execution; base-dossier-writing for concise specifications and reports.
 
-## T16 — Specifica TernaryBitplane v1
+## T16 — TernaryBitplane v1 Specification
 
-Fissati piani P/N, scala FP32, ordine LSB, bit sovrapposti invalidi, padding, zero canonico, contenitore STB1 e conversione bit-identica da/verso Ternary2. Stessi byte/peso: il confronto isola il layout. Esempio indipendente verificato: P=0x89, N=0x14, Ternary2=0x61/0x42, somma logica 1. Specifica in docs/ternary-bitplane-v1.md.
+Pinned P/N planes, FP32 scale, LSB order, invalid overlapping bits, padding, canonical zero, STB1 container and bit-identical conversion to/from Ternary2. Same bytes/weight: the comparison isolates the layout. Independent example verified: P=0x89, N=0x14, Ternary2=0x61/0x42, logical sum 1. Specification in docs/ternary-bitplane-v1.md.
 
-Verifica: esempio ricalcolato dalle otto posizioni, lunghezze dei blocchi 20/36/68 byte uguali al Ternary2. Nessun codice o test aggiunto in questo task di specifica.
+Verification: example recomputed from the eight positions, block lengths 20/36/68 bytes equal to Ternary2. No code or tests added in this specification task.
 
-Skill: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing.
 
-## T17 — Codec e MatVec TernaryBitplane scalar
+## T17 — TernaryBitplane Codec and Scalar MatVec
 
-Implementati import validato con copia, conversione lossless da/verso Ternary2, salvataggio/load STB1 e MatVec scalar. Scale e codici immutati, senza seconda quantizzazione; nessuna espansione nel kernel.
+Implemented validated import with copy, lossless conversion to/from Ternary2, STB1 save/load and scalar MatVec. Scales and codes unchanged, without a second quantization; no expansion in the kernel.
 
-Verifica: build Release senza warning, 64 test passati. Golden indipendente, bit sovrapposti/padding/scale invalidi, round trip byte-identico e risultati scalar identici su tutte le 27 combinazioni del corpus, zero allocazioni, ogni troncamento del contenitore golden rifiutato. Diciotto benchmark completi scalar per entrambi i layout, tre dimensioni e tre block size; snapshot in docs/benchmarks/bitplane-2026-10-12/scalar.
+Verification: Release build without warnings, 64 tests passed. Independent golden fixture, invalid overlapping bits/padding/scales, byte-identical round trip and identical scalar results across all 27 corpus combinations, zero allocations, every truncation of the golden container rejected. Eighteen complete scalar benchmarks for both layouts, three sizes and three block sizes; snapshot in docs/benchmarks/bitplane-2026-10-12/scalar.
 
-Skill: phase-development-project-conventions, phase-development-task-execution; base-dossier-writing per la specifica.
+Skills: phase-development-project-conventions, phase-development-task-execution; base-dossier-writing for the specification.
 
 ## T18 — TernaryBitplane AVX2
 
-Implementato kernel a otto lane con estrazione congiunta P/N, segno dalle maschere e coda scalar entro i confini dell'input. Dispatch AVX2 con fallback; nessuna dipendenza FMA/AVX-512. Comparatore di layout verifica gli stessi pesi e scale prima del benchmark.
+Implemented an eight-lane kernel with combined P/N extraction, sign from masks and scalar tail within input boundaries. AVX2 dispatch with fallback; no FMA/AVX-512 dependency. The layout comparator verifies the same weights and scales before benchmarking.
 
-Verifica finale: build Release senza warning/errori; 68 test critici passati con AVX2 e 68 con AVX2 disabilitato. Corpus esteso alle code 1–17 e ai confini dei blocchi; identità SIMD con Ternary2 e confronto FP64. Validatore dei layout: 36/36 combinazioni passate, incluse nove matrici grandi. Due run BDN da 36 misure ciascuno, tutte senza allocazioni. Bitplane AVX2 20,2–39,2× sul proprio scalar; rispetto a Ternary2 AVX2 rapporto di latenza 0,64–1,54, migliore in 7/18 coppie: nessun vantaggio generale dimostrato. Ternary2 rimane il layout già adottato, bitplane disponibile come alternativa sperimentale. Report, ambiente e confronto in docs/benchmarks/bitplane-2026-10-12.
+Final verification: Release build without warnings/errors; 68 critical tests passed with AVX2 and 68 with AVX2 disabled. Corpus extended to tails 1–17 and block boundaries; SIMD identity with Ternary2 and FP64 comparison. Layout validator: 36/36 combinations passed, including nine large matrices. Two BDN runs with 36 measurements each, all without allocations. Bitplane AVX2 20.2–39.2× over its own scalar kernel; against Ternary2 AVX2, latency ratio 0.64–1.54, better in 7/18 pairs: no general advantage demonstrated. Ternary2 remains the adopted layout, bitplane available as an experimental alternative. Reports, environment and comparison in docs/benchmarks/bitplane-2026-10-12.
 
-Revisione finale del gruppo: rafforzato il tipo di eccezione atteso nei test di corruzione GGUF; limite 1 TiB controllato prima del mapping e verificato su file sparse; validatore GGUF controlla SHA-256 e numero esatto delle voci reference. Cataloghi e MatVec dei due file reali già verificati. Aggiornati README, specifiche, istruzioni di riproduzione e stato del piano. Rimossi soltanto i temporanei di questo gruppo; corpus pubblico riscaricabile con hash fissati.
+Final group review: strengthened the expected exception type in GGUF corruption tests; 1 TiB limit checked before mapping and verified on sparse files; GGUF validator checks SHA-256 and the exact reference entry count. Catalogs and MatVec results of both real files already verified. README, specifications, reproduction instructions and plan status updated. Only this group's temporary files removed; public corpus downloadable again with pinned hashes.
 
-Skill: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. Autorizzazione utente: completamento sequenziale fino a T18 con test critici senza approvazioni intermedie. Nessun commit richiesto o creato. Prossimo task: T19, profilo del primo modello; nessuna inferenza implementata in questo gruppo.
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. User authorization: sequential completion through T18 with critical tests and no intermediate approvals. No commit requested or created. Next task: T19, first model profile; no inference implemented in this group.
 
-## T19 — Profilo del primo modello
+## T19 — First Model Profile
 
-Fissato Stories15M Q8_0 con hash e revisione, dichiarazione MIT dell'autore originale, tokenizer SPM, topologia, assenza di chat template, contesto 128 e budget RAM calcolato. Q8_0 e F32 coprono tutti i 57 tensori; T20 include lettura F32 e gather Q8_0, senza nuovi formati quantizzati. Contratto in docs/stories15m-profile-v1.md.
+Pinned Stories15M Q8_0 with hash and revision, original author's MIT declaration, SPM tokenizer, topology, no chat template, context 128 and calculated RAM budget. Q8_0 and F32 cover all 57 tensors; T20 includes F32 reads and Q8_0 gather, without new quantized formats. Contract in docs/stories15m-profile-v1.md.
 
-Verifica: generatore C++ compilato contro llama.cpp fissato; 147 file fixture verificati e rigenerati identici byte per byte. Sedici casi tokenizer, tre prompt con logits completi e 15 stati intermedi ciascuno, tre sequenze greedy di 12 token. FP64 indipendente contro runtime ufficiale sugli stessi pesi ricostruiti F32: massimo errore logits <1e-5, intermedi <2,2e-5. Sequenze greedy identiche anche al percorso ufficiale Q8_0; scostamenti numerici di quest'ultimo conservati separatamente. Manifest con hash, provenienza, sorgenti e ambiente in fixtures/models/stories15m-q8-v1.
+Verification: C++ generator compiled against pinned llama.cpp; 147 fixture files verified and regenerated byte-identically. Sixteen tokenizer cases, three prompts with full logits and 15 intermediate states each, three 12-token greedy sequences. Independent FP64 against official runtime on the same F32-reconstructed weights: maximum logit error <1e-5, intermediates <2.2e-5. Greedy sequences also identical to the official Q8_0 path; its numerical deviations retained separately. Manifest with hashes, provenance, sources and environment in fixtures/models/stories15m-q8-v1.
 
-Nessun codice di inferenza Satori aggiunto. Nessun test ovvio o nuova dipendenza .NET. La verifica riguarda le fixture; T20–T24 devono ancora implementare e verificare operatori, tokenizer, forward, cache e generazione. Rimosso soltanto .temp/t19; corpus GGUF condiviso conservato per i prossimi task.
+No Satori inference code added. No obvious tests or new .NET dependencies. Verification concerns fixtures; T20–T24 still need to implement and verify operators, tokenizer, forward pass, cache and generation. Only .temp/t19 removed; shared GGUF corpus retained for subsequent tasks.
 
-Skill: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. Prossimo: T20.
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. Next: T20.
 
-## T20 — Operatori CPU del profilo
+## T20 — Profile CPU Operators
 
-Implementati RMSNorm con accumulo FP64, RoPE a coppie adiacenti/base 10000, attention sul prefisso causale con softmax stabile, SwiGLU stabile e somma residuale. MatVec Q8_0 riutilizzata. Gather di una sola riga Q8_0 dal mapping; norme F32 copiate e validate una volta. Buffer e scratch forniti dal chiamante, contratti di alias espliciti. Nessun tokenizer, forward o proprietario della KV cache introdotto.
+Implemented RMSNorm with FP64 accumulation, adjacent-pair RoPE/base 10000, causal-prefix attention with stable softmax, stable SwiGLU and residual addition. Q8_0 MatVec reused. Single Q8_0 row gather from mapping; F32 norms copied and validated once. Caller-provided buffers and scratch, explicit aliasing contracts. No tokenizer, forward pass or KV cache owner introduced.
 
-Verifica: build Release senza warning/errori; 75 test critici passati (sette nuovi). Confronto per componente con fixture indipendente NumPy FP64 per normalizzazione, RoPE, attention e attivazione, tolleranza 2e-6 + 2e-6 * abs(reference). Casi estremi FP32, in-place, dimensioni/alias, Q8 signed e scala negativa, F32 non finiti e lifetime. Zero allocazioni misurate dopo warm-up per operatori e gather mappato. Fixture rigenerata identica e hash verificati. Una fixture GGUF inizialmente priva del metadata di quantizzazione è stata corretta; suite finale completamente verde. Nessun benchmark prestazionale aggiunto; questi operatori sono la baseline CPU numerica.
+Verification: Release build without warnings/errors; 75 critical tests passed (seven new). Per-component comparison with an independent NumPy FP64 fixture for normalization, RoPE, attention and activation, tolerance 2e-6 + 2e-6 * abs(reference). FP32 extremes, in-place cases, dimensions/aliasing, signed Q8 and negative scale, nonfinite F32 and lifetime. Zero allocations measured after warm-up for operators and mapped gather. Fixture regenerated identically and hashes verified. A GGUF fixture initially missing quantization metadata was corrected; final suite fully passing. No performance benchmark added; these operators are the numerical CPU baseline.
 
-Contratto in docs/stories15m-operators.md; generatore e manifest versionati in tools/transformer_reference.py e fixtures/operators. Skill applicate: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. Esecuzione e verifiche critiche autorizzate dalla richiesta T20 e dalla politica test dell'utente. Prossimo: T21. Nessun commit richiesto o creato.
+Contract in docs/stories15m-operators.md; generator and manifest versioned in tools/transformer_reference.py and fixtures/operators. Skills applied: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. Execution and critical checks authorized by the T20 request and the user's test policy. Next: T21. No commit requested or created.
 
-## T21 — Tokenizer del profilo
+## T21 — Profile Tokenizer
 
-Implementato StoriesTokenizer con vocabolario posseduto, merge per score FP32 e posizione sinistra, byte fallback, BOS opzionale e nessun EOS automatico. Codifica UTF-16 rigorosa con limite 16384 byte UTF-8. Decodifica completa e continuazione UTF-8 con gestione dei byte incompleti. Nessun chat template nel profilo. Hash degli array, ID, tipi e opzioni vincolati al vocabolario Stories15M.
+Implemented StoriesTokenizer with owned vocabulary, merges by FP32 score and left position, byte fallback, optional BOS and no automatic EOS. Strict UTF-16 encoding with a 16384 UTF-8 byte limit. Full decoding and UTF-8 continuation with incomplete-byte handling. No chat template in the profile. Array hashes, IDs, types and options bound to the Stories15M vocabulary.
 
-Verifica: build Release senza warning/errori; 79 test critici passati, quattro nuovi test. Identità di token, byte dei pezzi e decodifica sui sedici casi ufficiali. Verificati streaming multibyte, whitespace della continuazione, input massimo, surrogate isolate, ID invalidi, byte incompleti e vocabolario modificato. Tokenizer utilizzabile dopo disposal del mapping. Allocazioni totali di costruzione dopo warm-up entro 16 MiB. Fixture tokenizer offline di 723488 byte rigenerata identica, con hash e provenienza separati dagli oracoli completi.
+Verification: Release build without warnings/errors; 79 critical tests passed, four new tests. Token, piece-byte and decoding identity on the sixteen official cases. Multibyte streaming, continuation whitespace, maximum input, isolated surrogates, invalid IDs, incomplete bytes and modified vocabulary verified. Tokenizer usable after mapping disposal. Total construction allocations after warm-up within 16 MiB. Offline tokenizer fixture of 723488 bytes regenerated identically, with hashes and provenance separate from full oracles.
 
-Perimetro: StoriesTokenizer e StoriesTokenDecoder nel progetto GGUF, test critici, estrattore Python standard library, fixture/manifest e docs/stories15m-tokenizer.md. Nessuna nuova dipendenza runtime. Rimossa soltanto .temp/t21; corpus condiviso conservato. Nessun forward o generatore introdotto. Prossimo: T22.
+Scope: StoriesTokenizer and StoriesTokenDecoder in the GGUF project, critical tests, Python standard-library extractor, fixture/manifest and docs/stories15m-tokenizer.md. No new runtime dependency. Only .temp/t21 removed; shared corpus retained. No forward pass or generator introduced. Next: T22.
 
-Skill: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. La richiesta di procedere e la politica utente sui test critici autorizzano implementazione e verifica senza gate intermedi. Nessun commit richiesto o creato.
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. The request to proceed and the user's critical-test policy authorize implementation and verification without intermediate gates. No commit requested or created.
 
-## T22 — Forward di un token
+## T22 — Single-Token Forward Pass
 
-Implementato StoriesModel: caricamento dell'artefatto Q8_0 fissato con verifica SHA-256, metadata e 57 tensori; embedding, sei layer completi, norma finale e proiezione dei 32000 logits. Pesi mappati compressi e norme F32 possedute. Forward dell'ultimo token tramite ricalcolo del prefisso, senza stato persistente. K/V temporanei; cache incrementale e generazione escluse. Observer diagnostico con 15 stati transitori. Chiamate e disposal serializzati.
+Implemented StoriesModel: loading the pinned Q8_0 artifact with SHA-256, metadata and 57-tensor checks; embedding, six complete layers, final norm and projection of 32000 logits. Compressed mapped weights and owned F32 norms. Last-token forward pass through prefix recomputation, without persistent state. Temporary K/V; incremental cache and generation excluded. Diagnostic observer with 15 transient states. Calls and disposal serialized.
 
-Verifica: build Release senza warning/errori; 88 test critici passati con AVX2 e 88 con AVX2 disabilitato. Nove nuovi casi di integrazione. Tutti i 15 intermedi e i 32000 logits dei tre prompt confrontati con NumPy FP64, sia scalar sia AVX2. Massimo errore assoluto 1,430831e-5; massimo RMS per tensore 2,654648e-6; argmax conformi. Verificati input invalidi prima della scrittura, assenza di stato residuo, recupero dopo eccezione observer, disposal e rifiuto di artefatti diversi. A 128 token: logits finiti e 1782640 byte temporanei misurati dopo warm-up, senza espansione completa dei pesi. Nessuna misura di throughput o working set dichiarata.
+Verification: Release build without warnings/errors; 88 critical tests passed with AVX2 and 88 with AVX2 disabled. Nine new integration cases. All 15 intermediates and 32000 logits of the three prompts compared with NumPy FP64, in both scalar and AVX2 modes. Maximum absolute error 1.430831e-5; maximum per-tensor RMS 2.654648e-6; matching argmax values. Invalid inputs checked before writing, no residual state, recovery after observer exceptions, disposal and rejection of different artifacts verified. At 128 tokens: finite logits and 1782640 temporary bytes measured after warm-up, without full weight expansion. No throughput or working-set measurement claimed.
 
-Perimetro: StoriesModel, StoriesLayer e StoriesStateObserver nel progetto GGUF; StoriesForwardTests e docs/stories15m-forward.md. Test di integrazione separati tramite categoria, corpus reale necessario e mai scaricato dai test. Le fixture esistenti restano invariate. Nessun temporaneo persistente aggiunto. Prossimo: T23.
+Scope: StoriesModel, StoriesLayer and StoriesStateObserver in the GGUF project; StoriesForwardTests and docs/stories15m-forward.md. Integration tests separated by category, real corpus required and never downloaded by tests. Existing fixtures remain unchanged. No persistent temporary files added. Next: T23.
 
-Skill applicate: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. La richiesta di procedere e la politica utente sui test critici autorizzano implementazione e verifica senza gate intermedi. Nessun commit richiesto o creato.
+Skills applied: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing. The request to proceed and the user's critical-test policy authorize implementation and verification without intermediate gates. No commit requested or created.
 
-## T23 — KV cache incrementale
+## T23 — Incremental KV Cache
 
-Implementata StoriesSession, creata dal modello e proprietaria di K/V FP32 e scratch riutilizzabili. Una sequenza per sessione, capacità fissa 128, K dopo RoPE e V senza rotazione. TryAppend elabora soltanto il nuovo token e avanza Count dopo il successo; a contesto pieno restituisce false senza cambiare logits o cache. Reset azzera e riusa i buffer. Dispose azzera e rilascia il workspace senza chiudere il modello condiviso. Forward completo conservato come riferimento separato.
+Implemented StoriesSession, created by the model and owning reusable FP32 K/V and scratch. One sequence per session, fixed capacity 128, K after RoPE and V without rotation. TryAppend processes only the new token and advances Count after success; at full context it returns false without changing logits or cache. Reset clears and reuses buffers. Dispose clears and releases the workspace without closing the shared model. Full forward pass retained as a separate reference.
 
-Verifica: build Release senza warning/errori; 97 test critici passati con AVX2 e 97 con AVX2 disabilitato. Nove nuovi casi di integrazione. Logits incrementali esattamente uguali al ricalcolo per ogni token dei tre prompt, scalar e AVX2. Confronto lungo alle posizioni 0, 1, 31, 63 e 127; verificati limite pieno, reset verso prefisso diverso, errori senza avanzamento, lifetime e sessioni concorrenti indipendenti. Payload K/V 1769472 byte; costruzione sessione 1782808 byte misurati. Append e reset: zero allocazioni dopo warm-up, verificati anche nel test isolato.
+Verification: Release build without warnings/errors; 97 critical tests passed with AVX2 and 97 with AVX2 disabled. Nine new integration cases. Incremental logits exactly equal to recomputation for every token of the three prompts, scalar and AVX2. Long comparison at positions 0, 1, 31, 63 and 127; full limit, reset to a different prefix, errors without advancement, lifetime and independent concurrent sessions verified. K/V payload 1769472 bytes; session construction 1782808 measured bytes. Append and reset: zero allocations after warm-up, also verified in the isolated test.
 
-Perimetro: StoriesSession, StoriesWorkspace, percorso incrementale in StoriesModel, test critici e docs/stories15m-cache.md. Nessun nuovo formato o dipendenza. Generazione e sampling esclusi. Nessun temporaneo persistente aggiunto. Prossimo: T24.
+Scope: StoriesSession, StoriesWorkspace, incremental path in StoriesModel, critical tests and docs/stories15m-cache.md. No new format or dependency. Generation and sampling excluded. No persistent temporary files added. Next: T24.
 
-Skill: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; capabilities-dev-problem-solving-methodology per isolare la misura del primo reset e completare il warm-up del test senza cambiare la soglia. La richiesta di procedere e la politica utente sui test critici autorizzano implementazione e verifica senza gate intermedi. Nessun commit richiesto o creato.
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; capabilities-dev-problem-solving-methodology to isolate the first-reset measurement and complete test warm-up without changing the threshold. The request to proceed and the user's critical-test policy authorize implementation and verification without intermediate gates. No commit requested or created.
 
-## T24 — Generazione greedy
+## T24 — Greedy Generation
 
-Implementati StoriesGenerator, opzioni centralizzate, risultato immutabile e motivi Eos/TokenLimit/ContextLimit. Prompt codificato con BOS, prefill e cache nuova per chiamata, argmax con parità all'ID minore e streaming della sola continuazione UTF-8. Default 32 nuovi token, budget limitato dallo spazio residuo entro 128. Console generate collegata al runtime GGUF; errori di modello, prompt e limite leggibili, con uscita 1.
+Implemented StoriesGenerator, centralized options, immutable result and Eos/TokenLimit/ContextLimit reasons. Prompt encoded with BOS, prefill and new cache per call, argmax with ties resolved by the lowest ID and streaming of the UTF-8 continuation only. Default 32 new tokens, budget bounded by remaining space within 128. Console generate connected to the GGUF runtime; readable model, prompt and limit errors, with exit code 1.
 
-Verifica finale: build Release senza warning/errori; 109 test critici passati con AVX2 e 109 con AVX2 disabilitato, PGO predefinito. Ulteriore run standard: 109 passati. Dodici nuovi casi: nove di generazione, due di argmax e una regressione parser. Tutti i 12 token dei tre oracoli ufficiali identici sia scalar sia AVX2; testo e streaming conformi. Verificati default, ripetibilità, budget zero, contesto pieno/quasi pieno, prompt eccessivo, callback fallito e lifetime. Le fixture non generano EOS nei 12 token: la selezione e la soppressione del pezzo speciale sono verificate separatamente; nessun arresto EOS end-to-end attestato su questi prompt.
+Final verification: Release build without warnings/errors; 109 critical tests passed with AVX2 and 109 with AVX2 disabled, default PGO. Additional standard run: 109 passed. Twelve new cases: nine generation, two argmax and one parser regression. All 12 tokens of the three official oracles identical in both scalar and AVX2 modes; matching text and streaming. Defaults, repeatability, zero budget, full/nearly full context, oversized prompt, failed callback and lifetime verified. Fixtures generate no EOS within 12 tokens: selection and special-piece suppression are verified separately; no end-to-end EOS stopping demonstrated on these prompts.
 
-Console verificata su completamento reale e messaggi negativi, incluso il ritorno alla demo Ternary2. Output di Once upon a time con 12 nuovi token: , there was a little girl named Lily. She loved. Conteggi: prompt 5, generati 12, TokenLimit. Nessun benchmark prestazionale o giudizio generale di qualità aggiunto.
+Console verified on a real completion and negative messages, including return to the Ternary2 demo. Output for Once upon a time with 12 new tokens: , there was a little girl named Lily. She loved. Counts: prompt 5, generated 12, TokenLimit. No performance benchmark or general quality judgment added.
 
-Corretto un crash JIT emerso nella suite: GgufCursor.String usa un contenitore dedicato al posto dell'array temporaneo covariante. Diagnosi con dump e simboli del runtime installato, controllo PGO discriminante e regressione su 1000 letture. Workaround circoscritto; SDK e ottimizzazioni predefinite invariati. Evidenza in docs/diagnostics/dotnet-string-callback.md. Rimossa soltanto .temp/t24, inclusi dump, simboli e strumenti temporanei; corpus condiviso conservato.
+Fixed a JIT crash encountered in the suite: GgufCursor.String uses a dedicated wrapper instead of the temporary covariant array. Diagnosis with a dump and symbols of the installed runtime, discriminating PGO check and regression over 1000 reads. Localized workaround; SDK and default optimizations unchanged. Evidence in docs/diagnostics/dotnet-string-callback.md. Only .temp/t24 removed, including temporary dumps, symbols and tools; shared corpus retained.
 
-Perimetro: selettore Core, generazione e contenitore stringhe GGUF, console con riferimento GGUF, test critici, docs/stories15m-generation.md e stato del piano. Nessuna nuova dipendenza runtime. Skill: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options per le opzioni di generazione, base-dossier-writing; capabilities-dev-problem-solving-methodology per il crash durante la verifica. La richiesta di procedere e la politica utente sui test critici autorizzano implementazione e verifica senza gate intermedi. Nessun commit richiesto o creato. Prossimo: T25.
+Scope: Core selector, GGUF generation and string wrapper, console with GGUF reference, critical tests, docs/stories15m-generation.md and plan status. No new runtime dependency. Skills: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options for generation options, base-dossier-writing; capabilities-dev-problem-solving-methodology for the crash during verification. The request to proceed and the user's critical-test policy authorize implementation and verification without intermediate gates. No commit requested or created. Next: T25.
 
-## T25 — Sampling configurabile
+## T25 — Configurable Sampling
 
-Aggiunti SamplingOptions e TokenSampler nel Core; integrazione in StoriesGenerator e flag console temperature, top-k, top-p e seed. Default greedy preservato, opzioni validate prima del prefill anche a budget zero. Softmax FP64 stabile, top-k prima del nucleus, parità per ID e PRNG SplitMix64 fissato con seed unsigned a 64 bit ripartito a ogni generazione. Scratch posseduto dal sampler e ordinamento O(V log V); nessuna dipendenza aggiuntiva. Contratto e limiti di riproducibilità fra piattaforme in docs/stories15m-generation.md.
+Added SamplingOptions and TokenSampler in Core; integration in StoriesGenerator and console flags for temperature, top-k, top-p and seed. Greedy default preserved, options validated before prefill even at zero budget. Stable FP64 softmax, top-k before nucleus, ties by ID and pinned SplitMix64 PRNG with an unsigned 64-bit seed restarted for each generation. Sampler-owned scratch and O(V log V) sorting; no additional dependency. Contract and cross-platform reproducibility limits in docs/stories15m-generation.md.
 
-Verifica: build Release senza warning/errori; 114 test passati con AVX2 e 114 con AVX2 disabilitato. Cinque nuovi test critici: vettori PRNG noti, distribuzioni analitiche, filtri e limiti numerici, configurazioni/logits invalidi e integrazione riproducibile con streaming/scalar. Console reale ripetuta con seed 123 identica; sei casi negativi rifiutati. Oracoli greedy precedenti invariati. Nessun benchmark o nuova attestazione EOS end-to-end. Nessun temporaneo persistente creato; corpus condiviso conservato. Prossimo: T26.
+Verification: Release build without warnings/errors; 114 tests passed with AVX2 and 114 with AVX2 disabled. Five new critical tests: known PRNG vectors, analytical distributions, filters and numerical limits, invalid configurations/logits and reproducible integration with streaming/scalar. Repeated real console run with seed 123 identical; six negative cases rejected. Previous greedy oracles unchanged. No benchmark or new end-to-end EOS claim. No persistent temporary files created; shared corpus retained. Next: T26.
 
-Skill applicate: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options, base-dossier-writing. La richiesta T25 e la politica utente autorizzano implementazione e sole verifiche critiche senza gate intermedi. Nessun commit richiesto o creato.
+Skills applied: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options, base-dossier-writing. The T25 request and user policy authorize implementation and critical checks only, without intermediate gates. No commit requested or created.
+
+## T26 — First Model Benchmark
+
+Added the --stories runner with centralized configuration, four actual prompt lengths of 1/5/32/96 tokens, three warm-ups and fifteen samples. Prefill and 11 decode forward passes measured separately; complete Generate API with 12 tokens, first text emission, managed allocations, working set and process peak. Model/tokenizer loading measured separately without a cold-page-cache claim. JSON with samples, statistics, environment, configuration and model/source hashes. Manual Stopwatch runner for correlated phases, without changing previous BenchmarkDotNet benchmarks.
+
+AVX2 and scalar baselines run sequentially on Core Ultra 7 155H, .NET 10.0.12 Release. AVX2 decode 213.04–276.66 token/s; scalar 43.54–66.73. AVX2 first emission 3.79–412.49 ms. Process peak 164.58/164.89 MiB, explicitly including both model owners, runtime, tokenizer, validation and reports; not model-only memory. All 32000 logits of the three cases satisfy the FP64 gate and 36/36 greedy tokens per kernel match llama.cpp F32 on the same Q8_0 weights. No llama.cpp timing benchmark, perplexity, cold storage or general linguistic quality demonstrated. No new end-to-end EOS evidence.
+
+Verification: Release solution build and final runner without warnings/errors; both benchmarks completed successfully; 114 existing critical tests passed after measurements. No tests added for the runner. Units/denominators reviewed, source hash identical in both snapshots, whitespace check and raw samples retained. Report published in docs/stories15m-benchmark.md and docs/benchmarks/stories15m-2026-10-12; README and status updated. No task-owned temporary files created; shared corpus retained. Next: T27, Vulkan backend contract.
+
+Skills applied: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options, base-dossier-writing. The request to continue authorizes T26 and necessary checks without intermediate gates, under the user's critical-test policy. No commit requested or created.
+
+## T27 — Vulkan backend contract — Completed
+
+Fixed docs/vulkan-backend-v1.md: Silk.NET.Vulkan 2.23.0 in an isolated backend project, Vulkan 1.1 / SPIR-V 1.3, offline GLSL compilation with glslang 16.6.0 and validation with SPIRV-Tools 2026.4. Capability gate, options, one compute queue, owned staging/resident buffers, explicit barriers/fence, rooted diagnostic callback and dependency-ordered cleanup. Initialization outcomes, device loss, unchanged output on failure and caller-controlled CPU fallback are specified. Acceptance catalog covers hardware result, tail/reuse, invalid capabilities, synchronization, lifetime and artifact validation. No runtime package/project or GPU implementation introduced.
+
+Verification: official binding/compiler/Khronos sources checked; read-only host probe found Intel Arc MTL (8086:7d55), Vulkan 1.4.354, Mesa 26.2.4 with adequate compute/storage limits. The sandbox probe failed while the host probe succeeded; no false GPU-unavailable conclusion. A temporary two-buffer GLSL transform compiled to valid SPIR-V 1.3 (1432 bytes) and passed spirv-val for vulkan1.1. This attests compilation only, not dispatch. Khronos validation layer absent on the host; its installation/enabling is an explicit prerequisite for closing T28 hardware verification, not a missing T27 contract item. No system configuration changed. No build or numerical suite repeated for a documentation-only task; whitespace checked. Only .temp/t27 removed; shared corpus preserved.
+
+README and plan updated. Existing unrelated edits preserved. Skills applied: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options and base-dossier-writing. The requested decision task authorizes selection within the planned Vulkan scope; no separate architecture workflow or stack reconfirmation invoked. No commit requested or created. Next: T28.
+
+## T28 — Minimal Vulkan path — Completed
+
+Implemented Satori.Backends.Vulkan with pinned Silk.NET.Vulkan/Extensions.EXT 2.23.0. VulkanContext owns loader/instance/device/queue, rooted debug callback, pipeline/descriptors/commands/fence and four reusable dedicated buffers. Capability and allocation-size gates precede dispatch. GLSL FP32 transform runs through staging upload, explicit transfer/compute/host barriers, synchronous fence wait and readback; outputs commit only on success. Empty input is a no-op, aliases/dimension mismatch rejected before mutation, growth replaces completed scratch, and context locking serializes dispatch/disposal. Submission/wait errors fault the context; cleanup unwinds partial initialization. CPU and GGUF have no native dependency. No quantized kernel or model offload added.
+
+Embedded GLSL/SPIR-V/manifest and an explicit offline compiler tool added; byte-identical regeneration and spirv-val passed. Validation executable provides Cpu/Auto/Required policies, actual-backend diagnostics, transfer/scratch/managed-allocation observations and null GPU timestamp duration. Hardware tests are isolated in Satori.Vulkan.Tests and fail when hardware/layer is missing, rather than claiming fallback validation.
+
+Verification: Release solution build, zero warnings/errors. Four hardware tests passed on Intel Arc MTL / Mesa 26.2.4 with Khronos layer 1.4.363 and SyncVal enabled; existing 114 CPU/inference tests passed. Six workloads (0/1/63/64/65/4097 elements) match CPU, including repeated changing input, growth/reuse, concurrent dispatch and disposal. No validation errors or warnings, including teardown. Warm dispatch measured zero managed allocations; maximum diagnostic scratch allocation 65552 bytes. Six expected-negative/policy cases passed: CPU and Auto with absent ICD, Required with absent ICD, Required/Auto with absent layer, and unsupported explicit device selection.
+
+The absent-ICD check exposed misclassification of GENERAL loader errors as specification validation errors. Corrected using Khronos message-type semantics: known initialization rejection preserves GENERAL diagnostics and allows caller-configured fallback; actual validation errors always fail, and GENERAL errors after successful initialization fault operations. Final hardware tests and negative cases passed after the correction. Successful hardware report and negative-case evidence published under docs/diagnostics/vulkan-2026-10-12. Documentation in docs/vulkan-minimal-path.md; contract binding module, README, plan and solution updated. Unrelated existing edits preserved.
+
+Limits: this device uses coherent staging; non-coherent paths reviewed, not exercised. Real device loss/OOM and malformed embedded-artifact failures were not induced; their branches reviewed without production test hooks or driver reset. No GPU timestamp benchmark or acceleration claim. System validation layer was absent: official Arch package 1.4.363.0-1 was downloaded, hash recorded, locally extracted and scoped to child processes. No system package/driver changes. Only .temp/t28 removed after verification; shared corpus and other task directories preserved. Reproduction requires restaging or installing the validation layer.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options, base-dossier-writing; capabilities-dev-problem-solving-methodology for the version-matched binding APIs and the discriminating missing-ICD diagnosis. The user's request and critical-test policy authorize implementation and GPU/lifetime verification without intermediate approval gates. No commit requested or created. Next: T29, Q8_0 Vulkan MatVec.
+
+## T29 — Vulkan quantized MatVec (completed)
+
+Implemented owned resident Q8_0 weights, packed byte/half decoding, reusable vector scratch, shared pipeline, optional compute timestamps, allocation limits and context/matrix lifetime serialization. Offline shader binary and ABI/hash manifest are included. Validation CLI `--q8` compares GPU, scalar and AVX2 against an independent FP64 oracle and records separate kernel/host/cold-upload timings.
+
+Release build: zero warnings/errors. Nine hardware tests pass with Khronos SyncVal; 74 corpus workloads (30 critical synthetic, 44 real Stories15M matrices) pass, zero validation errors and zero warm managed allocations. CPU regression: 114 tests. [Published evidence](docs/vulkan-q8-matvec.md). Baseline is slower than AVX2 under validation; no acceleration or whole-model claim. Noncoherent hardware and device-loss injection remain unexercised.
+
+Applied existing project-conventions, task-execution, configuration-options, dossier-writing and problem-solving skills. Only critical numerical/resource tests added, following the user's standing authorization; no separate test approval. Temporary layers staged in `.temp/t29`, no system installation. T30 remains pending.
+
+## T30 — Integrate model offload (completed)
+
+StoriesModel now accepts a Core-only serialized-matrix factory and owns its executions. VulkanStoriesRuntime composes model/context ownership, explicit Cpu/Auto/VulkanRequired policy and initialization-only fallback. Console generation exposes backend/device selection; the generator can borrow the configured model. All 43 MatVec tensors stay compressed and resident; embedding, operators and KV remain CPU. Failed appends clear all cached history and require reset; runtime GPU failures propagate without automatic replay or duplicate emitted text.
+
+Critical verification: 11 hardware tests with Khronos SyncVal, including three independent intermediate/logit oracles, greedy sequences, 128-token incremental CPU comparison, reset, streaming and ownership. CPU suite: 116 tests, including partial resident-construction cleanup and injected failure after committed history plus partial KV updates. One first concurrent-suite run reported a 7752-byte allocation assertion; isolated and full sequential CPU reruns passed unchanged. Root cause is not established. The independent warmed latency run also records zero managed allocation.
+
+Five child-process fallback/required negative cases pass; two positive console GPU runs pass. Release build has zero warnings/errors. Diagnostic report has zero validation errors/messages, including disposal. Local validation layers were staged under `.temp/t30` without system changes and removed after verification.
+
+Published contract and raw evidence: without validation, median decode is 154.032 ms Vulkan versus 3.893 ms CPU AVX2; complete eleven-token session 1680.553 versus 42.050 ms. Maximum CPU/GPU logit difference 9.656e-6, RMS 4.663e-6. GPU matrix buffers 16,658,176 bytes; vector transfers 260,480 bytes per append. This establishes correctness, not acceleration. Device-loss/OOM hardware injection and automatic session recovery remain outside the verified scope. T31 planner remains pending.
+
+Skill set: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options, base-dossier-writing; capabilities-dev-problem-solving-methodology for integration design and allocation diagnosis. Existing C#/.NET and Vulkan stack retained; no new external technology. The user's standing policy authorizes critical tests with implementation and overrides the skill's separate test approval gate. No obvious/bootstrap tests, commits or unrelated refactoring.
+
+## T31 — Measured execution planner (completed)
+
+Auto now calibrates the available whole-model combinations: CPU automatic Q8_0 and Vulkan packed row64. The numerical gate precedes sequential host measurements; three warmups and five samples measure two incremental appends. Median GPU latency must improve CPU by more than 5%. Explicit Cpu/Required policies and initialization fallback remain intact. No new kernels/layouts or per-tensor planner are implied.
+
+The derived cache hashes CPU/features and actual AVX2 support, OS/runtime, GPU UUID/API/driver/capabilities and Core/Formats/backend binary contents (including shader/layout resources). Matching identities require five finite positive timings per backend. Malformed/missing data, identity mismatches and invalid samples trigger calibration. Selection is derived from medians; serialized choice cannot override it. Cache IO errors propagate. Cache hits currently still initialize/upload the GPU candidate; only measurement is skipped.
+
+Published evidence: five real hardware child-process cases pass (fresh, exact reuse, identity change, invalid samples, malformed JSON), all selecting CPU and emitting expected text. Final CPU/GPU medians: 9.1441/305.4129 ms for two appends. Exact cached measurements/choice were checked. Two critical policy/cache tests and 116 CPU regression tests pass. Release build: zero warnings/errors. Native kernels/synchronization unchanged; prior hardware offload tests remain their evidence. Task-local cache/scripts under `.temp/t31` removed after report publication.
+
+Skills retained: phase-development-project-conventions, phase-development-task-execution, phase-development-configuration-options, base-dossier-writing and capabilities-dev-problem-solving-methodology for measurement/selection design. Standing user authorization includes critical tests with implementation; no separate approval gate. No bootstrap tests, commits, system changes or unrelated refactoring. The baseline through T31 is complete; extension profiles remain tentative in TASKS.md.
+
+## Vulkan optimization planning — T32–T45
+
+User requested planning only. Added a sequential, bounded optimization plan with explicit dependencies, numerical/lifetime gates and exclusions. T32 produces executable diagnostic evidence; T34 is a separate architecture decision before resident-session implementation. Kernel reduction and staging changes precede GPU operators and complete single-submission execution. Planner and benchmark close the sequence. Existing T31 remains completed; T32 is pending.
+
+Applied analysis-piano-task and the existing base-dossier-writing brevity policy. Inspected current shader, offload/planner contracts and measured baseline. No implementation, benchmark execution or new tests in this planning turn. No acceleration estimate is presented as observed evidence.
 
 ## T32 — GPU call phase diagnostics (completed)
 
@@ -402,7 +503,7 @@ Skills retained: phase-development-project-conventions, phase-development-task-e
 
 ## T34 — Define the resident GPU session contract (completed)
 
-Pinned ownership, isolated KV/scratch, one submission per append, immutable recording descriptors, buffer budget, workgroup reduction, FP32 numerical gates and failure/reset/disposal transitions. Reviewed all operator dependencies and the six-layer token diagram against the CPU implementation. Documentation-only task; no runtime changes or tests. Contract: docs/adr/current/vulkan-resident.md.
+Pinned ownership, isolated KV/scratch, one submission per append, immutable recording descriptors, buffer budget, workgroup reduction, FP32 numerical gates and failure/reset/disposal transitions. Reviewed all operator dependencies and the six-layer token diagram against the CPU implementation. Documentation-only task; no runtime changes or tests. Implementation: resident execution.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
 
@@ -465,6 +566,28 @@ Skills: phase-development-project-conventions, phase-development-task-execution,
 Auto now validates and measures all three whole-model paths with timestamps/validation disabled; the graph/layout/operator protocol participates in cache identity. Eight process cache cases pass, including old/missing/invalid resident data and both synthetic cached GPU branches. Three independent short/long-context reports show CPU 4.090–5.754 ms, legacy 142.004–193.679 ms, resident 60.457–80.819 ms per append. CPU remains selected. Three critical policy tests pass; build without warnings/errors. docs/stories15m-planner.md records the exact governing workload and limitations.
 
 Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing; base-project-decision-log for architectural contracts, capabilities-dev-problem-solving-methodology for numerical/performance evidence. Standing authorization includes critical tests and one commit per completed task.
+
+## Vulkan contract correction — T27 discovery (recorded)
+
+The T27 contract fixed the minimal compute path before any measurement. It admitted no optional device feature and defined a single in-flight synchronous operation. Measured evidence now shows the residual cost is dominated by the kernel and by per-dispatch latency rather than bandwidth, and that the GPU path stays slower than CPU AVX2 even with one submission per append. The conflict was routed back to architecture instead of being worked around inside a task.
+
+Recorded correction, effective in the current-state view and in the backend contract: optional features are queried and never assumed, each with a verified fallback (8-bit storage with int8 arithmetic, subgroup operations, synchronization2 and timeline semaphores, FP16 arithmetic, timestamp queries); the effective capability set participates in the planner cache identity; each kernel declares its own local size, descriptors and push constants; the resident path must be able to attribute kernel window, barrier cost and dispatch cost. One queue, a synchronous public API, unchanged ownership, unchanged failure transitions and unchanged numerical gates remain binding. A falsifiable hypothesis and a stop rule now precede the optimization tasks.
+
+Discovery on the pinned toolchain: glslangValidator 16.6.0 compiles subgroup operations for Vulkan 1.1 (OpCapability GroupNonUniform, GroupNonUniformArithmetic) and 8-bit storage (OpCapability StorageBuffer8BitAccess, extension SPV_KHR_8bit_storage); spirv-val 2026.4 accepts both.
+
+Sequence extended: T45 residual-cost attribution, T46 capability record, T47 capability-gated Q8 kernel, T48 dispatch and barrier reduction, T49 grouped prefill, T50 final benchmark; the previous final benchmark becomes T50.
+
+Skills: base-project-decision-log, phase-development-deviation-routing, base-dossier-writing, capabilities-dev-problem-solving-methodology.
+
+## T45 — Attribute the residual resident cost (completed)
+
+Added an optional timestamp pool, a per-dispatch accumulator and a diagnostic runner to the resident path. Attribution arrives through VulkanResidentOptions and StoriesBackendOptions, requires an explicit backend and writes reports/vulkan/resident-attribution.json. It never enters the productive counters and never reads activations back; writing the result is the only run mode that publishes numbers.
+
+Three independent measurement processes plus one validation run on Intel Arc MTL, ten appends each. Per append: host median 77.754 ms, device span 73.626 ms, kernel 65.020 ms (87.2%), gap 9.446 ms (12.8%). Windows and gaps sum to the span within 1e-13 ms, managed allocations stay at zero and each append keeps one submission and one fence wait. The validation run reports zero errors with Khronos SyncVal. Q8_0 MatVec totals 47.192 ms (72.6% of kernel), the FP32 attention operator 7.849 ms (12.1%) and the output projection alone 15.303 ms.
+
+The hypothesis is confirmed: kernel time dominates, so the barrier and dispatch ceiling is about 9.4 ms per append and the sequence stays T46 → T47 → T48. Evidence: docs/vulkan-dispatch-attribution.md and docs/benchmarks/vulkan-attribution-2026-10-12.
+
+Skills: phase-development-project-conventions, phase-development-task-execution, base-dossier-writing, capabilities-dev-problem-solving-methodology for the diagnostic scope and the evidence.
 
 ## Model-specific documentation cleanup — 2026-10-13
 

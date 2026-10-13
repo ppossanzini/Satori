@@ -491,6 +491,28 @@ not asserted.
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW06.5 — 2026-10-13 — Completed
+
+Implemented AVX2 kernels for Q4_K and Q6_K in `src/Satori.Core/QuantizedKAvx2Kernel.cs`, mirroring
+`Q4KCodec`/`Q6KCodec` block arithmetic exactly. `QuantizedMatVec.Execute` now dispatches every format to
+AVX2 when available, and `ExecuteAvx2` routes the K formats to the new kernel; the scalar path remains the
+reference and the fallback. The Q4_K/Q6_K super-block scale extraction, the Q4_K 6-bit scale/min unpacking
+and the Q6_K nibble/2-bit assembly are unchanged from the scalar codecs.
+
+Verification: Release build without warnings; the full numerics suite is green. `KParityTests` adds two
+theory cases (Q4_K, Q6_K) that decode two-block rows with the scalar and the AVX2 paths on the fixture bytes
+and require them within 1e-3 + 1e-4 relative. One defect was caught by this parity check and fixed: the
+kernel read the first 256 inputs for every block instead of advancing by the block column offset. A real
+7B Q4_K_M generation dropped from ~195 s (scalar) to 30.7 s with the AVX2 kernels (about 6.4x) with the same
+output, so the kernels are the default rather than experimental.
+
+Reproduce: `dotnet test tests/Satori.Numerics.Tests -c Release --filter "FullyQualifiedName~KParityTests"`.
+
+Limits: AVX2 only, no AVX-512; the speedup is a single artifact on this host, not a general claim. Prefill is
+still unbatched and single-threaded (DW06.6).
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

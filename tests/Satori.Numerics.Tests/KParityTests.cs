@@ -52,4 +52,30 @@ public sealed class KParityTests
             }
         }
     }
+
+    [Theory]
+    [InlineData("fixtures/operators/q4k-v1.json", BlockQuantization.Q4_K)]
+    [InlineData("fixtures/operators/q6k-v1.json", BlockQuantization.Q6_K)]
+    public void Avx2MatchesScalarOnEveryBlock(string fixture, BlockQuantization format)
+    {
+        if (!System.Runtime.Intrinsics.X86.Avx2.IsSupported) return;
+        var cases = JsonDocument.Parse(File.ReadAllText(Path.Combine(GgufTests.Root, fixture)))
+            .RootElement.GetProperty("cases").EnumerateArray().ToArray();
+
+        // Two blocks per row exercises a multi-super-block row; the same input vector is reused.
+        foreach (var (first, second) in new[] { (cases[0], cases[1]), (cases[4], cases[7]) })
+        {
+            byte[] payload = [.. Hex(first.GetProperty("block_hex").GetString()!), .. Hex(second.GetProperty("block_hex").GetString()!)];
+            float[] input = Enumerable.Range(0, 512).Select(i => (float)((i % 17) - 8) * 0.5f).ToArray();
+            var shape = new QuantizedMatrixShape(1, 512, format);
+            Assert.Equal(payload.Length, shape.ByteLength);
+
+            float[] scalar = new float[1];
+            float[] vector = new float[1];
+            QuantizedMatVec.ExecuteScalar(payload, shape, input, scalar);
+            QuantizedMatVec.ExecuteAvx2(payload, shape, input, vector);
+            Assert.True(Math.Abs(scalar[0] - vector[0]) <= 1e-3 + 1e-4 * Math.Abs(scalar[0]),
+                $"{format}: scalar {scalar[0]} vs AVX2 {vector[0]}");
+        }
+    }
 }

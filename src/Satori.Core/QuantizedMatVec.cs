@@ -5,20 +5,21 @@ namespace Satori.Core;
 
 public static class QuantizedMatVec
 {
-    /// <summary>Selects AVX2 when available for its formats, otherwise scalar, on validated immutable weights.</summary>
+    /// <summary>Selects AVX2 when available, otherwise scalar, on validated immutable weights.</summary>
     public static void Execute(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input, Span<float> output)
     {
-        if (Avx2.IsSupported && shape.Format is BlockQuantization.Q8_0 or BlockQuantization.Q4_0)
-            ExecuteAvx2(data, shape, input, output);
-        else
-            ExecuteScalar(data, shape, input, output);
+        if (Avx2.IsSupported) ExecuteAvx2(data, shape, input, output);
+        else ExecuteScalar(data, shape, input, output);
     }
 
     public static void ExecuteAvx2(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input, Span<float> output)
     {
         if (!Avx2.IsSupported) throw new PlatformNotSupportedException("AVX2 is unavailable.");
         Guard(data, shape, input, output);
-        QuantizedAvx2Kernel.Execute(data, shape, input, output);
+        if (shape.Format is BlockQuantization.Q4_K or BlockQuantization.Q6_K)
+            QuantizedKAvx2Kernel.Execute(data, shape, input, output);
+        else
+            QuantizedAvx2Kernel.Execute(data, shape, input, output);
     }
 
     public static void ValidatePayload(ReadOnlySpan<byte> data, QuantizedMatrixShape shape)

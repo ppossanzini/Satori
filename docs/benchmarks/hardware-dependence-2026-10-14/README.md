@@ -82,9 +82,9 @@ single build within it.
    multiply-add, and is an order of magnitude larger than any of this. Nothing here suggests it
    reverses anywhere.
 4. **Core class changed both paths far more than the path choice changed either.** `ffn_down` at
-   P cores is 1.7x slower than unpinned for the same binary, because eight worker tasks land on six
-   physical cores and share them through SMT. Unpinned, the same eight tasks get eight distinct
-   physical cores out of sixteen.
+   P cores is 1.7x slower than unpinned for the same binary. The cause was first attributed to eight
+   worker tasks sharing six physical cores through SMT; see the correction below, where the
+   confinement of the whole process turns out to carry most of it.
 
 ## Consequence for the design
 
@@ -98,10 +98,17 @@ present), gives what the question asked for — both reachable — without inven
 `Auto` should keep the integer path: it wins unpinned, which is how the runtime is used.
 
 **The larger finding is the thread budget.** On this host the largest single effect measured is
-neither path: it is that eight tasks on six physical P cores costs 1.7x, while the same eight tasks
-unchallenged cost nothing. A thread budget derived from physical cores, and from the topology rather
-than from a protocol constant, is worth more than the path decision and is measurable with the same
+neither path: it is that the same binary runs 1.7x slower confined to the six physical performance
+cores than unpinned. A thread budget derived from physical cores, and from the topology rather than
+from a protocol constant, is worth more than the path decision and is measurable with the same
 harness.
+
+**Correction, same day.** That attribution was too strong and has been tested:
+[thread-budget-2026-10-14](../thread-budget-2026-10-14/README.md) shows the 1.7x is mostly the
+confinement itself, since `taskset` restricts the whole process — pool, JIT and collector — and not
+only the eight workers. A budget clamped to physical cores measured unresolved and was withdrawn. What
+did resolve, in 7 of 7 alternating rounds, is claiming rows from a shared counter instead of dealing
+them out in equal parts.
 
 ## Limits
 

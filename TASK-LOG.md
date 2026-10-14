@@ -1136,3 +1136,24 @@ unpinned. Conclusion recorded in `docs/benchmarks/hardware-dependence-2026-10-14
 install-time probe, an explicit Auto/Integer/Float preference instead, and a thread budget derived
 from physical cores. No code changed. Skills: phase-development-task-execution and
 base-dossier-writing.
+
+## Thread budget and row claiming — 2026-10-14
+
+Acted on the placement finding from the hardware-dependence experiment, and corrected it. Two
+candidates: a thread budget clamped to physical cores, and rows claimed by the workers instead of
+dealt out in equal parts.
+
+The budget clamp was implemented, verified under four affinity restrictions, and measured against
+the same revision: 1.06x at best under a within-configuration spread of 1.64x, with one round
+reversing. Unresolved, so withdrawn, and `ProcessorTopology` was removed with it. The earlier 1.7x
+attribution to workers sharing cores through SMT was too strong: `taskset` confines the whole
+process, pool and JIT and collector included, and that carries most of the cost.
+
+The claimed split was measured unpinned over seven alternating rounds: both real Q6_K tensors faster
+in 7 of 7, `ffn_down` median 1.24x, the output projection median 1.13x with disjoint ranges. It also
+halves the spread on the output projection, which is the second signature the mechanism predicts.
+Kept. Suite 226/226. Added `tools/ab-pinned.sh` so the alternation is a checked-in procedure rather
+than a shell loop retyped per experiment — two earlier attempts this session were lost to zsh word
+splitting. Report in `docs/benchmarks/thread-budget-2026-10-14/README.md`. `ExecuteBatchFloat` still
+deals rows out in equal parts, left alone deliberately rather than changed without its own
+measurement. Skills: phase-development-task-execution and base-dossier-writing.

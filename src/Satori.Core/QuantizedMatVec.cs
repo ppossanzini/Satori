@@ -90,8 +90,8 @@ public static class QuantizedMatVec
     /// <paramref name="output"/> receives the same number of vectors of <c>Rows</c> floats in the same layout.
     /// Each weight block is decoded once and then dotted with every position, so the packed bytes are read
     /// once for the whole call rather than once per position: that reuse, not the arithmetic, is what makes a
-    /// prompt affordable. Work is split into contiguous row ranges of <paramref name="threads"/> workers, and
-    /// a row range touches no byte another range reads, so the result does not depend on the split.
+    /// prompt affordable. Work is split across <paramref name="threads"/> workers, and no worker writes a row
+    /// another worker writes, so the result does not depend on the split.
     /// </summary>
     /// <remarks>
     /// The inner dot uses fused multiply-add when the host has it, which rounds once per product instead of
@@ -125,6 +125,9 @@ public static class QuantizedMatVec
     /// Quantization is lossy by construction, so this path differs from <see cref="Execute"/> in the last bits
     /// and on low-order terms; the tests bound that difference rather than hiding it. An all-zero activation
     /// block produces a zero scale and the kernel skips it, so no code is multiplied by a meaningless one.
+    /// The rows are claimed by the workers from a shared counter in chunks of <see cref="ChunksPerWorker"/>
+    /// each, so a worker that draws slower cores takes fewer of them instead of holding the whole call at the
+    /// barrier; chunks are claimed once each, so the split still cannot change the result.
     /// <paramref name="positions"/> is bounded by the kernel's accumulator size.
     /// </remarks>
     private static unsafe void ExecuteBatchQuantized(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
@@ -149,24 +152,29 @@ public static class QuantizedMatVec
                         outputPointer, 0, shape.Rows);
                     return;
                 }
-                int stride = (shape.Rows + workers - 1) / workers;
+                // Rows are claimed from a shared counter rather than dealt out in equal parts. An equal split
+                // makes the call last as long as its slowest worker, and on a processor with cores of
+                // different speeds the workers do not finish together, so every call waits for whichever
+                // worker drew the slow cores. The claim costs one atomic per chunk and the chunks stay
+                // disjoint and complete, so the result is the one an equal split produces.
+                int chunk = Math.Max(1, (shape.Rows + workers * ChunksPerWorker - 1) / (workers * ChunksPerWorker));
+                int[] claimed = new int[1];
                 var running = new Task[workers];
                 for (int worker = 0; worker < workers; worker++)
                 {
-                    int begin = worker * stride;
-                    int end = Math.Min(begin + stride, shape.Rows);
-                    if (begin >= end)
-                    {
-                        running[worker] = Task.CompletedTask;
-                        continue;
-                    }
                     byte* workerData = dataPointer;
                     byte* workerActivations = activationPointer;
                     float* workerOutput = outputPointer;
                     running[worker] = Task.Factory.StartNew(() =>
-                        QuantizedKAvx2Kernel.ExecuteQuantizedTiled(workerData, shape, workerActivations, positions,
-                            workerOutput, begin, end), CancellationToken.None,
-                        TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+                    {
+                        while (true)
+                        {
+                            int begin = Interlocked.Add(ref claimed[0], chunk) - chunk;
+                            if (begin >= shape.Rows) return;
+                            QuantizedKAvx2Kernel.ExecuteQuantizedTiled(workerData, shape, workerActivations, positions,
+                                workerOutput, begin, Math.Min(begin + chunk, shape.Rows));
+                        }
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
                 }
                 Task.WaitAll(running);
             }
@@ -230,6 +238,13 @@ public static class QuantizedMatVec
 
     /// <summary>Rows of weights one tile holds, so the decoded blocks stay in the first-level cache.</summary>
     private const int RowTile = 16;
+
+    /// <summary>
+    /// Chunks of rows each worker may claim when the rows are claimed dynamically. Four per worker keeps the
+    /// claim frequency negligible at one atomic per chunk while leaving enough chunks that a worker which drew
+    /// slow cores does not hold the whole call.
+    /// </summary>
+    private const int ChunksPerWorker = 4;
 
     /// <summary>Floats one worker needs: the weight tile plus one accumulator tile.</summary>
     private static int WorkspacePerWorker(QuantizedMatrixShape shape, int positions) =>

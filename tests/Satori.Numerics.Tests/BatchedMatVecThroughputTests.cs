@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Satori.Core;
+using Satori.Core.Model;
 using Xunit.Abstractions;
 
 namespace Satori.Numerics.Tests;
@@ -178,6 +179,10 @@ public sealed class BatchedMatVecThroughputTests
         }
 
         string[] names = ["blk.0.attn_q.weight", "blk.0.ffn_gate.weight", "blk.0.ffn_down.weight", "output.weight"];
+        // The budget production uses, not a literal: the number this test reports has to be the number the
+        // engine gets, or the measurement answers a question nobody asked.
+        int budget = InferenceOptions.Default.Threads;
+        _output.WriteLine($"threads = {budget} (logical {Environment.ProcessorCount})");
         using var file = new Satori.Formats.Gguf.GgufFile(path);
         foreach (string name in names)
         {
@@ -196,12 +201,12 @@ public sealed class BatchedMatVecThroughputTests
             float[] output = new float[rows];
 
             (double realMs, double realMedian) = Time(() =>
-                QuantizedMatVec.ExecuteBatch(real, matrix.Shape, input, 1, output, threads: 8));
+                QuantizedMatVec.ExecuteBatch(real, matrix.Shape, input, 1, output, threads: budget));
 
             var (synthetic, _) = Matrix(rows, columns, matrix.Shape.Format);
             float[] syntheticOutput = new float[rows];
             (double syntheticMs, double syntheticMedian) = Time(() =>
-                QuantizedMatVec.ExecuteBatch(synthetic, matrix.Shape, input, 1, syntheticOutput, threads: 8));
+                QuantizedMatVec.ExecuteBatch(synthetic, matrix.Shape, input, 1, syntheticOutput, threads: budget));
 
             _output.WriteLine($"{name} {matrix.Shape.Format} {rows}x{columns}:");
             _output.WriteLine($"  real bytes   {realMs * 1000,9:F1} us (median {realMedian * 1000,9:F1})  {Rate(realMs, macs)}");
@@ -290,22 +295,23 @@ public sealed class BatchedMatVecThroughputTests
         var outputs = shapes.Select(s => new float[s.Rows]).ToArray();
 
         // One layer: 7 projections. 28 layers is one token. Repeat the layer 28 times to time a token.
+        int budget = InferenceOptions.Default.Threads;
         (double perToken, _) = Time(() =>
         {
             for (int layer = 0; layer < 28; layer++)
                 for (int index = 0; index < shapes.Length; index++)
                     QuantizedMatVec.ExecuteBatch(matrices[index].Payload, matrices[index].Shape,
-                        sources[index], 1, outputs[index], threads: 8);
+                        sources[index], 1, outputs[index], threads: budget);
         });
 
-        // The same work with the small k/v projections kept single-threaded, since spawning 8 tasks for
+        // The same work with the small k/v projections kept single-threaded, since spawning tasks for
         // 512 rows may cost more than the rows do.
         (double smallSingleThread, _) = Time(() =>
         {
             for (int layer = 0; layer < 28; layer++)
                 for (int index = 0; index < shapes.Length; index++)
                     QuantizedMatVec.ExecuteBatch(matrices[index].Payload, matrices[index].Shape,
-                        sources[index], 1, outputs[index], threads: index is 1 or 2 ? 1 : 8);
+                        sources[index], 1, outputs[index], threads: index is 1 or 2 ? 1 : budget);
         });
 
         _output.WriteLine($"196 projections, one token: {perToken:F1} ms ({1000 / perToken:F2} tok/s)");
@@ -334,11 +340,12 @@ public sealed class BatchedMatVecThroughputTests
 
         (double milliseconds, double median) = Time(() =>
         {
+            int budget = InferenceOptions.Default.Threads;
             for (int layer = 0; layer < 28; layer++)
                 for (int index = 0; index < perLayer.Length; index++)
                     QuantizedMatVec.ExecuteBatch(matrices[index].Payload, matrices[index].Shape,
-                        sources[index], 1, outputs[index], threads: 8);
-            QuantizedMatVec.ExecuteBatch(outPayload, outShape, input, 1, logits, threads: 8);
+                        sources[index], 1, outputs[index], threads: budget);
+            QuantizedMatVec.ExecuteBatch(outPayload, outShape, input, 1, logits, threads: budget);
         });
         _output.WriteLine($"one token of projections: {milliseconds:F1} ms (median {median:F1}), {totalMacs / 1e9:F2} GMAC, " +
             $"{Rate(milliseconds, totalMacs)}, {1000 / milliseconds:F2} tok/s ceiling");

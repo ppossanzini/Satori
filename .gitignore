@@ -59,3 +59,7 @@ nunit-*.xml
 # Task-owned temporary workspace and regenerated measurements
 .temp/
 reports/
+
+# Python bytecode from the reference and fixture generators
+tools/__pycache__/
+*.pyc

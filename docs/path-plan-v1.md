@@ -47,7 +47,7 @@ Each subtask has a dependency, an oracle and a verification criterion. Execute o
 | DW06.5 | Q4_K/Q6_K AVX2 kernels | DW06.4 | the scalar kernels | numerical parity with scalar; benchmark on the same matrices; keep experimental without a measured advantage (done: 6.4x on the 7B artifact, default path) |
 | DW06.6 | Prefill optimization to meet TTFT ≤ 60 s at 2K | DW06.5 | the reference forward | batched prefill; TTFT at 2K ≤ 60 s on the target; identical logits (structure done, batched prefill bit-identical to sequential append; prefill 3.65 tok/s measures ~560 s at 2K: criterion **not met**, and the remaining gap is per-call cost and scheduling rather than the codec) |
 | DW06.7 | Decode optimization to meet ≥ 3 tok/s at 2K | DW06.5 | the reference forward | decode at 2K ≥ 3 tok/s; identical greedy tokens (kernel restructured, batched step on every projection: 0.65 tok/s against the 3 tok/s threshold, **not met**; the earlier 1.32x claim came from single-run measurements and is withdrawn, see measurement-method.md. The gap is per-call cost and scheduling, not arithmetic: a token makes 197 projections and ~1576 task spawns) |
-| DW06.8 | Resource limits and cancellation | DW06.4 | n/a | memory and context bounds enforced; cancellation ≤ 2 s; no sustained swap |
+| DW06.8 | Resource limits and cancellation | DW06.4 | n/a | Resource fixes verified on Intel: batch workspace accounted, cancellation 2–4 ms, zero swap in sampled windows under a 12 GiB/no-swap cgroup. Quality scoring and primary-host verification remain open. See [resource report](benchmarks/resource-prism-2026-10-14/README.md). |
 
 ## Ordering rule
 

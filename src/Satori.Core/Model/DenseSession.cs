@@ -20,7 +20,7 @@ namespace Satori.Core.Model;
 public sealed class DenseSession : IInferenceSession
 {
     /// <summary>Positions one prefill chunk holds; large enough that each weight block pays for its own decode.</summary>
-    private const int ChunkPositions = 256;
+    private const int ChunkPositions = DenseBatchScratch.MaxPositions;
 
     private readonly ModelDefinition _model;
     private readonly DenseForward _forward;

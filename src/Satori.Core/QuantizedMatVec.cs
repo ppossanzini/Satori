@@ -142,8 +142,11 @@ public static class QuantizedMatVec
         try
         {
             for (int position = 0; position < positions; position++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 Q8KCodec.QuantizeRow(input.Slice(position * shape.Columns, shape.Columns),
                     quantized.AsSpan(position * rowBytes, rowBytes));
+            }
 
             fixed (byte* dataPointer = &MemoryMarshal.GetReference(data))
             fixed (byte* activationPointer = &quantized[0])
@@ -152,8 +155,12 @@ public static class QuantizedMatVec
                 int workers = Math.Min(threads, shape.Rows);
                 if (workers <= 1)
                 {
-                    QuantizedKAvx2Kernel.ExecuteQuantizedTiled(dataPointer, shape, activationPointer, positions,
-                        outputPointer, 0, shape.Rows);
+                    for (int begin = 0; begin < shape.Rows; begin += rowsPerClaim)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        QuantizedKAvx2Kernel.ExecuteQuantizedTiled(dataPointer, shape, activationPointer, positions,
+                            outputPointer, begin, Math.Min(begin + rowsPerClaim, shape.Rows));
+                    }
                     return;
                 }
                 // Rows are claimed from a shared counter rather than dealt out in equal parts. An equal split

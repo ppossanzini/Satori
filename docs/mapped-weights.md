@@ -1,23 +1,23 @@
-# Pesi memory-mapped
+# Memory-Mapped Weights
 
-`MappedWeights` apre un file esistente in sola lettura e mappa l'intera lunghezza nel processo a 64 bit. Non carica l'intero contenuto in un array gestito. Un file vuoto viene rifiutato perché non costituisce una regione mappabile. Errori di apertura o mapping rimangono errori I/O; un costruttore fallito rilascia le risorse già acquisite.
+`MappedWeights` opens an existing file read-only and maps its entire length into the 64-bit process. It does not load the entire contents into a managed array. An empty file is rejected because it is not a mappable region. Opening or mapping errors remain I/O errors; a failed constructor releases resources already acquired.
 
-## Accesso
+## Access
 
-`Read<TState>(offset, length, action, state)` espone una `ReadOnlySpan<byte>` soltanto durante la callback. Gli offset sono a 64 bit; ogni finestra ha una lunghezza `int`, come richiesto dagli span. File superiori a 2 GiB si leggono per finestre, senza troncare gli offset. Gli intervalli vengono controllati prima di acquisire il puntatore; un intervallo vuoto alla fine del file è valido.
+`Read<TState>(offset, length, action, state)` exposes a `ReadOnlySpan<byte>` only during the callback. Offsets are 64-bit; each window has an `int` length, as required by spans. Files larger than 2 GiB are read in windows without truncating offsets. Ranges are checked before acquiring the pointer; an empty range at the end of the file is valid.
 
-Lo stato generico supporta anche ref struct per passare dati di lavoro senza closure o boxing. Una callback statica riutilizzata non produce allocazioni gestite nel percorso di accesso dopo warm-up. Il contenuto non viene copiato dal proprietario; una callback può scegliere di copiarlo.
+Generic state also supports ref structs to pass working data without closures or boxing. A reused static callback produces no managed allocations on the access path after warm-up. The owner does not copy contents; a callback may choose to copy them.
 
-## Chiusura concorrente
+## Concurrent Disposal
 
-Un lock breve rende atomici il controllo dello stato e l'acquisizione del puntatore tramite `SafeMemoryMappedViewHandle.AcquirePointer`. La callback viene eseguita fuori dal lock: più lettori possono procedere contemporaneamente. Il puntatore viene rilasciato in `finally`, anche se la callback solleva un'eccezione.
+A short lock makes the state check and pointer acquisition through `SafeMemoryMappedViewHandle.AcquirePointer` atomic. The callback runs outside the lock: multiple readers can proceed concurrently. The pointer is released in `finally`, even if the callback throws an exception.
 
-`Dispose` impedisce immediatamente nuovi accessi e chiude il proprietario. I riferimenti acquisiti dai lettori tengono il mapping valido fino alla fine delle rispettive callback; lo smontaggio effettivo può quindi avvenire dopo il ritorno da `Dispose`. La callback può chiudere il proprietario senza invalidare i propri byte. La chiusura è idempotente.
+`Dispose` immediately prevents new accesses and closes the owner. References acquired by readers keep the mapping valid until their callbacks finish; actual unmapping may therefore occur after `Dispose` returns. A callback may close the owner without invalidating its own bytes. Disposal is idempotent.
 
-Nessun puntatore pubblico, span restituito o lease che il chiamante debba rilasciare separatamente. Le operazioni sui byte devono terminare entro la callback sincrona. Le API unsafe del chiamante possono aggirare questo vincolo e non rientrano nel contratto.
+No public pointer, returned span or lease that the caller must release separately. Byte operations must finish within the synchronous callback. Caller unsafe APIs can bypass this constraint and are outside the contract.
 
-## Limiti
+## Limits
 
-Il file deve restare immutato durante la vita del mapping e degli accessi attivi. `FileShare.Read` impedisce aperture incompatibili dove il sistema applica tali vincoli; non garantisce protezione da modifiche o troncamenti esterni su tutti i sistemi. Il mapping non garantisce residenza RAM: il sistema operativo gestisce page cache e I/O.
+The file must remain unchanged throughout the lifetime of the mapping and active accesses. `FileShare.Read` prevents incompatible opens where the system enforces these constraints; it does not guarantee protection from external changes or truncation on all systems. Mapping does not guarantee RAM residency: the operating system manages the page cache and I/O.
 
-Questo componente non conosce il formato dei pesi, non valida tensori e non trasferisce dati verso la GPU. `MappedTernary2Matrix` aggiunge il caricamento STQ2 e l'esecuzione tramite gli stessi kernel CPU delle matrici in memoria; il contratto è in [ternary2-v1.md](ternary2-v1.md). Validazione attuale effettuata su Linux x64.
+This component does not know the weight format, validate tensors or transfer data to the GPU. `MappedTernary2Matrix` adds STQ2 loading and execution through the same CPU kernels as in-memory matrices; the contract is in [ternary2-v1.md](ternary2-v1.md). Current validation was performed on Linux x64.

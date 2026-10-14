@@ -1,8 +1,8 @@
 # Satori
 
-Independent multi-model C#/.NET inference engine for small machines, optimized for aggressively quantized weights, including ternary models. Generic model support is bounded by explicitly supported architectures, tokenizers, operators and tensor formats.
+Independent C#/.NET inference runtime for useful local coding on Intel/AMD PCs with 16 GB RAM while the IDE, browser and compiler remain usable. Support is specialized in selected model families and explicitly supported formats.
 
-Product requirements and the next development step are defined in [TASKS.md](TASKS.md#mandatory-product-requirements). Complete inference has been checked on a small regression fixture only; this does not establish product-level model support. Multi-model inference and end-to-end ternary model inference remain to be implemented and verified.
+[Product requirements and execution plan](TASKS.md#product-execution-plan) start with a reference-runtime comparison of a Q4 coding model, APEX/MoE and Bonsai ternary. One primary implementation path is selected from measured quality, latency, memory and PC responsiveness. Candidate support is not implemented; complete inference has been checked on a small regression fixture only.
 
 ## Targets and Development Order
 
@@ -97,7 +97,7 @@ Reports and comparison limits: [layout benchmarks](docs/benchmarks/bitplane-2026
 
 ## Reference Validation
 
-Small-model inference code and independent numerical fixtures are laboratory regression material. They do not define the supported product models, execution dimensions or tokenizer contracts. Multi-model inference, representative coding workloads and end-to-end ternary execution remain governed by [the product requirements](TASKS.md#mandatory-product-requirements).
+Small-model inference code and independent numerical fixtures are laboratory regression material. They do not define the supported product models, execution dimensions or tokenizer contracts. Selected-family inference, representative coding workloads and candidate selection remain governed by [the product requirements](TASKS.md#mandatory-product-requirements).
 
 Tests with `Category=ModelIntegration` require the real corpus: `python tools/download_gguf_corpus.py`. For the offline suite without weights, use `--filter 'Category!=ModelIntegration'`.
 

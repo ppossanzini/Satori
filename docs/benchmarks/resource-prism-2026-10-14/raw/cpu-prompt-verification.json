@@ -1,0 +1,85 @@
+{
+  "GeneratedUtc": "2026-10-14T19:18:02.4872061+00:00",
+  "Model": "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
+  "Context": 2048,
+  "Environment": {
+    "Runtime": ".NET 10.0.12",
+    "OS": "Arch Linux",
+    "Processor": "X64",
+    "LogicalProcessors": 22,
+    "Avx2": true,
+    "Machine": "ombromanto",
+    "TotalMemoryBytes": 33073016832
+  },
+  "Shape": {
+    "Layers": 28,
+    "EmbeddingLength": 3584,
+    "FeedForwardLength": 18944,
+    "HeadCount": 28,
+    "HeadCountKv": 4,
+    "HeadDim": 128,
+    "VocabularySize": 152064,
+    "TiedEmbeddings": false
+  },
+  "Plan": {
+    "WeightBytes": 4677120000,
+    "StateBytes": 234881024,
+    "WorkspaceBytes": 98990080,
+    "TotalBytes": 5010991104,
+    "ExceedsBudget": false,
+    "BudgetBytes": 17179869184
+  },
+  "Startup": {
+    "DescriptorMs": 83.058277,
+    "OpenMs": 68.702545,
+    "SessionMs": 6.392537,
+    "TotalMs": 158.15335900000002,
+    "ManagedBytes": 355758328,
+    "WorkingSetBytesBefore": 34164736
+  },
+  "PromptTokenIds": [
+    888,
+    1099,
+    526,
+    2691,
+    1548,
+    264,
+    11,
+    526,
+    293,
+    8,
+    589,
+    264,
+    488,
+    293,
+    280,
+    888
+  ],
+  "Prefill": {
+    "Tokens": 16,
+    "Ms": 4199.012246,
+    "TokensPerSecond": 3.8104199422713467
+  },
+  "Ttft": {
+    "Ms": 4199.810045,
+    "FirstToken": 1099
+  },
+  "Decode": {
+    "Tokens": 32,
+    "Ms": 16773.818945000003,
+    "MedianMsPerToken": 520.481505,
+    "TokensPerSecond": 1.9077349114668172,
+    "MaxMsPerToken": 595.233156
+  },
+  "Memory": {
+    "PeakWorkingSetBytes": 4945784832,
+    "PeakManagedBytes": 476115680,
+    "WorkingSetAfterStartupBytes": 34164736
+  },
+  "Quality": [],
+  "Limits": [
+    "Prefill uses DenseSession.Forward; decode uses DenseSession.Append with the current CPU kernels.",
+    "Peak working set includes the memory-mapped file pages touched, not only managed allocations.",
+    "Quality is a small greedy coding smoke; the DS04 acceptance pass-rate is measured separately."
+  ]
+}

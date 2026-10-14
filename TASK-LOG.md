@@ -1225,3 +1225,37 @@ Q6_K product is 1.26x on `ffn_down` and 3.69x on the output projection over seve
 disjoint on both, seven of seven each. The output projection moves from 4.1 to 15.2 GMAC/s. The Q6_K share of
 a decode token falls from 730 ms to about 500 ms, which projects decode from 0.71 to about 0.85 tok/s — the
 threshold of 3 remains unmet. Skills: phase-development-task-execution and base-dossier-writing.
+
+## DW06.8 / DW07 — 2026-10-14 — Resource fixes verified; acceptance open
+
+The workspace account omitted the 256-position batch buffers. It now includes batch/single-position
+scratch, logits, attention scores and pooled Q8_K activations. Single-worker integer projection observes
+cancellation between claims and during quantization. No test-only production API or test-file change.
+Verification: Release solution build, 26/26 focused and 204/204 full numerical tests.
+
+Owner approved the 18-task corpus and Intel concurrent workload. Fixtures and quality scoring remain open.
+Satori under a 12 GiB/no-swap cgroup cancelled in 2 ms during single-worker prefill and 4 ms during
+8-thread decode. Completed windows had zero swap. Default 8-thread decode failed build slowdown (+56.5%);
+one-thread prefill was +21.4%.
+
+Reference changed to installed Prism at the owner's request. Completed short-prompt samples: Prism CPU
+2.3 tok/s, Vulkan 0.4 tok/s, Satori CPU 1.55 tok/s. These are not matched-token ratios or 2K acceptance.
+The exact-2K Prism client was interrupted; no completed throughput is asserted. Reference servers stopped.
+Report and raw evidence: docs/benchmarks/resource-prism-2026-10-14/. DW06.8 quality and DW07 acceptance
+remain open; no target or selected artifact changed.
+
+Skills: capabilities-dev-problem-solving-methodology, phase-development-project-conventions,
+base-be-base-rules and base-dossier-writing.
+
+## CPU Q6_K Code Generation (DW06.8 / DW07)
+
+Q6_K constructs uniform SIMD scale halves with broadcasts and inlines the high-bit selector.
+Exact integer products and accumulation order are preserved. No product test hooks.
+Release solution build passed; numerical tests passed 206/206.
+Three-sample short-context decode median improves 1.64 to 2.18 tok/s (+33.0%).
+Matched-prompt Prism CPU measures 2.37 tok/s. Prompt identity, timing boundaries, variability and raw
+evidence are recorded in docs/benchmarks/resource-prism-2026-10-14/README.md.
+Parity and populated-2K acceptance remain open. No thread or responsiveness threshold changed.
+
+Skills: capabilities-dev-problem-solving-methodology, phase-development-project-conventions,
+base-be-base-rules, base-dossier-writing and run-tests.

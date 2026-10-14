@@ -1,0 +1,68 @@
+{
+  "GeneratedUtc": "2026-10-14T19:14:18.6636567+00:00",
+  "Model": "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
+  "Context": 2048,
+  "Environment": {
+    "Runtime": ".NET 10.0.12",
+    "OS": "Arch Linux",
+    "Processor": "X64",
+    "LogicalProcessors": 22,
+    "Avx2": true,
+    "Machine": "ombromanto",
+    "TotalMemoryBytes": 33073016832
+  },
+  "Shape": {
+    "Layers": 28,
+    "EmbeddingLength": 3584,
+    "FeedForwardLength": 18944,
+    "HeadCount": 28,
+    "HeadCountKv": 4,
+    "HeadDim": 128,
+    "VocabularySize": 152064,
+    "TiedEmbeddings": false
+  },
+  "Plan": {
+    "WeightBytes": 4677120000,
+    "StateBytes": 234881024,
+    "WorkspaceBytes": 98990080,
+    "TotalBytes": 5010991104,
+    "ExceedsBudget": false,
+    "BudgetBytes": 17179869184
+  },
+  "Startup": {
+    "DescriptorMs": 68.270408,
+    "OpenMs": 59.420329,
+    "SessionMs": 4.869828,
+    "TotalMs": 132.56056500000003,
+    "ManagedBytes": 355758328,
+    "WorkingSetBytesBefore": 34254848
+  },
+  "Prefill": {
+    "Tokens": 16,
+    "Ms": 3936.660216,
+    "TokensPerSecond": 4.06435890376575
+  },
+  "Ttft": {
+    "Ms": 3937.403744,
+    "FirstToken": 1099
+  },
+  "Decode": {
+    "Tokens": 32,
+    "Ms": 14779.264073000002,
+    "MedianMsPerToken": 459.701346,
+    "TokensPerSecond": 2.16519576630749,
+    "MaxMsPerToken": 580.355875
+  },
+  "Memory": {
+    "PeakWorkingSetBytes": 4945940480,
+    "PeakManagedBytes": 476109016,
+    "WorkingSetAfterStartupBytes": 34254848
+  },
+  "Quality": [],
+  "Limits": [
+    "Prefill and decode use the current scalar/AVX2 kernels; no optimization was applied.",
+    "Prefill forwards each position over its own causal prefix, so prefill cost is superlinear.",
+    "Peak working set includes the memory-mapped file pages touched, not only managed allocations.",
+    "Quality is a small greedy coding smoke; the DS04 acceptance pass-rate is measured separately."
+  ]
+}

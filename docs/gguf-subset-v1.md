@@ -1,133 +1,133 @@
-# Profilo GGUF Satori v1
+# Satori GGUF Profile v1
 
-Stato: lettore, adapter numerico e kernel scalar/AVX2 Q8_0/Q4_0 implementati.
+Status: reader, numerical adapter and scalar/AVX2 Q8_0/Q4_0 kernels implemented.
 
-## Confine
+## Scope
 
-- GGUF versione 3, little-endian, singolo file immutabile.
-- Catalogo di metadati e tensori su mapping read-only.
-- Tipi tensoriali ammessi: F32, F16, Q4_0, Q8_0.
-- MatVec iniziali: tensori Q8_0 e Q4_0 a due dimensioni.
-- Esclusi: altre versioni, big-endian, shard, adapter, conversione ternary automatica, tokenizer, inferenza e GPU.
+- GGUF version 3, little-endian, single immutable file.
+- Metadata and tensor catalog on a read-only mapping.
+- Allowed tensor types: F32, F16, Q4_0, Q8_0.
+- Initial MatVec operations: two-dimensional Q8_0 and Q4_0 tensors.
+- Excluded: other versions, big-endian, shards, adapters, automatic ternary conversion, tokenizer, inference and GPU.
 
-Un file accettato dal catalogo non equivale a un modello eseguibile. Le restrizioni di questo profilo non definiscono la validità di ogni GGUF.
+A file accepted by the catalog is not necessarily an executable model. This profile's restrictions do not define the validity of every GGUF file.
 
-## Riferimenti fissati
+## Pinned References
 
-Revisione GGML: `3612c0af93f2cfc8f048295300a61187723b12ae`, verificata il 12 ottobre 2026.
+GGML revision: `3612c0af93f2cfc8f048295300a61187723b12ae`, verified on October 12, 2026.
 
-- [Struttura GGUF](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/docs/gguf.md).
-- [Layout dei blocchi](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/src/ggml-common.h).
-- [Decodifica di riferimento](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/src/ggml-quants.c).
-- [Lettore GGML](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/src/gguf.cpp).
-- [Versione della quantizzazione](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/include/ggml.h).
-- [Tipi dei metadati split nel writer llama.cpp](https://github.com/ggml-org/llama.cpp/blob/efe3626b119ff81033e309c3ba07a770bef2c546/gguf-py/gguf/gguf_writer.py), revisione `efe3626b119ff81033e309c3ba07a770bef2c546`.
+- [GGUF structure](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/docs/gguf.md).
+- [Block layouts](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/src/ggml-common.h).
+- [Reference decoding](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/src/ggml-quants.c).
+- [GGML reader](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/src/gguf.cpp).
+- [Quantization version](https://github.com/ggml-org/ggml/blob/3612c0af93f2cfc8f048295300a61187723b12ae/include/ggml.h).
+- [Split metadata types in the llama.cpp writer](https://github.com/ggml-org/llama.cpp/blob/efe3626b119ff81033e309c3ba07a770bef2c546/gguf-py/gguf/gguf_writer.py), revision `efe3626b119ff81033e309c3ba07a770bef2c546`.
 
-## Struttura del contenitore
+## Container Structure
 
-Header di 24 byte: magic ASCII `GGUF`, versione UInt32, numero tensori UInt64, numero metadati UInt64. Seguono metadati, directory tensoriale, padding e dati.
+24-byte header: ASCII magic `GGUF`, UInt32 version, UInt64 tensor count, UInt64 metadata count. Metadata, tensor directory, padding and data follow.
 
-`dataStart = alignUp(directoryEnd, alignment)`. Gli offset nella directory sono relativi a `dataStart`. L'offset assoluto è la somma controllata dei due valori.
+`dataStart = alignUp(directoryEnd, alignment)`. Directory offsets are relative to `dataStart`. The absolute offset is the checked sum of the two values.
 
-Ogni voce contiene nome con prefisso UInt64 in byte, rango UInt32, dimensioni UInt64, tipo UInt32 e offset UInt64. Rango ammesso: 1–4. Dimensioni positive, rappresentabili come Int64. Il prodotto delle dimensioni e la lunghezza del tensore devono rimanere entro Int64.
+Each entry contains a name prefixed by its UInt64 byte length, UInt32 rank, UInt64 dimensions, UInt32 type and UInt64 offset. Allowed rank: 1–4. Dimensions must be positive and representable as Int64. The product of dimensions and tensor length must remain within Int64.
 
-Nomi univoci, UTF-8 valido, senza NUL, da 1 a 63 byte. Il limite 63 segue il lettore GGML fissato; il testo della specifica indica 64.
+Unique names, valid UTF-8, no NUL, 1 to 63 bytes. The limit of 63 follows the pinned GGML reader; the specification text states 64.
 
-Allineamento predefinito: 32 byte. `general.alignment`, se presente, deve essere UInt32 e una potenza di due tra 8 e 4096. La specifica descrive multipli di otto; questo profilo adotta il vincolo più stretto del lettore GGML e aggiunge il limite 4096.
+Default alignment: 32 bytes. `general.alignment`, if present, must be UInt32 and a power of two between 8 and 4096. The specification describes multiples of eight; this profile adopts the stricter GGML reader constraint and adds the 4096 limit.
 
-Layout ammesso: directory in ordine fisico, primo offset relativo zero, ogni offset successivo uguale al precedente più la lunghezza arrotondata all'allineamento. Il file deve contenere anche il padding finale dell'ultimo tensore. Sono rifiutati gap aggiuntivi, alias, sovrapposizioni e ordine fisico diverso dalla directory. Eventuali byte dopo l'ultima regione allineata sono ignorati, mai interpretati come tensori. Il padding non viene usato per calcolare i pesi; il suo contenuto non viene validato.
+Allowed layout: directory in physical order, first relative offset zero, each subsequent offset equal to the previous one plus its length rounded up to alignment. The file must also contain final padding for the last tensor. Additional gaps, aliases, overlaps and physical order differing from the directory are rejected. Bytes after the last aligned region are ignored, never interpreted as tensors. Padding is not used to compute weights; its contents are not validated.
 
-## Metadati
+## Metadata
 
-Tipi scalar ammessi, con gli ID GGUF:
+Allowed scalar types, with GGUF IDs:
 
-| ID | Tipo | Byte |
+| ID | Type | Bytes |
 |---:|---|---:|
 | 0 / 1 | UInt8 / Int8 | 1 |
 | 2 / 3 | UInt16 / Int16 | 2 |
 | 4 / 5 | UInt32 / Int32 | 4 |
 | 6 | Float32 | 4 |
 | 7 | Bool | 1 |
-| 8 | String UTF-8 con lunghezza UInt64 | variabile |
+| 8 | UTF-8 String with UInt64 length | variable |
 | 10 / 11 | UInt64 / Int64 | 8 |
 | 12 | Float64 | 8 |
 
-Array, ID 9: tipo degli elementi UInt32, numero elementi UInt64, valori consecutivi. Ammessi elementi scalar della tabella, comprese stringhe. Array vuoti ammessi; array annidati esclusi dal profilo. Bool valido soltanto con byte 0 o 1. Valori Float32/Float64 non finiti sono conservati come metadati grezzi; non sono interpretati come parametri di inferenza.
+Array, ID 9: UInt32 element type, UInt64 element count, consecutive values. Scalar elements from the table are allowed, including strings. Empty arrays are allowed; nested arrays are excluded from the profile. Bool is valid only with byte 0 or 1. Nonfinite Float32/Float64 values are retained as raw metadata; they are not interpreted as inference parameters.
 
-Chiavi univoche, ASCII, da 1 a 65535 byte; grammatica `[a-z0-9_]+(\.[a-z0-9_]+)*`. Valori stringa UTF-8 rigoroso, senza terminatore obbligatorio. NUL consentito nei valori, escluso nelle chiavi e nei nomi tensoriali. Non normalizzare Unicode né cambiare maiuscole o contenuto.
+Unique ASCII keys, 1 to 65535 bytes; grammar `[a-z0-9_]+(\.[a-z0-9_]+)*`. Strict UTF-8 string values, with no required terminator. NUL is allowed in values, excluded from keys and tensor names. Do not normalize Unicode or change case or contents.
 
-Le chiavi sconosciute con tipo noto sono indicizzate. Un tipo di valore sconosciuto non può essere saltato senza conoscerne la lunghezza: il file viene rifiutato.
+Unknown keys with known types are indexed. An unknown value type cannot be skipped without knowing its length: the file is rejected.
 
-### Chiavi interpretate dal lettore
+### Keys Interpreted by the Reader
 
-| Chiave | Regola Satori |
+| Key | Satori Rule |
 |---|---|
-| `general.architecture` | String non vuota `[a-z0-9]+`, obbligatoria; identifica il file, non abilita un'architettura |
-| `general.type` | String se presente, soltanto `model`; altre varianti fuori profilo |
-| `general.quantization_version` | UInt32, obbligatoria con Q4_0/Q8_0; valore ammesso 2 |
-| `general.alignment` | Regola della sezione contenitore |
-| `general.file_type` | UInt32 se presente; informativo, mai sostitutivo del tipo di ogni tensore |
-| `split.count` | UInt16 se presente, soltanto 1 |
-| `split.no` | UInt16 se presente, soltanto 0 |
-| `split.tensors.count` | Int32 non negativo se presente, uguale al numero dei tensori locali |
+| `general.architecture` | Required nonempty String `[a-z0-9]+`; identifies the file, does not enable an architecture |
+| `general.type` | String if present, only `model`; other variants outside the profile |
+| `general.quantization_version` | UInt32, required with Q4_0/Q8_0; allowed value 2 |
+| `general.alignment` | Rule from the container section |
+| `general.file_type` | UInt32 if present; informational, never replaces each tensor's type |
+| `split.count` | UInt16 if present, 0 or 1 (0 is emitted by some single-file writers, for example Qwen2.5-Coder) |
+| `split.no` | UInt16 if present, only 0 |
+| `split.tensors.count` | Nonnegative Int32 if present, equal to the local tensor count |
 
-Le chiavi `split.*` parziali sono ammesse se rispettano i vincoli. Altre chiavi di modello o tokenizer sono conservate; la loro interpretazione appartiene al profilo del modello.
+Partial `split.*` keys are allowed if they satisfy the constraints. Other model or tokenizer keys are retained; their interpretation belongs to the model profile.
 
-## Tipi tensoriali
+## Tensor Types
 
-| Tipo | ID | Elementi/blocco | Byte/blocco | Byte/peso |
+| Type | ID | Elements/Block | Bytes/Block | Bytes/Weight |
 |---|---:|---:|---:|---:|
 | F32 | 0 | 1 | 4 | 4 |
 | F16 | 1 | 1 | 2 | 2 |
-| Q4_0 | 2 | 32 | 18 | 0,5625 |
-| Q8_0 | 8 | 32 | 34 | 1,0625 |
+| Q4_0 | 2 | 32 | 18 | 0.5625 |
+| Q8_0 | 8 | 32 | 34 | 1.0625 |
 
-Lunghezza: `product(dimensions) / elementsPerBlock × bytesPerBlock`, con overflow controllato. Per Q4_0/Q8_0 anche la prima dimensione deve essere multipla di 32: i blocchi non attraversano righe. Non aggiungere padding logico come nel Ternary2 interno.
+Length: `product(dimensions) / elementsPerBlock × bytesPerBlock`, with checked arithmetic. For Q4_0/Q8_0, the first dimension must also be a multiple of 32: blocks do not cross rows. Do not add logical padding as in internal Ternary2.
 
-Qualsiasi tipo tensoriale fuori tabella rende il file non supportato, anche se il tensore non viene selezionato. Questo consente di verificare l'intera regione dati senza stimare lunghezze sconosciute. Un file Q4_K_M con Q4_K/Q6_K non rientra nel profilo.
+Any tensor type outside the table makes the file unsupported, even if the tensor is not selected. This allows validation of the entire data region without estimating unknown lengths. A Q4_K_M file with Q4_K/Q6_K is outside the profile.
 
-### Contratto numerico Q4_0/Q8_0
+### Q4_0/Q8_0 Numerical Contract
 
-Primi due byte del blocco: scala FP16 little-endian, convertita a FP32.
+First two bytes of the block: little-endian FP16 scale, converted to FP32.
 
-- Q4_0: seguono 16 byte. Per `j = 0..15`, il nibble basso produce `w[j] = d × ((b[j] & 15) - 8)`; quello alto produce `w[j+16] = d × ((b[j] >> 4) - 8)`.
-- Q8_0: seguono 32 Int8. `w[j] = d × q[j]`; l'intero intervallo Int8 è rappresentabile.
+- Q4_0: 16 bytes follow. For `j = 0..15`, the low nibble produces `w[j] = d × ((b[j] & 15) - 8)`; the high nibble produces `w[j+16] = d × ((b[j] >> 4) - 8)`.
+- Q8_0: 32 Int8 values follow. `w[j] = d × q[j]`; the entire Int8 range is representable.
 
-Le scale possono essere negative, zero o negative zero. Non applicare le regole di validazione Ternary2. T12 valida contenitore e intervalli, senza scansionare numericamente i pesi. T13/T14 verificano una volta le scale del tensore selezionato e rifiutano NaN/Infinity prima dell'esecuzione. F32/F16 sono catalogati; nessuna MatVec specifica viene promessa da T12.
+Scales may be negative, zero or negative zero. Do not apply Ternary2 validation rules. T12 validates the container and ranges without numerically scanning weights. T13/T14 check scales of the selected tensor once and reject NaN/Infinity before execution. F32/F16 are cataloged; T12 promises no specific MatVec for them.
 
-Per una matrice a rango 2: `columns = dimensions[0]`, `rows = dimensions[1]`. La prima dimensione è contigua. Attivazioni e accumuli iniziali FP32; reference numerica FP64 sugli stessi pesi decodificati. L'ordine Q4_0 non è quello di quattro pesi consecutivi a due bit del Ternary2.
+For a rank-2 matrix: `columns = dimensions[0]`, `rows = dimensions[1]`. The first dimension is contiguous. Initial activations and accumulation use FP32; the numerical reference uses FP64 on the same decoded weights. Q4_0 order is not the order of four consecutive two-bit weights in Ternary2.
 
-## Limiti del parser
+## Parser Limits
 
-Limiti Satori fissi per la prima versione; non sono limiti dello standard.
+Fixed Satori limits for the first version; these are not standard limits.
 
-| Risorsa | Massimo |
+| Resource | Maximum |
 |---|---:|
-| File | 1 TiB, processo a 64 bit |
-| Tensori | 100000 |
-| Coppie di metadati | 100000 |
-| Stringa di valore | 16 MiB di UTF-8 |
-| Elementi per array | 1048576 |
-| Header + metadati + directory + padding iniziale | 256 MiB |
+| File | 1 TiB, 64-bit process |
+| Tensors | 100000 |
+| Metadata pairs | 100000 |
+| Value string | 16 MiB of UTF-8 |
+| Elements per array | 1048576 |
+| Header + metadata + directory + initial padding | 256 MiB |
 
-Numero tensori zero escluso: i file solo vocabolario non servono al laboratorio. Nessuna allocazione proporzionale a contatori non ancora verificati. Prima di ogni lettura o skip verificare il limite logico e i byte residui. Tutti i calcoli di prodotto, somma, padding e conversione UInt64→Int64 sono controllati.
+Zero tensor count is excluded: vocabulary-only files are not needed by the laboratory. No allocations proportional to unchecked counters. Before each read or skip, check the logical limit and remaining bytes. All product, sum, padding and UInt64→Int64 conversion calculations are checked.
 
-Il catalogo usa offset e lunghezze Int64. Le finestre esposte alla CPU hanno lunghezza Int32. Un tensore maggiore di `int.MaxValue` byte può essere indicizzato e letto per finestre; le prime MatVec T13/T14 possono rifiutarlo come operazione non supportata.
+The catalog uses Int64 offsets and lengths. Windows exposed to the CPU have Int32 lengths. A tensor larger than `int.MaxValue` bytes can be indexed and read in windows; initial T13/T14 MatVec operations may reject it as unsupported.
 
-## Risultato di T12
+## T12 Deliverable
 
-Modulo: `src/Satori.Formats.Gguf`, dipendente da `Satori.Core` per il mapping. `Satori.Core` non dipende dal modulo GGUF. I futuri kernel numerici ricevono payload e forma; l'adapter GGUF seleziona il tipo senza introdurre GGUF nei kernel.
+Module: `src/Satori.Formats.Gguf`, depending on `Satori.Core` for mapping. `Satori.Core` does not depend on the GGUF module. Future numerical kernels receive payload and shape; the GGUF adapter selects the type without introducing GGUF into kernels.
 
-- Un proprietario del mapping con catalogo immutabile dei tensori.
-- Metadati indicizzati per chiave, tipo, posizione e lunghezza; array non materializzati automaticamente.
-- Lettura typed degli scalar e delle stringhe su richiesta; accesso scoped ai byte degli array con tipo e conteggio dichiarati.
-- Accesso ai pesi per finestre protette dal lifetime di `MappedWeights`.
-- Nessuna copia completa del file, nessuna dequantizzazione all'apertura.
+- A mapping owner with an immutable tensor catalog.
+- Metadata indexed by key, type, position and length; arrays are not automatically materialized.
+- Typed scalar and string reads on request; scoped access to array bytes with declared type and count.
+- Weight access through windows protected by the `MappedWeights` lifetime.
+- No full file copy, no dequantization on opening.
 
-L'accesso a un tensore specifica offset relativo e lunghezza della finestra. Il lettore controlla il confine del tensore prima di delegare al mapping. Una finestra non può leggere il padding o i dati del tensore successivo.
+Tensor access specifies a relative offset and window length. The reader checks the tensor boundary before delegating to the mapping. A window cannot read padding or the next tensor's data.
 
-File malformato o troncato: `InvalidDataException`, con posizione e contesto. Versione, endian, tipo o variante esclusi: `NotSupportedException`. Superamento dei limiti Satori: `NotSupportedException`, con nome del limite. Errori del filesystem: eccezioni I/O originali. Accesso dopo chiusura: `ObjectDisposedException`. Un'apertura fallita rilascia tutte le risorse. Nessun catalogo parziale pubblicato.
+Malformed or truncated file: `InvalidDataException`, with position and context. Excluded version, endianness, type or variant: `NotSupportedException`. Satori limits exceeded: `NotSupportedException`, naming the limit. Filesystem errors: original I/O exceptions. Access after disposal: `ObjectDisposedException`. A failed open releases all resources. No partial catalog is published.
 
-## Verifica prevista
+## Planned Verification
 
-Il [catalogo fixture](gguf-fixtures-v1.md) fissa casi validi, fuori profilo e corrotti. Il lettore è verificato sulle golden, su contenitori corrotti e grandi, e sul corpus pubblico stories15M. Le MatVec sono confrontate con decodifica FP64 indipendente; evidenze in `docs/benchmarks/gguf-2026-10-12/`.
+The [fixture catalog](gguf-fixtures-v1.md) defines valid, out-of-profile and corrupted cases. The reader is verified on golden fixtures, corrupted and large containers, and the public GGUF verification corpus. MatVec results are compared with independent FP64 decoding; evidence is in `docs/benchmarks/gguf-2026-10-12/`.

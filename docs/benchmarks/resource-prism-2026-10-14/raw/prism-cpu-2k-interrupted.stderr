@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/home/paolo/Work/archer/Satori/tools/reference_completion.py", line 60, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/paolo/Work/archer/Satori/tools/reference_completion.py", line 36, in main
+    for line in response:
+                ^^^^^^^^
+  File "/usr/lib/python3.14/http/client.py", line 727, in readline
+    return super().readline(limit)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/http/client.py", line 719, in peek
+    return self._peek_chunked(n)
+           ~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/http/client.py", line 757, in _peek_chunked
+    chunk_left = self._get_chunk_left()
+  File "/usr/lib/python3.14/http/client.py", line 603, in _get_chunk_left
+    chunk_left = self._read_next_chunk_size()
+  File "/usr/lib/python3.14/http/client.py", line 554, in _read_next_chunk_size
+    line = self.fp.readline(_MAXLINE + 1)
+  File "/usr/lib/python3.14/socket.py", line 729, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+KeyboardInterrupt

@@ -20,7 +20,8 @@ descriptor region and requires no weights.
   count KV, head dimension, vocabulary, tied embeddings, RMS epsilon and RoPE base.
 - `ModelPlanner` — pure, checked computation of the shape/memory plan: `WeightBytes` (compressed payload),
   `StateBytes` (`layers × 2 × kvHeads × headDim × context × 4` F32 key+value) and `WorkspaceBytes` (a
-  documented per-layer upper bound), plus a budget comparison.
+  bound covering single-position and 256-position batched scratch, logits, attention scores and pooled
+  Q8_K activations), plus a budget comparison.
 - `ModelDefinition` — immutable bundle of the above with the `CapabilityReport`.
 - `IArchitectureAdapter` / `ArchitectureAdapters` — capability registry keyed by architecture id.
 - `DenseTransformerAdapter` — the qwen2 and qwen3 families.
@@ -42,6 +43,7 @@ gaps instead of failing to open.
 
 ## Limits
 
-- The plan is an estimate from metadata; exact workspace is fixed by the operator implementations (DS07+).
+- The plan covers session buffers and compressed weights. Runtime, tokenizer and host-process overhead are
+  excluded. Admission against the plan is not an operating-system process-memory ceiling.
 - Only qwen2 and qwen3 adapters exist; hybrid MoE and ternary families are DS24/DS35.
 - The descriptor validates shapes and formats; it does not execute and does not decode weights.

@@ -1,6 +1,6 @@
-# Vulkan backend contract v1
+# Vulkan backend contract
 
-Status: fixed for the minimal compute path. Implementation and subsequent hardware evidence: [minimal path](vulkan-minimal-path.md). This document specifies the implementation boundary; it does not claim a GPU kernel has been executed. CPU remains the verified reference. Metal, ROCm, graphics/surfaces, asynchronous public APIs and multiple queues are outside this contract.
+Status: v2. The capability gate now admits optional device features behind explicit queries, each with a verified fallback, because measurement shows the bottleneck is kernel cost and per-dispatch latency rather than bandwidth. Evidence: [minimal path](vulkan-minimal-path.md), [Q8 MatVec](vulkan-q8-matvec.md). CPU remains the verified reference and the default. Metal, ROCm, graphics/surfaces, asynchronous public APIs and multiple queues stay outside this contract.
 
 ## Stack and boundaries
 
@@ -14,7 +14,7 @@ Status: fixed for the minimal compute path. Implementation and subsequent hardwa
 | Binary target | Vulkan **1.1**, SPIR-V **1.3** |
 | Shader validation | spirv-val **2026.4**, target environment vulkan1.1 |
 | Runtime validation | VK_LAYER_KHRONOS_validation plus VK_EXT_debug_utils when explicitly enabled |
-| Submission | One compute-capable queue, one in-flight synchronous operation, legacy core barriers and fences |
+| Submission | One compute-capable queue; several dispatches per command buffer, one submission and one wait per append. Legacy core barriers and fences remain the required path; synchronization2 and timeline semaphores only behind the capability gate |
 
 The [published Silk.NET package](https://www.nuget.org/packages/Silk.NET.Vulkan/2.23.0) and [tagged binding source](https://github.com/dotnet/Silk.NET/tree/v2.23.0) are the dependency baseline. Direct handwritten P/Invoke is rejected to avoid maintaining Vulkan ABI declarations. Silk windowing packages, shader compilation at application startup, allocator libraries and optional GPU math extensions are unnecessary for the initial path. Silk 2.x maintenance is limited while its project develops 3.x; upgrading the binding requires a recorded compatibility review, not a floating package version.
 
@@ -22,9 +22,19 @@ Core and Formats.Gguf acquire no native dependency. The console/benchmark compos
 
 ## Capability gate and device selection
 
-Require loader and physical-device API version >= 1.1; a queue family with COMPUTE and at least one queue; FP32 shader arithmetic, 32-bit integer operations and storage buffers. Enable no optional device features. No FP16/FP64 arithmetic, int8/int16 storage, subgroup size assumption, buffer device address, timeline semaphore or synchronization2 requirement.
+Require loader and physical-device API version >= 1.1; a queue family with COMPUTE and at least one queue; FP32 shader arithmetic, 32-bit integer operations and storage buffers. Optional features are queried before use and never assumed; each has a verified fallback, and the effective set is recorded because it participates in the planner cache identity.
 
-Initial kernels use local size (64,1,1), at least two storage descriptors and <=16 bytes of push constants. Check workgroup size/invocation limits, descriptor counts, push-constant size, storage-buffer range, allocation count/size and dispatch group count against the actual workload before allocation or dispatch. Zero elements are a successful no-op without zero-sized Vulkan resources. Oversized requests are rejected before submission; no silent truncation. Chunking large matrices is a later kernel decision. Capability limits are queried rather than inferred from GPU names. See [Vulkan limits](https://docs.vulkan.org/spec/latest/chapters/limits.html).
+| Optional feature | Use | Fallback when absent |
+|---|---|---|
+| 8-bit storage with int8 arithmetic (`SPV_KHR_8bit_storage`) | direct Q8_0 weight reads and integer accumulation | byte extraction from uint words with shifts, masks and sign extension |
+| Subgroup operations | per-row reductions and ballots | shared-memory tree reduction over the declared workgroup |
+| synchronization2 and timeline semaphores | cheaper barrier and fence bookkeeping | legacy core barriers and fences |
+| FP16 arithmetic | scale and activation paths | FP32 with half decoding |
+| Timestamp queries | kernel duration attribution | host timing only, reported as such |
+
+FP64 arithmetic, buffer device address, multiple queues and a public asynchronous API remain out of scope.
+
+Each kernel declares its own local size, descriptor count and push-constant size in its manifest. The contract no longer fixes local size (64,1,1) or a 16-byte push-constant budget; per-shape variants are expected to change them. Check workgroup size/invocation limits, descriptor counts, push-constant size, storage-buffer range, allocation count/size and dispatch group count against the actual workload before allocation or dispatch. Zero elements are a successful no-op without zero-sized Vulkan resources. Oversized requests are rejected before submission; no silent truncation. Chunking large matrices is a later kernel decision. Capability limits are queried rather than inferred from GPU names. See [Vulkan limits](https://docs.vulkan.org/spec/latest/chapters/limits.html).
 
 `VulkanOptions` centralizes `DeviceIndex = null` and `Validation = false`. Negative indices are invalid. Default selection is the first eligible physical device in the loader enumeration, followed by its first compute-capable queue family and queue zero. An explicit index selects only that device; unsupported selection does not silently switch devices. Record enumeration index, device UUID, name, vendor/device IDs, API/driver versions, queue family, limits and memory types. This is deterministic within the recorded enumeration, not a performance ranking or persistent device identity. Software devices can run diagnostics but do not establish hardware acceleration. Queue requirements follow [devices and queues](https://docs.vulkan.org/spec/latest/chapters/devsandqueues.html).
 
@@ -76,7 +86,7 @@ Factory shape: `VulkanContext.TryCreate(options, out context, out availability)`
 | Device lost during submission/wait | Context becomes Faulted, never reused; no partial readback committed; perform permitted lost-device teardown |
 | Unrelated exception or invalid application input | Propagate; no automatic retry |
 
-Caller policy is explicit: Cpu skips Vulkan; Auto may use CPU for the known unavailability cases and reports the reason; VulkanRequired fails if Vulkan cannot execute. The model composition consumes this policy; automatic fallback is initialization-only. Required GPU verification cannot pass by falling back to CPU.
+Caller policy is explicit: Cpu skips Vulkan; Auto may use CPU for the known unavailability cases and reports the reason; VulkanRequired fails if Vulkan cannot execute. Future generic model composition must consume this policy; automatic fallback is initialization-only. Required GPU verification cannot pass by falling back to CPU.
 
 Output is committed only after successful wait/readback; failures leave caller output unchanged. Before model integration, GPU failure can retry the whole stateless operation on CPU. For stateful offload, recovery must reconstruct a fresh CPU session from committed token history and preserved sampling state; never continue a partially updated KV cache or emit the same token twice. Device loss during execution is therefore not silently recoverable inside the low-level backend.
 
@@ -91,6 +101,8 @@ Output is committed only after successful wait/readback; failures leave caller o
 | Validation | Actual hardware run with Khronos layer and synchronization validation enabled; zero validation errors, warnings reviewed |
 | Shader artifact | Correct manifest/hash, successful spirv-val; malformed/mismatched binary rejected before module creation |
 | Measurement | Report device/driver, workload, actual backend, transfers/allocations and host timings; GPU timestamps only when supported |
+| Capability fallback | Every optional feature exercised with the feature present and absent; the recorded capability set is part of the planner cache identity and a capability change invalidates it |
+| Attribution | The resident path can emit GPU timestamps per dispatch group and report kernel window, barrier cost and dispatch cost separately from host phases |
 
 The hardware validation job sets process-local `VK_VALIDATION_VALIDATE_SYNC=1` while requesting the Khronos layer; record this setting and the layer version. This enables synchronization checks alongside core checks, as documented in [LunarG SyncVal usage](https://vulkan.lunarg.com/doc/view/latest/linux/synchronization_usage.html). Host accesses are not tracked by SyncVal, so flush/invalidate and host lifetime still require result/lifetime verification.
 

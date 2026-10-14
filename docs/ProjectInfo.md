@@ -9,6 +9,7 @@
 - [Manifest del confronto](comparison-manifest-v1.md), [corpus C#](corpus-csharp-v1.md), [carico concorrente](comparison-workload-v1.md).
 - [Percorso selezionato](selected-path-v1.md) e [piano dei sottotask](path-plan-v1.md).
 - [Misure di riferimento dei candidati](benchmarks/comparison-2026-10-13/README.md).
+- [Limiti, contesa e confronto Prism su Intel](benchmarks/resource-prism-2026-10-14/README.md).
 - [Scouting](scouting/dossier.md) e [memoria, APEX, Bonsai e streaming](scouting/applicability-summary.md).
 
 Contratti tecnici riutilizzabili: [GGUF](gguf-subset-v1.md), [mapped weights](mapped-weights.md), [Vulkan](vulkan-backend-v1.md), [Q8 MatVec](vulkan-q8-matvec.md), [operatori FP32](vulkan-transformer-operators.md).

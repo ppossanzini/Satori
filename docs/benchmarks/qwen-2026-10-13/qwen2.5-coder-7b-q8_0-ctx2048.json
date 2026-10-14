@@ -1,0 +1,85 @@
+{
+  "GeneratedUtc": "2026-10-13T11:47:21.6000568+00:00",
+  "Model": "qwen2.5-coder-7b-q8_0.gguf",
+  "Context": 2048,
+  "Environment": {
+    "Runtime": ".NET 10.0.12",
+    "OS": "Arch Linux",
+    "Processor": "X64",
+    "LogicalProcessors": 22,
+    "Avx2": true,
+    "Machine": "ombromanto",
+    "TotalMemoryBytes": 33073008640
+  },
+  "Shape": {
+    "Layers": 28,
+    "EmbeddingLength": 3584,
+    "FeedForwardLength": 18944,
+    "HeadCount": 28,
+    "HeadCountKv": 4,
+    "HeadDim": 128,
+    "VocabularySize": 152064,
+    "TiedEmbeddings": false
+  },
+  "Plan": {
+    "WeightBytes": 8092571648,
+    "StateBytes": 234881024,
+    "WorkspaceBytes": 438272,
+    "TotalBytes": 8327890944,
+    "ExceedsBudget": false,
+    "BudgetBytes": 17179869184
+  },
+  "Startup": {
+    "DescriptorMs": 74.509149,
+    "OpenMs": 67.746551,
+    "SessionMs": 4.326684,
+    "TotalMs": 146.582384,
+    "ManagedBytes": 274474088,
+    "WorkingSetBytesBefore": 34394112
+  },
+  "Prefill": {
+    "Tokens": 32,
+    "Ms": 57981.448073,
+    "TokensPerSecond": 0.5519006693263551
+  },
+  "Ttft": {
+    "Ms": 57982.351018,
+    "FirstToken": 526
+  },
+  "Decode": {
+    "Tokens": 8,
+    "Ms": 15187.969471,
+    "MedianMsPerToken": 1851.263507,
+    "TokensPerSecond": 0.5267326890059431,
+    "MaxMsPerToken": 2145.987187
+  },
+  "Memory": {
+    "PeakWorkingSetBytes": 8335081472,
+    "PeakManagedBytes": 382651024,
+    "WorkingSetAfterStartupBytes": 34394112
+  },
+  "Quality": [
+    {
+      "Prompt": "def add(a, b):\n    ",
+      "Text": " return a \u002B b\n\ndef subtract(a, b):\n     return a - b\n\ndef multiply(a, b):\n    ",
+      "Expected": "return",
+      "ContainsExpected": true,
+      "Compiles": false,
+      "Stop": "TokenLimit"
+    },
+    {
+      "Prompt": "def factorial(n):\n    ",
+      "Text": " if n == 0:\n         return 1\n     else:\n         return n * factorial(n-1)\n\n#",
+      "Expected": "return",
+      "ContainsExpected": true,
+      "Compiles": true,
+      "Stop": "TokenLimit"
+    }
+  ],
+  "Limits": [
+    "Prefill and decode use the current scalar/AVX2 kernels; no optimization was applied.",
+    "Prefill forwards each position over its own causal prefix, so prefill cost is superlinear.",
+    "Peak working set includes the memory-mapped file pages touched, not only managed allocations.",
+    "Quality is a small greedy coding smoke; the DS04 acceptance pass-rate is measured separately."
+  ]
+}

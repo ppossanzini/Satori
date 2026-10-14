@@ -1,7 +1,7 @@
 # C# Coding Corpus v1
 
-Status: DW02 proposal, pending DW03 approval. Frozen task set for the coding-quality comparison (protocol
-section 3). No candidate was scored against it yet.
+Status: owner-approved and frozen on 2026-10-14. The 18 tasks and the 80% pass-rate threshold are binding.
+No candidate has been scored against this set yet. Exact prompts and executable fixtures remain to be materialised.
 
 ## Rules
 

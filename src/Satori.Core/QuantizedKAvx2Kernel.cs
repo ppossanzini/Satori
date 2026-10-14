@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
@@ -204,6 +205,7 @@ internal static class QuantizedKAvx2Kernel
     /// The two-bit field of <paramref name="packed"/> that <paramref name="quarter"/> selects, moved down to
     /// the low bits of each byte. Written as constants because a variable shift count is not the immediate form.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector256<byte> Q6KHighField(Vector256<byte> packed, int quarter) => quarter switch
     {
         0 => packed,
@@ -217,9 +219,8 @@ internal static class QuantizedKAvx2Kernel
     /// sixteen-bit lanes, so the first eight lanes weight the first sixteen weights and the last eight the
     /// second sixteen.
     /// </summary>
-    private static Vector256<short> LaneScales(sbyte low, sbyte high) => Vector256.Create(
-        (short)low, (short)low, (short)low, (short)low, (short)low, (short)low, (short)low, (short)low,
-        (short)high, (short)high, (short)high, (short)high, (short)high, (short)high, (short)high, (short)high);
+    private static Vector256<short> LaneScales(sbyte low, sbyte high) =>
+        Vector256.Create(Vector128.Create((short)low), Vector128.Create((short)high));
 
     private static void ExecuteQ4K(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
         ReadOnlySpan<float> input, Span<float> output)

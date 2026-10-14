@@ -1,48 +1,48 @@
 # TernaryBitplane v1
 
-Formato interno CPU, indipendente da GGUF. Stesse forme, scale e pesi logici del [Ternary2 v1](ternary2-v1.md); nessuna nuova regola di quantizzazione. Blocchi di 64, 128 o 256 elementi, locali alla riga; ultima riga/blocco con padding a zero. Dimensioni positive; payload entro Int32 con aritmetica controllata.
+Internal CPU format, independent of GGUF. Same shapes, scales and logical weights as [Ternary2 v1](ternary2-v1.md); no new quantization rule. Blocks of 64, 128 or 256 elements, local to each row; final row/block padded with zeros. Positive dimensions; payload within Int32 using checked arithmetic.
 
-## Blocco
+## Block
 
-| Regione | Offset | Byte |
+| Region | Offset | Bytes |
 |---|---:|---:|
-| Scala FP32 little-endian | 0 | 4 |
-| Piano positivo P | 4 | blockSize/8 |
-| Piano negativo N | 4+blockSize/8 | blockSize/8 |
+| Little-endian FP32 scale | 0 | 4 |
+| Positive plane P | 4 | blockSize/8 |
+| Negative plane N | 4+blockSize/8 | blockSize/8 |
 
-Il peso logico i usa bit `i%8` del byte `i/8`, meno significativo per primo. `(P,N)`: (0,0) zero, (1,0) +1, (0,1) −1. (1,1) invalido. Peso ricostruito `scale × (P−N)`.
+Logical weight i uses bit `i%8` of byte `i/8`, least significant first. `(P,N)`: (0,0) zero, (1,0) +1, (0,1) −1. (1,1) is invalid. Reconstructed weight: `scale × (P−N)`.
 
-Scala finita, non negativa, escluso negative zero. Scala zero: entrambi i piani interamente zero. Il padding non contiene bit attivi. Payload per blocco `4+blockSize/4` byte, identico al Ternary2; il layout cambia la decodifica, non il numero di byte.
+Finite, nonnegative scale, excluding negative zero. Zero scale: both planes entirely zero. Padding contains no set bits. Payload per block: `4+blockSize/4` bytes, identical to Ternary2; the layout changes decoding, not the byte count.
 
-Esempio blockSize 64, scala 0,5, primi otto codici `[+1,0,−1,+1,−1,0,0,+1]`: scala `00 00 00 3F`, P primo byte `89`, N primo byte `14`; tutti gli altri byte zero. Risultato con input uno: 0,5. Il Ternary2 equivalente inizia con payload codici `61 42` dopo la stessa scala.
+Example with blockSize 64, scale 0.5, first eight codes `[+1,0,−1,+1,−1,0,0,+1]`: scale `00 00 00 3F`, first P byte `89`, first N byte `14`; all other bytes zero. Result with an input of ones: 0.5. Equivalent Ternary2 starts with code payload `61 42` after the same scale.
 
-## Conversione senza perdita
+## Lossless Conversion
 
-Da Ternary2 già validato: copiare i quattro byte della scala senza ricalcolarla; trasformare codice 01 in P, 10 in N, 00 in nessun bit. Nessun cambiamento di ordine, blocco o padding. Conversione inversa deterministica: P→01, N→10. Round trip byte-identico al Ternary2 originale, compresi FP32 subnormal e blocchi parziali.
+From validated Ternary2: copy the four scale bytes without recomputing the scale; convert code 01 to P, 10 to N, 00 to no bit. No change to order, blocks or padding. Deterministic reverse conversion: P→01, N→10. Byte-identical round trip to the original Ternary2, including FP32 subnormals and partial blocks.
 
-Non si quantizza nuovamente dal valore ricostruito: la soglia originaria potrebbe produrre altri codici. Le conversioni possono allocare; la MatVec su oggetto già costruito non alloca.
+Do not requantize from reconstructed values: the original threshold could produce different codes. Conversions may allocate; MatVec on an already constructed object does not allocate.
 
-## Contenitore STB1
+## STB1 Container
 
-Header 32 byte, analogo al contenitore STQ2 ma distinto:
+32-byte header, analogous to but distinct from the STQ2 container:
 
-| Offset | Campo |
+| Offset | Field |
 |---:|---|
-| 0 | Magic ASCII `STB1` |
-| 4 | Versione UInt16 LE = 1 |
-| 6 | Header size UInt16 LE = 32 |
-| 8 / 12 / 16 | Righe / colonne / block size Int32 LE |
-| 20 | Riservato UInt32 = 0 |
-| 24 | Lunghezza payload Int64 LE |
+| 0 | ASCII magic `STB1` |
+| 4 | UInt16 LE version = 1 |
+| 6 | UInt16 LE header size = 32 |
+| 8 / 12 / 16 | Int32 LE rows / columns / block size |
+| 20 | Reserved UInt32 = 0 |
+| 24 | Int64 LE payload length |
 
-File esatto: header + payload. Nessun checksum. Save crea un file nuovo; una scrittura fallita può lasciare un file incompleto. Import copia e valida; load valida header e payload prima di pubblicare l'oggetto. Mapping del nuovo contenitore non incluso: il confronto fra layout usa entrambi i payload posseduti in memoria, per isolare il costo di decodifica.
+Exact file: header + payload. No checksum. Save creates a new file; a failed write may leave an incomplete file. Import copies and validates; load validates header and payload before publishing the object. Mapping of the new container is not included: the layout comparison uses both payloads owned in memory to isolate decoding cost.
 
-## Numerica e benchmark
+## Numerics and Benchmarks
 
-MatVec scalar: accumulo FP32 dei contributi con segno all'interno del blocco, moltiplicazione per scala e accumulo dei blocchi. AVX2: otto attivazioni per volta, maschere dai piani, coda scalar senza letture fuori input. Nessuna dipendenza da FMA o AVX-512; fallback scalar.
+Scalar MatVec: FP32 accumulation of signed contributions within a block, multiplication by scale and accumulation across blocks. AVX2: eight activations at a time, masks from the planes, scalar tail without out-of-bounds input reads. No dependency on FMA or AVX-512; scalar fallback.
 
-Tolleranza FP64: stessa funzione e stesso corpus del Ternary2. Scalar dei due layout segue lo stesso ordine delle colonne e deve coincidere; SIMD può differire entro il limite documentato nel metodo benchmark. Non si promette aritmetica finita se l'accumulo FP32 va in overflow.
+FP64 tolerance: same function and corpus as Ternary2. Scalar kernels for both layouts follow the same column order and must match; SIMD may differ within the limit documented in the benchmark method. Finite arithmetic is not guaranteed if FP32 accumulation overflows.
 
-Benchmark T17 misura MatVec scalar completa, inclusa decodifica, su matrici 1024/2048/4096 e block size 64/128/256. T18 aggiunge entrambi i kernel SIMD. Scale, codici, input, hardware, processo, modalità calda e numero di thread identici. Conversione e validazione fuori dal tempo. Riportare anche zero allocazioni e byte/peso; nessuna misura del solo unpack usata come velocità della MatVec.
+The T17 benchmark measures complete scalar MatVec, including decoding, on matrices of size 1024/2048/4096 and block sizes 64/128/256. T18 adds both SIMD kernels. Scales, codes, input, hardware, process, warm mode and thread count are identical. Conversion and validation are outside measured time. Report zero allocations and bytes/weight too; unpack-only measurements must not be presented as MatVec speed.
 
-L'implementazione AVX2 può essere esposta esplicitamente; selezione automatica solo dopo correttezza e vantaggio misurato. Un kernel senza vantaggio resta sperimentale. Nessuna promessa su token/s, qualità o RAM di un modello.
+The AVX2 implementation may be exposed explicitly; automatic selection only after correctness and a measured advantage. A kernel without an advantage remains experimental. No promises about token/s, quality or model RAM usage.

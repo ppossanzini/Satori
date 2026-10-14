@@ -11,6 +11,8 @@ namespace Satori.Core.Model;
 /// </remarks>
 internal sealed class DenseBatchScratch
 {
+    internal const int MaxPositions = 256;
+
     public DenseBatchScratch(ModelShape shape, int positions, int maxTokens)
     {
         ArgumentNullException.ThrowIfNull(shape);

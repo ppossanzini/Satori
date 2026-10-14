@@ -1,65 +1,65 @@
-# Fixture GGUF v1
+# GGUF Fixtures v1
 
-Profilo: [gguf-subset-v1.md](gguf-subset-v1.md). Le fixture descrivono contenitori, non modelli LLM completi.
+Profile: [gguf-subset-v1.md](gguf-subset-v1.md). Fixtures describe containers, not complete LLM models.
 
-## Golden disponibili
+## Available Golden Fixtures
 
-Directory: `fixtures/gguf/v1/`. Il manifest contiene SHA-256, offset, forme, lunghezze e valori ricostruiti attesi. Il generatore Python usa soltanto `struct` e non richiama codice Satori.
+Directory: `fixtures/gguf/v1/`. The manifest contains SHA-256, offsets, shapes, lengths and expected reconstructed values. The Python generator uses only `struct` and calls no Satori code.
 
-| File | Tipo e forma GGML | Blocco o valori | Risultato con input di uno |
+| File | GGML Type and Shape | Block or Values | Result with Input of Ones |
 |---|---|---|---:|
-| `q4_0.gguf` | Q4_0, `[32, 1]` | Scala 0,5; 16 byte `F0`: 16 pesi −4, poi 16 pesi 3,5 | −8 |
-| `q8_0.gguf` | Q8_0, `[32, 1]` | Scala 0,5; 16 Int8 −8, poi 16 Int8 7 | −8 |
-| `f32.gguf` | F32, `[3]` | 1, 2, 3 | 6, solo dato reference |
-| `f16.gguf` | F16, `[3]` | 0, 1, −1 | 0, solo dato reference |
+| `q4_0.gguf` | Q4_0, `[32, 1]` | Scale 0.5; 16 bytes `F0`: 16 weights −4, then 16 weights 3.5 | −8 |
+| `q8_0.gguf` | Q8_0, `[32, 1]` | Scale 0.5; 16 Int8 −8, then 16 Int8 7 | −8 |
+| `f32.gguf` | F32, `[3]` | 1, 2, 3 | 6, reference data only |
+| `f16.gguf` | F16, `[3]` | 0, 1, −1 | 0, reference data only |
 
-Q4_0 e Q8_0 rappresentano gli stessi pesi. Il risultato atteso è calcolabile a mano; evita che codec e kernel condividano un errore non rilevato. Gli header usano GGUF v3, allineamento predefinito, una voce tensoriale e `general.architecture=llama`. I file quantizzati dichiarano quantization version 2.
+Q4_0 and Q8_0 represent the same weights. The expected result can be computed by hand; this prevents the codec and kernel from sharing an undetected error. Headers use GGUF v3, default alignment, one tensor entry and `general.architecture=llama`. Quantized files declare quantization version 2.
 
-## Casi da implementare in T12
+## Cases to Implement in T12
 
-La tabella resta il catalogo di accettazione. Le verifiche implementate coprono golden, troncamenti, metadati scalar/array, UTF-8, allineamenti, dimensioni/overflow, overlap, finestre e disposal; il corpus pubblico verifica anche cataloghi misti. Non ogni combinazione della tabella è un test separato. I file grandi e i casi corrotti vengono generati sotto `.temp/`, senza aggiungere modelli al repository.
+The table remains the acceptance catalog. Implemented checks cover golden fixtures, truncation, scalar/array metadata, UTF-8, alignment, dimensions/overflow, overlaps, windows and disposal; the public corpus also checks mixed catalogs. Not every table combination is a separate test. Large files and corrupted cases are generated under `.temp/`, without adding models to the repository.
 
-| ID | Caso | Esito del lettore |
+| ID | Case | Reader Outcome |
 |---|---|---|
-| V01 | Quattro golden disponibili | Catalogo uguale al manifest; byte identici |
-| V02 | File misto F32/F16/Q4_0/Q8_0; offset cumulativi allineati | Tutte le voci indicizzate; nessuna dequantizzazione |
-| V03 | Allineamento esplicito 8, 64 o 4096 | `dataStart` e offset assoluti corretti |
-| V04 | Tutti gli scalar e array piatti; array vuoti e stringhe multibyte | Tipi, conteggi, valori e confini corretti |
-| V05 | Valore stringa con NUL, chiavi sconosciute, metadati in ordine diverso | Contenuto conservato |
-| V06 | Rango 1, 3, 4 con tipi ammessi | Catalogati; nessuna MatVec implicita |
-| V07 | File sparse con secondo tensore oltre 2 GiB, primo tensore F32 grande e offset canonici | Offset Int64 e lettura per finestre senza allocazione completa |
-| V08 | Payload con scala negativa, zero, negative zero o non finita | Catalogato senza validazione numerica; verifica delle scale rinviata al kernel |
-| V09 | Byte aggiuntivi dopo il padding dell'ultimo tensore | Ignorati |
-| U01 | Versione 1, 2 o maggiore di 3; header big-endian riconoscibile | `NotSupportedException` |
-| U02 | Tipo tensoriale non ammesso, anche se non selezionato | `NotSupportedException` |
-| U03 | Array annidato o tipo metadata sconosciuto | `NotSupportedException` |
-| U04 | Shard dichiarato, quantization version diversa da 2, `general.type` diverso da `model` | `NotSupportedException` |
-| U05 | Allineamento potenza di due oltre 4096, nome di 64 byte, rango oltre 4 | `NotSupportedException` |
-| U06 | Numero tensori zero o limite Satori superato | `NotSupportedException`, limite identificato |
-| U07 | Gap o directory fuori ordine con intervalli altrimenti validi e non sovrapposti | `NotSupportedException`, layout fuori profilo |
-| E01 | Magic errato; header troncato | `InvalidDataException` |
-| E02 | Contatore, stringa o array dichiarato oltre i byte residui | `InvalidDataException`, senza allocazione proporzionale |
-| E03 | Tipo errato per una chiave interpretata; metadati obbligatori mancanti | `InvalidDataException` |
-| E04 | Bool diverso da 0/1, UTF-8 invalido, chiave illegale, NUL in nome | `InvalidDataException` |
-| E05 | Chiave o nome tensoriale duplicato, nome vuoto | `InvalidDataException` |
-| E06 | Rango zero, dimensione zero, UInt64 oltre Int64 o prodotti in overflow | `InvalidDataException` |
-| E07 | Prima dimensione Q4_0/Q8_0 non divisibile per 32 | `InvalidDataException` |
-| E08 | Allineamento zero o non potenza di due, offset non allineato | `InvalidDataException` |
-| E09 | Somma offset/lunghezza in overflow, payload o padding finale fuori file | `InvalidDataException` |
-| E10 | Intervalli tensoriali sovrapposti | `InvalidDataException` |
-| L01 | Apertura fallita in ogni sezione; eccezione nella callback | Risorse rilasciate; nessun catalogo parziale |
-| L02 | Lettura concorrente con Dispose, nuova lettura dopo Dispose | Accesso attivo valido; nuovo accesso rifiutato |
-| L03 | Finestra dentro il file ma oltre il tensore selezionato | Rifiuto prima della callback; nessuna lettura di padding o tensore adiacente |
+| V01 | Four available golden fixtures | Catalog matches manifest; identical bytes |
+| V02 | Mixed F32/F16/Q4_0/Q8_0 file; aligned cumulative offsets | All entries indexed; no dequantization |
+| V03 | Explicit alignment 8, 64 or 4096 | Correct `dataStart` and absolute offsets |
+| V04 | All scalars and flat arrays; empty arrays and multibyte strings | Correct types, counts, values and boundaries |
+| V05 | String value with NUL, unknown keys, reordered metadata | Contents preserved |
+| V06 | Rank 1, 3, 4 with allowed types | Cataloged; no implicit MatVec |
+| V07 | Sparse file with second tensor beyond 2 GiB, large first F32 tensor and canonical offsets | Int64 offsets and windowed reads without full allocation |
+| V08 | Payload with negative, zero, negative-zero or nonfinite scale | Cataloged without numerical validation; scale checks deferred to kernel |
+| V09 | Additional bytes after last tensor padding | Ignored |
+| U01 | Version 1, 2 or greater than 3; recognizable big-endian header | `NotSupportedException` |
+| U02 | Disallowed tensor type, even if not selected | `NotSupportedException` |
+| U03 | Nested array or unknown metadata type | `NotSupportedException` |
+| U04 | Declared shard, quantization version other than 2, `general.type` other than `model` | `NotSupportedException` |
+| U05 | Power-of-two alignment beyond 4096, 64-byte name, rank beyond 4 | `NotSupportedException` |
+| U06 | Zero tensor count or Satori limit exceeded | `NotSupportedException`, limit identified |
+| U07 | Gap or unordered directory with otherwise valid, nonoverlapping ranges | `NotSupportedException`, layout outside profile |
+| E01 | Wrong magic; truncated header | `InvalidDataException` |
+| E02 | Counter, string or array declared beyond remaining bytes | `InvalidDataException`, without proportional allocation |
+| E03 | Wrong type for an interpreted key; missing required metadata | `InvalidDataException` |
+| E04 | Bool other than 0/1, invalid UTF-8, illegal key, NUL in name | `InvalidDataException` |
+| E05 | Duplicate key or tensor name, empty name | `InvalidDataException` |
+| E06 | Zero rank, zero dimension, UInt64 beyond Int64 or overflowing products | `InvalidDataException` |
+| E07 | First Q4_0/Q8_0 dimension not divisible by 32 | `InvalidDataException` |
+| E08 | Zero or non-power-of-two alignment, unaligned offset | `InvalidDataException` |
+| E09 | Overflowing offset/length sum, payload or final padding beyond file | `InvalidDataException` |
+| E10 | Overlapping tensor ranges | `InvalidDataException` |
+| L01 | Failed opening in every section; callback exception | Resources released; no partial catalog |
+| L02 | Read concurrent with Dispose, new read after Dispose | Active access valid; new access rejected |
+| L03 | Window within file but beyond selected tensor | Rejected before callback; no padding or adjacent-tensor read |
 
-Quando un input viola più regole, prevalgono bounds/overflow e struttura prima dei controlli di profilo. In E02, un conteggio già oltre un limite Satori può essere rifiutato come U06 prima di leggere il resto del file.
+When an input violates multiple rules, bounds/overflow and structure take precedence over profile checks. In E02, a count already exceeding a Satori limit may be rejected as U06 before reading the rest of the file.
 
-## Casi numerici per T13/T14
+## Numerical Cases for T13/T14
 
-- Golden Q4_0/Q8_0: decodifica per posizione e MatVec attesa −8.
-- Scale positive/negative, ±0 e FP16 subnormal; NaN/Infinity rifiutati all'apertura del tensore numerico.
-- Q8_0 con Int8 −128 e 127; Q4_0 con tutti i nibble 0–15 nelle due metà.
-- Matrici non quadrate, più righe e più blocchi per riga.
-- Confronto FP64 sugli stessi pesi decodificati; nessuna confusione con errore di quantizzazione.
-- Identità mapped/owned e nessuna allocazione nel percorso caldo.
+- Golden Q4_0/Q8_0: per-position decoding and expected MatVec −8.
+- Positive/negative scales, ±0 and FP16 subnormals; NaN/Infinity rejected on opening the numerical tensor.
+- Q8_0 with Int8 −128 and 127; Q4_0 with all nibbles 0–15 in both halves.
+- Nonsquare matrices, multiple rows and multiple blocks per row.
+- FP64 comparison on the same decoded weights; no confusion with quantization error.
+- Mapped/owned identity and no allocations on the hot path.
 
-Le quattro golden sono state lette dal reader ufficiale gguf-py alla revisione fissata. I cataloghi dei due file pubblici stories15M (57 tensori ciascuno) sono confrontati voce per voce con lo stesso reader. La generazione delle reference numeriche rimane indipendente da Satori.
+The four golden fixtures were read by the official gguf-py reader at the pinned revision. Catalogs of the two public regression artifacts (57 tensors each) are compared entry by entry with the same reader. Numerical reference generation remains independent of Satori.

@@ -6,14 +6,9 @@ using Satori.Backends.Vulkan;
 
 try
 {
-    if(args.Length==2 && args[0]=="--path-contexts") return StoriesPathContextRunner.Run(args[1]);
     if(args.Length==2 && args[0]=="--q8-compare") return Q8ValidationRunner.Run(args[1],false,true);
     if(args.Length==2 && args[0]=="--q8-compare-validation") return Q8ValidationRunner.Run(args[1],true,true);
-    if(args.Length==3 && args[0]=="--planner-startup") return StoriesPlannerStartupRunner.Run(args[1],args[2]);
-    if(args.Length==3 && args[0]=="--offload-profile" && args[2] is "on" or "off") return StoriesOffloadValidationRunner.Run(args[1],new(Validation:false,MeasureKernelTime:args[2]=="on",MeasureHostPhases:true));
     if(args.Length==2 && args[0]=="--q8") return Q8ValidationRunner.Run(args[1]);
-    if(args.Length==2 && args[0]=="--offload") return StoriesOffloadValidationRunner.Run(args[1],new());
-    if(args.Length==2 && args[0]=="--offload-benchmark") return StoriesOffloadValidationRunner.Run(args[1],new(Validation:false));
     string mode="required";
     var options=new VulkanOptions(Validation:true);
     for(int i=0;i<args.Length;i++)

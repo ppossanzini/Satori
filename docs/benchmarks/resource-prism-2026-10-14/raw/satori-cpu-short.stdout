@@ -1,0 +1,1 @@
+qwen2.5-coder-7b-instruct-q4_k_m-ctx2048: startup 154.6 ms; prefill 16 tok 4714.8 ms (3.39 tok/s); TTFT 4716.0 ms; decode 16 tok 641.1 ms/tok (1.55 tok/s); peak WS 4711 MiB; plan total 4779 MiB exceeds16GiB=False

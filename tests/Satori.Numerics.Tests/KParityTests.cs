@@ -54,6 +54,38 @@ public sealed class KParityTests
     }
 
     [Theory]
+    [InlineData(3584, 1)]
+    [InlineData(18944, 8)]
+    public void Q4DecodeMatchesThePublicQuantizedCodecs(int columns, int threads)
+    {
+        if (!System.Runtime.Intrinsics.X86.Avx2.IsSupported) return;
+        var cases = JsonDocument.Parse(File.ReadAllText(Path.Combine(GgufTests.Root,
+            "fixtures/operators/q4k-v1.json"))).RootElement.GetProperty("cases").EnumerateArray().ToArray();
+        var shape = new QuantizedMatrixShape(17, columns, BlockQuantization.Q4_K);
+        byte[] payload = new byte[shape.ByteLength];
+        int blocks = columns / Q4KCodec.ElementsPerBlock;
+        for (int row = 0; row < shape.Rows; row++)
+            for (int block = 0; block < blocks; block++)
+                Hex(cases[(row + block) % cases.Length].GetProperty("block_hex").GetString()!)
+                    .CopyTo(payload, (row * blocks + block) * Q4KCodec.BytesPerBlock);
+        float[] input = Enumerable.Range(0, columns).Select(index => (float)Math.Sin(index * 0.017)).ToArray();
+        byte[] activation = new byte[Q8KCodec.RowBytes(columns)];
+        Q8KCodec.QuantizeRow(input, activation);
+        float[] actual = new float[shape.Rows];
+        QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, actual, threads);
+        for (int row = 0; row < shape.Rows; row++)
+        {
+            double expected = 0;
+            for (int block = 0; block < blocks; block++)
+                expected += Q4KCodec.DotBlockQuantized(
+                    payload.AsSpan((row * blocks + block) * Q4KCodec.BytesPerBlock, Q4KCodec.BytesPerBlock),
+                    activation.AsSpan(block * Q8KCodec.BytesPerBlock, Q8KCodec.BytesPerBlock));
+            Assert.True(Math.Abs(actual[row] - expected) <= 1e-3 + 1e-5 * Math.Abs(expected),
+                $"row {row}: {actual[row]} vs {expected}");
+        }
+    }
+
+    [Theory]
     [InlineData("fixtures/operators/q4k-v1.json", BlockQuantization.Q4_K)]
     [InlineData("fixtures/operators/q6k-v1.json", BlockQuantization.Q6_K)]
     public void Avx2MatchesScalarOnEveryBlock(string fixture, BlockQuantization format)

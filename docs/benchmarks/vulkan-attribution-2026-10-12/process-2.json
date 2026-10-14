@@ -1,0 +1,381 @@
+{
+  "TimestampUtc": "2026-10-12T21:43:04.6461857+00:00",
+  "Runtime": ".NET 10.0.12",
+  "Device": {
+    "Index": 0,
+    "Name": "Intel(R) Arc(tm) Graphics (MTL)",
+    "Uuid": "8680557d080000000002000000000000",
+    "VendorId": 32902,
+    "DeviceId": 32085,
+    "ApiVersion": 4211042,
+    "DriverVersion": 109060100,
+    "Software": false,
+    "QueueFamily": 0,
+    "TimestampValidBits": 36,
+    "TimestampPeriod": 52.083332,
+    "MaxStorageBufferRange": 4294967295,
+    "MaxDispatchGroups": 2147483647,
+    "MaxWorkgroupInvocations": 1024,
+    "MaxPushConstantsSize": 256,
+    "MaxStorageDescriptors": 33554432,
+    "MaxMemoryAllocations": 4294967295,
+    "MaxAllocationBytes": 24804756480,
+    "StorageOffsetAlignment": 4,
+    "NonCoherentAtomSize": 64,
+    "MemoryTypeFlags": [
+      7,
+      11,
+      33,
+      7,
+      11
+    ]
+  },
+  "ValidationErrors": 0,
+  "Scope": "Kernel and gap are GPU timestamp windows around each recorded dispatch at the compute stage; they include dispatch overhead, not only arithmetic. Attribution averages cover every append of the run, including the warmups; host samples cover the measured appends only. Resident weights are already uploaded.",
+  "Samples": 10,
+  "HostMedianMs": 77.4928,
+  "HostMedianAllAppendsMs": 77.52090000000001,
+  "HostSamplesMs": [
+    74.7428,
+    77.4928,
+    77.549,
+    75.6072,
+    80.3141,
+    75.2609,
+    81.3373
+  ],
+  "HostAllAppendsMs": [
+    99.3394,
+    72.9771,
+    79.8034,
+    74.7428,
+    77.4928,
+    77.549,
+    75.6072,
+    80.3141,
+    75.2609,
+    81.3373
+  ],
+  "ManagedAllocatedBytes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "DeviceSpanMs": 73.62621174415169,
+  "KernelMs": 65.03327966227351,
+  "GapMs": 8.592932081878276,
+  "IdentityErrorMs": 9.947598300641403E-14,
+  "IdentityToleranceMs": 7.362621174415169E-05,
+  "Checks": {
+    "IdentityWithinTolerance": true,
+    "SpanWithinHostSample": true,
+    "ZeroManagedAllocations": true,
+    "OneSubmissionPerAppend": true
+  },
+  "Groups": [
+    {
+      "Name": "attention",
+      "KernelMs": 7.328150862756729,
+      "GapMs": 0.17136457914962772,
+      "Dispatches": 60
+    },
+    {
+      "Name": "blk.0.attn_k",
+      "KernelMs": 0.1618593710483551,
+      "GapMs": 0.030661457584762568,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.0.attn_output",
+      "KernelMs": 0.17265103745155336,
+      "GapMs": 0.03791666574096679,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.0.attn_q",
+      "KernelMs": 0.16635937093849182,
+      "GapMs": 0.029932290935897825,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.0.attn_v",
+      "KernelMs": 0.1643489543209076,
+      "GapMs": 0.029265624285507198,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.0.ffn_down",
+      "KernelMs": 0.2930364511791229,
+      "GapMs": 0.031218749237823484,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.0.ffn_gate",
+      "KernelMs": 0.30610936752662654,
+      "GapMs": 0.028776040964126587,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.0.ffn_up",
+      "KernelMs": 1.476802047278595,
+      "GapMs": 0.03924999904174804,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.1.attn_k",
+      "KernelMs": 0.16302082935333254,
+      "GapMs": 0.029838540938186647,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.1.attn_output",
+      "KernelMs": 0.16868228754844666,
+      "GapMs": 0.030968749243927,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.1.attn_q",
+      "KernelMs": 0.1598020794319153,
+      "GapMs": 0.028677082633209228,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.1.attn_v",
+      "KernelMs": 2.599505144868851,
+      "GapMs": 0.033249999188232425,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.1.ffn_down",
+      "KernelMs": 0.2854739513637542,
+      "GapMs": 0.029677082608795168,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.1.ffn_gate",
+      "KernelMs": 2.4640207731765744,
+      "GapMs": 0.028682290966415402,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.1.ffn_up",
+      "KernelMs": 1.122713514256668,
+      "GapMs": 0.3346822834957123,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.2.attn_k",
+      "KernelMs": 0.38349478230400086,
+      "GapMs": 0.3158906172878265,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.2.attn_output",
+      "KernelMs": 0.6358645678092957,
+      "GapMs": 0.029265624285507198,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.2.attn_q",
+      "KernelMs": 2.2565520282417295,
+      "GapMs": 0.029588540944290163,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.2.attn_v",
+      "KernelMs": 0.16043228774986268,
+      "GapMs": 0.029203124287033082,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.2.ffn_down",
+      "KernelMs": 2.517541605203247,
+      "GapMs": 0.028984374292373653,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.2.ffn_gate",
+      "KernelMs": 0.31367186734199526,
+      "GapMs": 0.25262499383239756,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.2.ffn_up",
+      "KernelMs": 0.3068020758430481,
+      "GapMs": 0.030249999261474612,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.3.attn_k",
+      "KernelMs": 0.1626406210292816,
+      "GapMs": 0.02920833262023926,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.3.attn_output",
+      "KernelMs": 0.1715833291442871,
+      "GapMs": 0.036822915767669676,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.3.attn_q",
+      "KernelMs": 0.17003124584884644,
+      "GapMs": 0.028510415970611568,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.3.attn_v",
+      "KernelMs": 0.15998437109413147,
+      "GapMs": 0.02859895763511658,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.3.ffn_down",
+      "KernelMs": 0.29979165934753416,
+      "GapMs": 0.2510937438697815,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.3.ffn_gate",
+      "KernelMs": 0.31140624239730835,
+      "GapMs": 0.02871874929885864,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.3.ffn_up",
+      "KernelMs": 0.7377343569889069,
+      "GapMs": 0.03504166581115723,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.4.attn_k",
+      "KernelMs": 0.16232291270370483,
+      "GapMs": 0.02880208263015747,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.4.attn_output",
+      "KernelMs": 0.1642499959899902,
+      "GapMs": 0.028932290960311892,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.4.attn_q",
+      "KernelMs": 0.16271874602737424,
+      "GapMs": 0.028713540965652467,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.4.attn_v",
+      "KernelMs": 2.9460468030750273,
+      "GapMs": 0.3670676993717194,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.4.ffn_down",
+      "KernelMs": 0.28249478476982115,
+      "GapMs": 0.029062499290466316,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.4.ffn_gate",
+      "KernelMs": 3.1097655490779874,
+      "GapMs": 0.02926041595230102,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.4.ffn_up",
+      "KernelMs": 0.3093124924484253,
+      "GapMs": 0.03553645746574401,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.5.attn_k",
+      "KernelMs": 0.16467187097969058,
+      "GapMs": 0.03503645747795105,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.5.attn_output",
+      "KernelMs": 0.49992186279487605,
+      "GapMs": 0.028713540965652467,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.5.attn_q",
+      "KernelMs": 3.4185259582065584,
+      "GapMs": 0.028635415967559814,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.5.attn_v",
+      "KernelMs": 0.15995832942810057,
+      "GapMs": 0.028807290963363645,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.5.ffn_down",
+      "KernelMs": 2.583598895257187,
+      "GapMs": 0.028963540959548957,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.5.ffn_gate",
+      "KernelMs": 0.3145520756538391,
+      "GapMs": 0.3666041577163697,
+      "Dispatches": 10
+    },
+    {
+      "Name": "blk.5.ffn_up",
+      "KernelMs": 0.30573957586898803,
+      "GapMs": 0.029677082608795164,
+      "Dispatches": 10
+    },
+    {
+      "Name": "output",
+      "KernelMs": 15.463145455815127,
+      "GapMs": 0.028572915969085694,
+      "Dispatches": 10
+    },
+    {
+      "Name": "residual",
+      "KernelMs": 3.26406762864418,
+      "GapMs": 1.434984339966202,
+      "Dispatches": 120
+    },
+    {
+      "Name": "rmsnorm",
+      "KernelMs": 2.6786770179359425,
+      "GapMs": 1.103817681384659,
+      "Dispatches": 130
+    },
+    {
+      "Name": "rope",
+      "KernelMs": 1.271843718949127,
+      "GapMs": 0.5834426940891259,
+      "Dispatches": 120
+    },
+    {
+      "Name": "swiglu",
+      "KernelMs": 2.151598905804062,
+      "GapMs": 2.28033848599434,
+      "Dispatches": 60
+    }
+  ],
+  "ResidentStatistics": {
+    "Matrices": 43,
+    "WeightBytes": 16137216,
+    "TableBytes": 39552,
+    "Sessions": 1,
+    "SessionAllocationBytes": 2038528,
+    "CompletedAppends": 10,
+    "SubmissionCount": 10,
+    "FenceWaitCount": 10,
+    "TransferBytes": 1291520,
+    "MatVecDispatches": 430
+  }
+}

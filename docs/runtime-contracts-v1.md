@@ -1,8 +1,6 @@
 # Runtime and Session Contracts v1
 
-Status: DS03. Specification only. No runtime type is implemented here; DS05 onward implements these
-contracts, and DS03 is satisfied when they are unambiguous. `DS03` is a design task and must not
-introduce model-named runtime interfaces.
+Status: specification requiring alignment in P04 after candidate selection. [The product plan](../TASKS.md) governs scope. Only the selected family and memory policy must be implemented. Registry breadth, both state families and streamed sources are conditional on that selection.
 
 ## Principles
 
@@ -46,7 +44,7 @@ activation kind). A missing required key is a `CapabilityGap`, not a default.
 
 ### Two topologies, no nominal dimensions
 
-The same `ModelDefinition` must represent both of these without any hard-coded size:
+Candidate shapes below describe possible requirements. Only the selected shape is required; dimensions must not be hard-coded:
 
 | Topology | Source | Distinguishing descriptors |
 |---|---|---|
@@ -92,7 +90,7 @@ interface IWeightSource : IDisposable
 - A `Lease` keeps the backing bytes valid until it is disposed; disposing a lease after the source is
   disposed must still be safe (mapping-style deferred unmap).
 - Resident source: a validated memory-mapped file (`MappedWeights`); reused as-is.
-- Streamed source: a bounded reader that fetches ranges on demand (DS27). Same interface.
+- Streamed source: a bounded reader that fetches ranges on demand (conditional on P03). Same interface.
 - Shared/tied tensors: two names may resolve to the same `PayloadRange`. The source returns the same
   bytes; the definition records the alias so the model is not counted or loaded twice.
 
@@ -167,9 +165,9 @@ interface IResidencyController
 ```
 
 - A resident set is chosen at construction from the budget and never needs `EnsureResident`.
-- A streamed set is fetched on demand; prefetch (DS29) is bounded by a byte budget and never evicts an
+- A streamed set is fetched on demand; prefetch (conditional on P03) is bounded by a byte budget and never evicts an
   entry that is currently leased.
-- Residency decisions are observable (hit/miss/fetch counts) for the DS31 report.
+- Residency decisions are observable (hit/miss/fetch counts) for the P06 report.
 
 ## 7. Cancellation
 
@@ -177,7 +175,7 @@ interface IResidencyController
 - Cancellation leaves the model definition and any shared weights valid; a cancelled session is reset to
   a consistent state (position and state either both advanced or both unchanged) and may be reused or
   disposed.
-- A cancelled or failed load must never become a cache hit (DS28).
+- A cancelled or failed load must never become a cache hit (P06).
 
 ## 8. Error and Lifetime Invariants
 
@@ -217,4 +215,4 @@ core, and never leak a model name into core interfaces.
 ## Non-Goals
 
 - No KV persistence to SSD, no training, no server/UI, no model-named runtime types.
-- No planner that presumes GPU advantage; backend selection is a later, measured concern (DS39).
+- No planner that presumes GPU advantage; backend selection is a later, measured concern (P07).

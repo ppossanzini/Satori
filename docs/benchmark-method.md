@@ -1,33 +1,33 @@
-# Metodo del laboratorio numerico
+# Numerical Laboratory Method
 
-Corpus v1: xorshift32 con seed 1729, conversione a 24 bit definita nel generatore. I byte non dipendono dall'implementazione di `System.Random`. Nove famiglie critiche per ciascuno dei tre block size; nove combinazioni aggiuntive per le matrici di benchmark 1024², 2048², 4096². Il confronto CPU verifica entrambe le implementazioni: 72 risultati numerici per esecuzione. I test SIMD aggiungono dimensioni che attraversano tutte le code da uno a sette elementi.
+Corpus v1: xorshift32 with seed 1729, with 24-bit conversion defined in the generator. Bytes do not depend on the `System.Random` implementation. Nine critical families for each of the three block sizes; nine additional combinations for benchmark matrices 1024², 2048², 4096². The CPU comparison checks both implementations: 72 numerical results per run. SIMD tests add dimensions covering all tails from one to seven elements.
 
-## Errori distinti
+## Separate Errors
 
-- `WeightQuantizationRms`: differenza tra pesi FP32 originali e pesi ricostruiti.
-- `OutputQuantizationRms`: differenza tra le due MatVec FP64, rispettivamente sui pesi originali e ricostruiti.
-- `KernelRms` e `KernelMaxAbsoluteError`: differenza tra kernel FP32 e reference FP64 sui medesimi pesi ricostruiti.
+- `WeightQuantizationRms`: difference between original FP32 weights and reconstructed weights.
+- `OutputQuantizationRms`: difference between the two FP64 MatVec results, on original and reconstructed weights respectively.
+- `KernelRms` and `KernelMaxAbsoluteError`: difference between the FP32 kernel and FP64 reference on the same reconstructed weights.
 
-Per ogni riga, il limite del kernel è `gamma(n) × sum(abs(wq × x)) + (columns + blocks) × float.Epsilon`, dove `n = blockSize + blocks + 2` e `gamma(n) = n × 2^-24 / (1 - n × 2^-24)`. È un limite conservativo per questo percorso di accumulo, in assenza di overflow intermedio. I casi con scala massima usano attivazioni piccole per mantenere i risultati finiti. Non è una garanzia per input arbitrari che causano overflow FP32. Il rapporto errore/limite deve essere ≤ 1 per ogni riga, con risultato finito.
+For each row, the kernel bound is `gamma(n) × sum(abs(wq × x)) + (columns + blocks) × float.Epsilon`, where `n = blockSize + blocks + 2` and `gamma(n) = n × 2^-24 / (1 - n × 2^-24)`. This is a conservative bound for this accumulation path, without intermediate overflow. Maximum-scale cases use small activations to keep results finite. It is not a guarantee for arbitrary inputs causing FP32 overflow. The error/bound ratio must be ≤ 1 for every row, with a finite result.
 
-## Prestazioni
+## Performance
 
-BenchmarkDotNet 0.14.0, toolchain in-process, job breve con tre warm-up e tre iterazioni misurate, tempo target 200 ms per iterazione. La toolchain evita la creazione di eseguibili temporanei. Il setup genera e quantizza una matrice per caso fuori dal tempo misurato; gli array originali non vengono trattenuti dal benchmark. Il kernel elabora il payload compatto con input e output preallocati.
+BenchmarkDotNet 0.14.0, in-process toolchain, short job with three warm-ups and three measured iterations, target time 200 ms per iteration. The toolchain avoids creating temporary executables. Setup generates and quantizes a matrix per case outside measured time; the benchmark does not retain original arrays. The kernel processes the compact payload with preallocated input and output.
 
-Il JSON riporta latenza media, deviazione standard, operazioni/s, byte/peso, banda effettiva dei pesi e allocazioni gestite per operazione. La banda è `packedBytes / elapsedSeconds / 10^9`; non include letture ripetute delle attivazioni, traffico cache o scritture output. Il report BenchmarkDotNet conserva hardware e intervalli di confidenza.
+JSON reports mean latency, standard deviation, operations/s, bytes/weight, effective weight bandwidth and managed allocations per operation. Bandwidth is `packedBytes / elapsedSeconds / 10^9`; it excludes repeated activation reads, cache traffic and output writes. The BenchmarkDotNet report preserves hardware and confidence intervals.
 
-Le misure sono sintetiche e a caldo. Cache, frequenza CPU, scheduling e temperatura influenzano i risultati. Non misurano cold start, picco di memoria del processo, energia o token/s; non dimostrano qualità di un modello. Il job breve è adatto alla baseline iniziale, non a dichiarare piccoli vantaggi fra kernel. La verifica delle allocazioni con contatore del thread nei test critici è distinta dalla diagnosi BenchmarkDotNet.
+Measurements are synthetic and warm. Cache, CPU frequency, scheduling and temperature affect results. They do not measure cold start, peak process memory, energy or token/s; they do not demonstrate model quality. The short job suits an initial baseline, not claims of small advantages between kernels. Allocation checks using the thread counter in critical tests are separate from BenchmarkDotNet diagnostics.
 
-## Confronto CPU
+## CPU Comparison
 
-`Scalar` usa sempre il kernel scalar. `Avx2OrScalar` usa AVX2 se il runtime lo abilita, altrimenti il kernel scalar. Entrambi elaborano gli stessi pesi quantizzati con il medesimo seed; non confrontano matrici quantizzate diversamente. Il kernel AVX2 decodifica otto pesi da due byte, applica maschere per zero e segno alle attivazioni, accumula otto lane FP32 e riduce ogni blocco; gli ultimi elementi vengono elaborati scalar. Il diverso ordine di accumulo può cambiare gli ultimi bit, quindi la correttezza si verifica rispetto alla reference FP64 e al limite numerico, non tramite uguaglianza bit per bit tra i kernel.
+`Scalar` always uses the scalar kernel. `Avx2OrScalar` uses AVX2 if the runtime enables it, otherwise the scalar kernel. Both process the same quantized weights with the same seed; they do not compare differently quantized matrices. The AVX2 kernel decodes eight weights from two bytes, applies zero and sign masks to activations, accumulates eight FP32 lanes and reduces each block; final elements are processed by the scalar kernel. Different accumulation orders may change the last bits, so correctness is checked against the FP64 reference and numerical bound, not through bitwise equality between kernels.
 
-Per provare il fallback su una CPU AVX2, eseguire i test con `DOTNET_EnableAVX2=0`. La disabilitazione riguarda soltanto quel processo. Il benchmark esporta i nomi dei metodi in `performance.json` e la capacità reale in `environment.json`; i risultati numerici identificano il kernel effettivo. Ogni nuova esecuzione sovrascrive i report rigenerabili: salvare lo snapshot prima della successiva.
+To test fallback on an AVX2 CPU, run tests with `DOTNET_EnableAVX2=0`. Disabling applies only to that process. The benchmark exports method names in `performance.json` and actual capabilities in `environment.json`; numerical results identify the actual kernel. Each new run overwrites regenerable reports: preserve the snapshot before the next run.
 
-## Mapping: avvio e regime
+## Mapping: Startup and Steady State
 
-L'opzione `--mapped` confronta `OwnedAuto` e `MappedAuto` su matrici 1024², 2048², 4096² con blocchi da 64. Il job misura il regime dopo warm-up; apertura, validazione e scrittura del file sono escluse. Il percorso mapped include acquisizione/rilascio protetto del mapping per ogni MatVec. Entrambi i percorsi usano gli stessi kernel e gli stessi dati.
+The `--mapped` option compares `OwnedAuto` and `MappedAuto` on 1024², 2048², 4096² matrices with blocks of 64. The job measures steady state after warm-up; opening, validation and file writing are excluded. The mapped path includes protected mapping acquisition/release for each MatVec. Both paths use the same kernels and data.
 
-`startup.json` riporta separatamente tre prove per dimensione: apertura più validazione completa del payload, primo calcolo successivo, identità con il risultato in memoria. Il codice numerico viene scaldato prima con la matrice in memoria, ma il primo accesso mapped può ancora includere inizializzazioni della callback. Queste prove sono misure di ciclo di vita, non benchmark statistici di SSD.
+`startup.json` separately reports three trials per size: opening plus full payload validation, first subsequent computation, identity with the in-memory result. Numerical code is warmed up first with the in-memory matrix, but the first mapped access may still include callback initialization. These trials measure lifecycle behavior, not statistical SSD benchmarks.
 
-I file vengono scritti poco prima delle misure, senza espulsione della page cache. Inoltre la validazione iniziale tocca il payload: il primo calcolo non è un accesso a storage freddo. Non si attribuisce quindi al mapping una velocità di avvio a freddo dimostrata. Fixture e file di benchmark vengono creati in directory uniche sotto `.temp/t10/` e rimossi dai loro proprietari.
+Files are written shortly before measurements, without page-cache eviction. Initial validation also touches the payload: the first computation is not a cold-storage access. No demonstrated cold-start speed is therefore attributed to mapping. Fixtures and benchmark files are created in unique directories under `.temp/t10/` and removed by their owners.

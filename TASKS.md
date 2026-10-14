@@ -1,27 +1,41 @@
 # Satori Work Plan
 
-Final goal: a multi-model inference engine for generic models within explicitly supported architectures and tensor formats, optimized for aggressively quantized models, including ternary models. The engine uses an independent .NET runtime, memory-mapped weights, a verified CPU backend and measured Vulkan acceleration. Initial target: Intel/AMD mini PCs with 16 GB of RAM. Metal and ROCm remain future extensions.
+Final goal: useful local coding assistance on Intel/AMD PCs with 16 GB RAM while the IDE, browser and compiler remain usable. Satori is an independent .NET runtime specialized in a small set of selected coding model families.
 
-Support up to 27B is a goal conditional on model, quantization, context and available memory; it does not imply guaranteed speed. Experimental ternary support does not imply that a converted conventional model retains its original quality.
+Binding product direction: [coding locale](docs/adr/current/product.md). Numerical and product validation: [validation protocol](docs/validation-protocol-v1.md). Test machines and roles are fixed in its hardware section; the Geekom A5 is the primary test host.
 
 ## Mandatory Product Requirements
 
 | ID | Requirement | Acceptance Criterion |
 |---|---|---|
-| R-MM | The engine MUST support multiple models. A regression fixture must not define the engine architecture. | Run at least two distinct model artifacts with different topology dimensions through the same runtime and session contracts. Validate each against independent references. Adding a model within supported capabilities must not require model-named runtime interfaces or hard-coded execution dimensions. |
-| R-CAP | Model architecture, tensor quantization and execution backend MUST be separate capabilities. Generic support is bounded by an explicit capability matrix. | Read and validate model metadata and tensor shapes before execution. Derive workspace and KV sizes from the validated model and context. Reject unsupported architecture, tokenizer, operator or format with an explicit reason before generation. |
-| R-QUANT | The engine MUST optimize aggressively quantized inference, including ternary weights, without restricting inference to ternary or one model family. | Validate end-to-end inference for a supported ternary model and a supported non-ternary model. Keep compressed weights without permanent full-model FP32 expansion. Verify each format against independent numerical references; assess conversion quality separately from kernel correctness. |
-| R-PERF | Speed and bounded memory on small machines MUST govern the roadmap. A small-fixture result alone cannot establish product performance. | Declare model, quantization, context, hardware, RAM budget and performance targets before optimization. Measure startup, prefill, TTFT, decode and peak memory on representative workloads, including a coding model. Report target attainment and CPU/GPU comparisons without extrapolating from the small fixture. |
+| R-MM | Support the selected coding family and its declared compatible artifacts. Architecture breadth is not a release goal. | Artifact dimensions and state sizes come from validated metadata. Compatible sizes reuse the runtime. New families require explicit scope and validation. |
+| R-CAP | Separate architecture, tokenizer, codec, transformations, backend and memory policy. | Validate every required capability before generation. Reject unsupported artifacts with explicit reasons. Implement only capabilities required by the selected path. |
+| R-QUANT | Preserve compressed weights and select quantization by measured coding utility. | Compare a Q4 coding reference, APEX/MoE and Bonsai ternary in reference runtimes before selecting the main implementation path. Validate selected codecs independently. No permanent full-model FP32 expansion. Ternary product support depends on comparison results; BitNet is not a prerequisite. |
+| R-PERF | Coding quality and PC responsiveness govern delivery. | Meet the validation protocol on representative C# tasks while IDE, browser and compiler run. Measure startup, prefill, TTFT, decode, total runtime memory and contention. No kernel-only result establishes product performance. |
+| R-RES | Bound runtime memory, compute and I/O. | Account for compressed weights, state, scratch, staging and prefetch. Enforce context and cache limits. Provide compute limits and cancellation. Demonstrate compliance without sustained swap pressure. |
 
 ## Execution Rules
 
-Current scope: Model-specific Vulkan offload, resident graphs, planner, diagnostic runners and their tests have been removed. CPU reference inference and reusable numerical/Vulkan primitives remain. The completion evidence below records historical verification, not availability of the removed paths.
+Current implementation includes CPU regression inference, mapped GGUF readers, quantized CPU kernels and reusable Vulkan primitives. Candidate models are not executable product support.
 
-Status: **historical tasks T01–T45 verified in their original scope**. Reusable mapped GGUF readers, quantized scalar/AVX2 kernels and Vulkan primitives remain. Earlier model-specific inference, offload and planner milestones do not establish multi-model product support. The removed optimization paths are not current capabilities. Verification history is retained in [TASK-LOG.md](TASK-LOG.md); the mandatory requirements and replanning gate below govern future work.
+T01–T45 below are historical verification scope. They are not the next executable roadmap. Historical model-specific GPU paths do not establish current capabilities. Evidence remains in [TASK-LOG.md](TASK-LOG.md).
 
-Updated verification policy: no tests for bootstrap, configuration or simple steps; use builds and demos. Add tests only for critical invariants of format, numerical correctness, memory/lifetime, SIMD, GPU and inference.
+The next executable sequence is P01–P08. Execute one task at a time. Complete its verification before proceeding. Reference-runtime comparison precedes candidate-specific Satori implementation.
 
-Execute one task at a time in the listed order. Each task depends on the previous one, except T01. Mark completed only after verification. Decision tasks produce a specification before dependent implementation. No task includes functionality from later phases. Completed profile-specific tasks establish only their verified scope; they do not satisfy R-MM, R-CAP, R-QUANT or R-PERF by themselves.
+Tests cover critical format, numerical, memory/lifetime and inference behaviour. Documentation changes require consistency checks, not runtime tests.
+
+## Product Execution Plan
+
+| ID | Task | Dependencies | Verification / deliverable | Requirements |
+|---|---|---|---|---|
+| P01 | Fix the comparison configuration and workload | None | Pin exact Qwen2.5-Coder 7B Q4_K_M, Tiel-Coder APEX-I-NanoPlus and Bonsai-2 27B PTQ1_0 artifacts and compatible reference runtimes. Record licenses, hardware, thread limits, contexts, C# corpus and concurrent IDE/browser/build workload. Resolve open acceptance thresholds before P02. | R-QUANT, R-PERF, R-RES |
+| P02 | Compare candidates in reference runtimes | P01 | Reproducible quality, startup, prefill, TTFT, decode, memory and responsiveness reports. Q4 and Bonsai use resident execution where feasible. APEX compares feasible resident and bounded expert-loading configurations. Report unavailable paths and budget failures explicitly. No Satori runtime is required. | R-QUANT, R-PERF, R-RES |
+| P03 | Select one primary implementation path | P02 | Select one artifact/family and one external comparison baseline using measured utility. Record required capabilities, target budget and evidence. Reduce scope or stop if no candidate meets the product criteria. No automatic commitment to both APEX and Bonsai. | R-MM, R-CAP, R-QUANT, R-PERF |
+| P04 | Lock the selected runtime and resource contracts | P03 | Align capability matrix and runtime contracts with the selected path. Specify state, tokenizer, codecs, cancellation, context, compute limits and memory enforcement. Streaming is required only if selected by evidence. | R-MM, R-CAP, R-RES |
+| P05 | Implement the selected CPU inference path | P04 | Ordered subtasks derived from the selected gaps. Independent codec/operator references, tokenizer parity and end-to-end inference parity on the pinned artifact. Reuse existing kernels. | R-MM, R-CAP, R-QUANT |
+| P06 | Enforce resource limits during real coding | P05 | Validate memory and context bounds, compute controls, cancellation and recovery. For a streamed path, validate bounded cache/prefetch, load failures, bytes/token and cold/warm behaviour. Run the concurrent workload. | R-RES, R-PERF |
+| P07 | Optimize measured bottlenecks | P06 | Prioritize by end-to-end measurements. Add Vulkan only where it improves the selected workload within the shared memory budget. Compare on identical artifacts and settings. | R-PERF, R-RES |
+| P08 | Validate the release scope | P07 | Repeat the fixed quality and concurrent-workload protocol. Publish supported artifacts, operating limits and reproducible results. Add a compatible size only if it serves an observed use case. | R-MM, R-CAP, R-QUANT, R-PERF, R-RES |
 
 ## A — CPU Numerical Laboratory
 
@@ -90,34 +104,10 @@ Context: verified CPU as reference; a compatible GPU is required to complete har
 
 Milestone D: usable Vulkan acceleration with advantages and limits documented on tested hardware.
 
-## D2 — Vulkan Optimization
+## Deferred Scope
 
-**Model-specific optimization roadmap removed. T46–T50 are cancelled in their previous formulation.** Raw measurement files remain historical evidence. Reusable primitives remain subject to the multi-model requirements; no model-specific optimization sequence is carried forward.
-
-### Replanning Gate
-
-Next work item: define the supported capability matrix and representative validation models. This is a planning step, not authorization to implement another model-specific runtime. No model has been selected as the product architecture.
-
-Before resuming implementation:
-
-1. Define the architecture, tokenizer, operator and tensor-format capability matrix required by R-CAP and R-QUANT.
-2. Specify model-independent runtime/session contracts and metadata-driven memory planning required by R-MM. Keep existing small-model artifacts as regression fixtures.
-3. Select representative validation artifacts and coding workloads; fix numerical, quality, memory and performance criteria required by R-PERF.
-4. Replace the pending roadmap with ordered tasks, dependencies and acceptance criteria traced to R-MM, R-CAP, R-QUANT and R-PERF. Reuse existing kernels and backend infrastructure where compatible.
-
-Runtime contracts must satisfy the mandatory product requirements before dependent tasks become executable. Requirements stay in this plan; implementation details stay in the relevant technical documentation. No ADRs or equivalent decision-record systems are created.
-
-## E — Extensions After the Baseline
-
-These candidates are not an executable sequence. Multi-model support and ternary inference are mandatory baseline requirements, not optional extensions. The replanning gate determines which candidates are required for the baseline and which remain future work.
-
-1. Add Q2/Q4_K formats required by selected models.
-2. Evaluate TernaryBase3/LUT on identical matrices and scales.
-3. Validate a natively ternary model before extending the runtime.
-4. Evaluate post-training ternary conversions with independent quality metrics.
-5. Add 7–9B profiles and later 20–27B within measured budgets.
-6. Evaluate AVX-512 where available.
-7. Specify a Metal backend for Apple Silicon, including the ARM64 CPU path.
-8. Specify a ROCm backend on actually supported AMD GPUs.
-
-Metal and ROCm are notes for future work, not dependencies for completing the first version.
+- Additional architectures, BitNet and additional quantization recipes require a measured product need.
+- APEX expert caching and AirLLM-style layer streaming are candidate memory policies. Neither is mandatory before P03.
+- Streaming must report SSD traffic and contention; low VRAM alone does not establish low total memory.
+- Metal, ROCm, vision, training, server and graphical interface are outside this delivery plan.
+- Parameter count and maximum context are not release promises.

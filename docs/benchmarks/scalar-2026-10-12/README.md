@@ -1,8 +1,8 @@
-# Baseline scalar — 12 ottobre 2026
+# Scalar Baseline — October 12, 2026
 
-Intel Core Ultra 7 155H, Arch Linux x64, .NET 10.0.12, SDK 10.0.112. Kernel scalar a un thread; BenchmarkDotNet 0.14.0 in-process, tre iterazioni da circa 200 ms dopo warm-up.
+Intel Core Ultra 7 155H, Arch Linux x64, .NET 10.0.12, SDK 10.0.112. Single-threaded scalar kernel; BenchmarkDotNet 0.14.0 in-process, three iterations of approximately 200 ms after warm-up.
 
-| Matrice | Block size | Media ms | Deviazione standard ms | Byte/peso | GB/s effettivi | Allocazioni byte/op |
+| Matrix | Block Size | Mean ms | Standard Deviation ms | Bytes/Weight | Effective GB/s | Allocated Bytes/Op |
 |---|---:|---:|---:|---:|---:|---:|
 | 1024² | 64 | 7.555 | 0.159 | 0.312500 | 0.0434 | 0 |
 | 1024² | 128 | 9.151 | 0.536 | 0.281250 | 0.0322 | 0 |
@@ -14,8 +14,8 @@ Intel Core Ultra 7 155H, Arch Linux x64, .NET 10.0.12, SDK 10.0.112. Kernel scal
 | 4096² | 128 | 179.409 | 3.867 | 0.281250 | 0.0263 | 0 |
 | 4096² | 256 | 161.493 | 7.048 | 0.265625 | 0.0276 | 0 |
 
-36/36 verifiche numeriche superate. Nove misure di prestazioni concluse. I report JSON conservano errori, ambiente e misure complete; `benchmarkdotnet.md` riporta gli intervalli di confidenza.
+36/36 numerical checks passed. Nine performance measurements completed. JSON reports retain errors, environment and full measurements; `benchmarkdotnet.md` reports confidence intervals.
 
-Questa esecuzione breve presenta dispersione e intervalli di confidenza ampi. La priorità alta richiesta da BenchmarkDotNet non è stata concessa dal sistema; processo a priorità ordinaria. Le differenze fra block size non dimostrano un vantaggio ripetibile. Confrontare scalar e AVX2 nello stesso protocollo, ripetendo le misure su hardware stabile prima di scegliere un kernel.
+This short run has dispersion and wide confidence intervals. The system did not grant the high priority requested by BenchmarkDotNet; the process ran at normal priority. Differences between block sizes do not demonstrate a repeatable advantage. Compare scalar and AVX2 under the same protocol, repeating measurements on stable hardware before selecting a kernel.
 
-Le misure includono la decodifica, escludono quantizzazione e setup. La banda effettiva dei pesi non è la banda RAM misurata. Nessuna conclusione su token/s o qualità LLM. Metodo in [benchmark-method.md](../../benchmark-method.md).
+Measurements include decoding and exclude quantization and setup. Effective weight bandwidth is not measured RAM bandwidth. No conclusions about token/s or LLM quality. Method: [benchmark-method.md](../../benchmark-method.md).

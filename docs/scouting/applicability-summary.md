@@ -1,6 +1,8 @@
 # Idee applicabili a Satori
 
-Target: runtime .NET multi-modello, CPU Intel/AMD, Vulkan, 16 GB RAM e pesi compressi. Metal e ROCm restano estensioni future. Streaming e cache sono parte dello scouting per ampliare i modelli eseguibili oltre il working set residente. Le valutazioni sono proposte; nessun percorso nuovo è implementato o misurato sul target.
+Current product scope and execution order: [P01–P08](../../TASKS.md#product-execution-plan). Candidate and capability proposals below are scouting evidence; they do not authorize a broader implementation sequence.
+
+Target: runtime .NET per coding locale su CPU Intel/AMD con 16 GB RAM e pesi compressi. Vulkan è condizionato alle misure. Metal e ROCm restano estensioni future. Streaming e cache sono parte dello scouting per ampliare i modelli eseguibili oltre il working set residente. Le valutazioni sono proposte; nessun percorso nuovo è implementato o misurato sul target.
 
 ## Matrice di applicabilità
 
@@ -68,4 +70,4 @@ Nel [fork Prism verificato](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd20
 4. Parità su percorsi critici: decoder/dot, routing top-k, trasformazioni Hadamard, aggiornamento dello stato ibrido e gestione errori/lifetime.
 5. Inferenza reale: startup, prefill, TTFT, decode e picco memoria a 2K/4K; qualità coding e italiano con output lunghi. Stabilire soglie accettabili prima di dichiarare il risultato.
 
-Priorità proposta: contratti generici e inventario; codec K/IQ condivisi; prototipo di cache esperti per APEX; percorso ternary/rotazioni Bonsai. Le due esplorazioni possono avanzare senza fissare un solo modello come architettura del prodotto.
+La selezione del percorso principale segue P01–P03. Codec, cache esperti e rotazioni sono implementati solo quando richiesti dal percorso selezionato.

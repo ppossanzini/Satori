@@ -1,6 +1,8 @@
 # Scouting: modelli locali e kernel
 
-Verifica: 13 ottobre 2026. Target invariato: motore .NET multi-modello, CPU Intel/AMD e Vulkan, 16 GB RAM, quantizzazioni aggressive e ternary. Le proposte sotto non fissano un nuovo modello come architettura del prodotto. Nessun peso scaricato, codice esterno eseguito o benchmark locale svolto in questo scouting.
+Current product scope and execution order: [P01–P08](../../TASKS.md#product-execution-plan). Candidate and capability proposals below are scouting evidence; they do not authorize a broader implementation sequence.
+
+Verifica: 13 ottobre 2026. Target: coding locale su CPU Intel/AMD con 16 GB RAM e pesi compressi; Vulkan condizionato alle misure. Le proposte sotto non fissano un nuovo modello come architettura del prodotto. Nessun peso scaricato, codice esterno eseguito o benchmark locale svolto in questo scouting.
 
 ## Candidate models
 
@@ -13,7 +15,7 @@ Dimensioni effettive degli artefatti ufficiali Hugging Face, in GB decimali. KV 
 | [Qwen2.5-Coder 14B Instruct](https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct-GGUF) | Q4_0 8,518; Q8_0 15,702; Q4_K_M 8,988; Q2_K 5,770 | 768 MiB | Candidato CPU successivo con budget esplicito; Q8 non adatto al budget 16 GB |
 | [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) | Q8_0 4,280; Q4_K_M 2,497 | 576 MiB | Seconda architettura e carico generalista; Q8 evita inizialmente nuovi codec |
 | [Qwen3 8B](https://huggingface.co/Qwen/Qwen3-8B-GGUF) | Q8_0 8,710; Q4_K_M 5,028 | 576 MiB | Alternativa generalista più pesante, dopo 4B |
-| [BitNet b1.58 2B4T](https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf) | I2_S 1,188 | 300 MiB | Primo ternary nativo: requisito R-QUANT, percorso dedicato al formato |
+| [BitNet b1.58 2B4T](https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf) | I2_S 1,188 | 300 MiB | Candidato ternary nativo di scouting; non richiesto dalla prima consegna |
 | [SmolLM2 1.7B Instruct](https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF) | Q4_K_M 1,056 | 768 MiB | Alternativa architettura Llama; il file ufficiale verificato richiede codec K |
 
 Qwen e SmolLM2: Apache-2.0; BitNet: MIT. Non è una classifica di qualità misurata. I modelli coding devono superare test di compilazione/esecuzione su C# e altri linguaggi dichiarati; per uso italiano servono prompt dedicati. Revisioni, byte esatti, SHA degli artefatti quando esposti e topologie sono in [evidence-2026-10-13.json](evidence-2026-10-13.json).
@@ -33,6 +35,8 @@ Q2_K permette un candidato coding 14B da 5,77 GB di pesi, ma richiede un nuovo c
 BitNet usa W1.58A8, BitLinear, subln, ReLU² e tokenizer Llama 3; il GGUF I2_S non è STQ2/STB1. Vanno rispettate scale e quantizzazione delle attivazioni, non convertiti arbitrariamente i pesi di un modello ordinario in ternary. Riferimenti: [scheda ufficiale](https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf), [kernel BitNet](https://github.com/microsoft/BitNet/blob/main/src/ggml-bitnet-lut.cpp).
 
 ## Solution scouting
+
+[Scouting della letteratura sulla quantizzazione, 13 ottobre 2026](quantization-literature-2026-10-13.md): PTQ, kernel CPU LUT, ternary e KV; priorità sperimentali per macchine piccole. Le raccomandazioni non modificano il percorso prodotto selezionato.
 
 Criteri di esclusione: dipendenza obbligatoria CUDA/PyTorch nel runtime .NET; espansione permanente di tutti i pesi; memoria non limitata; risultati con calcolo simulato presentati come inferenza; modello unico incorporato nelle API. Ospitare il calcolo in un servizio esterno non soddisfa il requisito locale indipendente.
 
@@ -57,12 +61,6 @@ Ricerca coperta: repository richiesti, ggml/BitNet, asset locali e skill disponi
 
 Capacità decisiva: generare su un modello coding utile entro RAM e latenza interattiva misurate. Nessuna velocità minima è stata ancora approvata; non si può dichiarare raggiunto R-PERF. Conclusione: realizzabile per il perimetro denso 1,5–7B e ternary 2B come ipotesi da validare; 14B condizionato al budget; 27B+ non è una baseline garantita; APEX e Bonsai sono candidati esplorativi con percorsi di memoria e operatori descritti nel riepilogo.
 
-## Proposed validation order
+## Validation order
 
-1. Inventario dei tensori e capability matrix per Qwen2.5-Coder 1.5B/7B, Qwen3 4B e BitNet 2B, prima di scaricare pesi completi.
-2. Runtime/sessioni generici e tokenizer verificati; Q4_0/Q8_0 CPU su coding piccolo e 7B, senza adattare il motore a un nome.
-3. Percorso BitNet I2_S/W1.58A8 e seconda architettura; confronti numerici e qualità distinti dai soli codec.
-4. Benchmark del target CPU/Vulkan con RAM condivisa, prefill e decode separati; Q4_K/Q6_K come prima estensione e UD-IQ3_XXS come confronto successivo, secondo la valutazione dei formati.
-5. Streaming SSD e MoE solo con un caso che non entra in RAM e metriche I/O che giustificano il costo.
-
-Questo è scouting, non autorizzazione implicita a implementare la sequenza o selezione definitiva di un modello. Non cambia i requisiti di TASKS.md.
+[Il piano prodotto](../../TASKS.md#product-execution-plan) fissa confronto nei runtime di riferimento, selezione di un percorso principale e implementazione delle sole capability necessarie. Gli inventari restano evidenza riutilizzabile.

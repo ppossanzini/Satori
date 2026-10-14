@@ -19,8 +19,8 @@ could not fit: the flag was advice. `InferenceOptions` now carries `BudgetBytes`
 plan **before its first large allocation** and throws with the three accounts named:
 
 ```
-The session needs 8117944320 bytes and the budget is 4294967296:
-weights 4683073536, state 301989888, workspace 3132866560.
+The session needs 5245904896 bytes and the budget is 4294967296:
+weights 4677120000, state 469762048, workspace 99022848.
 ```
 
 The refusal is worth more than the warning it replaces: a session that starts and dies later on an allocation
@@ -86,10 +86,10 @@ was more alarming than the right one and would have sent the next hour into a de
 
 ## Still open in this subtask
 
-- **No sustained swap** is not yet measured. It needs a workload that presses the budget on a machine whose
-  resident set does not fit, which is a measurement on a constrained host and not a code change.
-- The concurrent workload and the frozen C# corpus that the plan requires before DW06.8's quality gate are the
-  owner's to freeze; neither exists yet, so the pass-rate gate is not run.
+- Intel windows recorded zero swap, including Satori inside a 12 GiB/no-swap cgroup. Primary-host verification remains open.
+- Corpus and Intel workload were owner-approved on 2026-10-14. Exact corpus fixtures and quality scoring
+  remain open. New resource corrections, cancellation and Prism results:
+  [resource report](../resource-prism-2026-10-14/README.md).
 
 ## What is not claimed
 

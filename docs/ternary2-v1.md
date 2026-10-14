@@ -1,34 +1,34 @@
 # Ternary2 v1
 
-Formato sperimentale interno, distinto dai formati GGUF. Matrice row-major con righe positive e colonne positive. Blocchi di 64, 128 o 256 pesi, senza attraversare le righe. L'ultimo blocco di ogni riga è completato con zeri.
+Internal experimental format, distinct from GGUF formats. Row-major matrix with positive row and column counts. Blocks of 64, 128 or 256 weights, without crossing rows. The last block of each row is padded with zeros.
 
-Ogni blocco occupa `4 + blockSize / 4` byte: scala FP32 IEEE754 little-endian, poi pesi a due bit. Nel byte, il primo peso occupa i bit 0–1; seguono 2–3, 4–5, 6–7. `00 = 0`, `01 = +1`, `10 = -1`, `11` invalido. Peso ricostruito: codice con segno × scala. Scala finita non negativa; blocchi nulli hanno scala +0 e payload nullo. Padding sempre nullo. Con scala zero anche tutti i pesi logici devono essere nulli.
+Each block occupies `4 + blockSize / 4` bytes: little-endian IEEE754 FP32 scale, followed by two-bit weights. Within a byte, the first weight occupies bits 0–1; bits 2–3, 4–5, 6–7 follow. `00 = 0`, `01 = +1`, `10 = -1`, `11` is invalid. Reconstructed weight: signed code × scale. The scale is finite and nonnegative; zero blocks have scale +0 and a zero payload. Padding is always zero. With a zero scale, all logical weights must also be zero.
 
-Quantizzazione deterministica: scala = media dei valori assoluti dei soli pesi validi del blocco, accumulata FP64 e convertita FP32. Se scala zero, il blocco è nullo. Altrimenti scegliere +1 per `x > scala / 2`, −1 per `x < −scala / 2`, zero negli altri casi, inclusi i pareggi. Soglia calcolata in FP64 per evitare underflow sui subnormal. Non è una quantizzazione calibrata per qualità LLM.
+Deterministic quantization: scale = mean absolute value of valid weights in the block only, accumulated in FP64 and converted to FP32. If the scale is zero, the block is zero. Otherwise select +1 for `x > scale / 2`, −1 for `x < −scale / 2`, and zero otherwise, including ties. The threshold is computed in FP64 to avoid underflow on subnormals. This quantization is not calibrated for LLM quality.
 
-Input non finiti rifiutati. Dimensioni e lunghezze calcolate con overflow controllato; ogni payload di matrice ammette al massimo `int.MaxValue` byte. L'importazione in memoria copia e valida il payload prima di renderlo disponibile ai kernel. Il payload grezzo non contiene un header: forma e block size sono argomenti espliciti. Il contenitore di file STQ2 descritto sotto aggiunge questi metadati.
+Nonfinite inputs are rejected. Dimensions and lengths use checked arithmetic; each matrix payload allows at most `int.MaxValue` bytes. In-memory import copies and validates the payload before making it available to kernels. The raw payload contains no header: shape and block size are explicit arguments. The STQ2 file container below adds this metadata.
 
-Esempio: blocco da 64, primi quattro valori `[2, -2, 0, 0]`, altri zero. Scala = 0,0625; primi quattro byte `00 00 80 3D`, primo byte pesi `09`, rimanenti 15 byte pesi nulli. Un blocco tutto zero occupa 20 byte nulli.
+Example: block of 64, first four values `[2, -2, 0, 0]`, all others zero. Scale = 0.0625; first four bytes `00 00 80 3D`, first weight byte `09`, remaining 15 weight bytes zero. An all-zero block occupies 20 zero bytes.
 
-MatVec: attivazioni FP32, somma FP32 dei contributi con segno per blocco, moltiplicazione per scala, accumulo FP32 tra blocchi. Nessuna espansione completa o allocazione nel kernel. L'errore di accumulo va confrontato con FP64 sugli stessi pesi ricostruiti; l'errore di quantizzazione va misurato separatamente rispetto ai pesi originali.
+MatVec: FP32 activations, FP32 sum of signed contributions per block, multiplication by scale, FP32 accumulation across blocks. No full expansion or allocation in the kernel. Accumulation error must be compared with FP64 on the same reconstructed weights; quantization error must be measured separately against original weights.
 
-## Contenitore STQ2 v1
+## STQ2 v1 Container
 
-File little-endian: header fisso di 32 byte, seguito dal payload Ternary2 v1. Nessun dato finale aggiuntivo ammesso.
+Little-endian file: fixed 32-byte header, followed by the Ternary2 v1 payload. No additional trailing data is allowed.
 
-| Offset | Tipo | Contenuto |
+| Offset | Type | Content |
 |---:|---|---|
-| 0 | 4 byte ASCII | `STQ2` |
-| 4 | UInt16 | Versione: 1 |
-| 6 | UInt16 | Lunghezza header: 32 |
-| 8 | Int32 | Righe positive |
-| 12 | Int32 | Colonne positive |
-| 16 | Int32 | Block size: 64, 128 o 256 |
-| 20 | UInt32 | Riservato: zero |
-| 24 | Int64 | Lunghezza payload, uguale a quella derivata dalla forma |
+| 0 | 4 ASCII bytes | `STQ2` |
+| 4 | UInt16 | Version: 1 |
+| 6 | UInt16 | Header length: 32 |
+| 8 | Int32 | Positive row count |
+| 12 | Int32 | Positive column count |
+| 16 | Int32 | Block size: 64, 128 or 256 |
+| 20 | UInt32 | Reserved: zero |
+| 24 | Int64 | Payload length, equal to the length derived from the shape |
 
-`Ternary2Matrix.Save` crea un nuovo file senza sovrascrivere file esistenti. Un errore I/O durante la scrittura può lasciare un file parziale; il caricatore rifiuta header/payload troncati. Non è un salvataggio atomico né un formato GGUF.
+`Ternary2Matrix.Save` creates a new file without overwriting existing files. An I/O error during writing may leave a partial file; the loader rejects truncated headers/payloads. This is neither an atomic save nor a GGUF format.
 
-`MappedTernary2Matrix` valida l'header e tutto il payload una volta all'apertura, senza copiarlo in un array. Ogni MatVec acquisisce il mapping per la durata dell'intero calcolo e richiama gli stessi kernel scalar/AVX2 usati dalla matrice in memoria. La chiusura non invalida un calcolo già avviato, ma impedisce quelli successivi.
+`MappedTernary2Matrix` validates the header and entire payload once on opening, without copying it into an array. Each MatVec acquires the mapping for the entire computation and calls the same scalar/AVX2 kernels as the in-memory matrix. Closing does not invalidate a computation already started, but prevents subsequent ones.
 
-Il proprietario generico supporta file con offset oltre 2 GiB; il contenitore attuale è limitato a un singolo payload di matrice di massimo `int.MaxValue` byte. Non sono ancora supportati tensori singoli più grandi, collezioni di tensori o checksum. Il file deve rimanere immutabile dopo la validazione e fino al termine degli accessi attivi.
+The generic owner supports files with offsets beyond 2 GiB; the current container is limited to a single matrix payload of at most `int.MaxValue` bytes. Larger individual tensors, tensor collections and checksums are not yet supported. The file must remain immutable after validation and until active accesses finish.

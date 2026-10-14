@@ -67,6 +67,38 @@ internal sealed class SyntheticWeights : IModelWeights
         }
     }
 
+    /// <summary>
+    /// Accumulates each element exactly as <see cref="Project"/> does, in the same order, so a batched pass
+    /// and a single-position pass are bit-identical here and the batched-prefill test stays exact. Rows are
+    /// split over <paramref name="threads"/> workers exactly as the quantized kernel splits them, and each
+    /// worker writes its own rows, so the split cannot change a value.
+    /// </summary>
+    public void ProjectBatch(string name, ReadOnlySpan<float> input, int positions, Span<float> output, int threads)
+    {
+        var (rows, columns) = _shapes[name];
+        if (input.Length != positions * columns) throw new ArgumentException($"Input must hold {positions} vectors for {name}.");
+        if (output.Length != positions * rows) throw new ArgumentException($"Output must hold {positions} vectors for {name}.");
+        float[] matrix = _matrices[name];
+        int workers = Math.Min(threads, rows);
+        int stride = (rows + workers - 1) / workers;
+        for (int worker = 0; worker < workers; worker++)
+        {
+            int begin = worker * stride;
+            int end = Math.Min(begin + stride, rows);
+            for (int row = begin; row < end; row++)
+            {
+                int offset = row * columns;
+                for (int position = 0; position < positions; position++)
+                {
+                    double sum = 0;
+                    int source = position * columns;
+                    for (int column = 0; column < columns; column++) sum += (double)matrix[offset + column] * input[source + column];
+                    output[position * rows + row] = (float)sum;
+                }
+            }
+        }
+    }
+
     public ReadOnlySpan<float> Vector(string name) => _vectors[name];
 
     public void EmbedRow(string name, int token, Span<float> output)

@@ -146,6 +146,128 @@ public sealed class DenseForward
         observe?.Invoke(layer, position, "out", residual);
     }
 
+    /// <summary>
+    /// Applies one layer to a whole chunk of positions at once: <paramref name="count"/> positions starting at
+    /// absolute position <paramref name="start"/>, whose residuals are the slices of <paramref name="batch"/>.
+    /// Key and value are written into <paramref name="keys"/>/<paramref name="values"/> at their absolute
+    /// positions, and attention of each position reads the prefix <c>0..position</c>.
+    /// </summary>
+    /// <remarks>
+    /// This is the prefill counterpart of <see cref="Step"/> and computes the same quantities in the same
+    /// order: normalization, then the projections, then rotary position, then attention, then the feed-forward
+    /// block. The difference is that a projection sees every position of the chunk in one call, so each weight
+    /// block is decoded once instead of once per position, and the projection is what a prompt spends its time
+    /// on. Elementwise phases stay one position at a time because they are a negligible share of the work and
+    /// the batch buffers already give each of them a private slice.
+    /// </remarks>
+    internal void LayerBatch(int layer, int start, int count, DenseBatchScratch batch,
+        Span<float> keys, Span<float> values, int threads, ForwardObserver? observe)
+    {
+        var names = _layers[layer];
+
+        for (int i = 0; i < count; i++)
+            TransformerOps.RmsNorm(Hidden(batch, i), _weights.Vector(names.AttnNorm), _epsilon, Normed(batch, i));
+        _weights.ProjectBatch(names.Query, batch.Normed.AsSpan(0, count * _embedding), count,
+            batch.Queries.AsSpan(0, count * _shape.QueryWidth), threads);
+        _weights.ProjectBatch(names.Key, batch.Normed.AsSpan(0, count * _embedding), count,
+            batch.Keys.AsSpan(0, count * _kvWidth), threads);
+        _weights.ProjectBatch(names.Value, batch.Normed.AsSpan(0, count * _embedding), count,
+            batch.Values.AsSpan(0, count * _kvWidth), threads);
+
+        for (int i = 0; i < count; i++)
+        {
+            int position = start + i;
+            Span<float> query = Query(batch, i);
+            if (observe is not null) observe(layer, position, "attn_norm", Normed(batch, i));
+            if (names.HasBias)
+            {
+                TransformerOps.Add(query, _weights.Vector(names.QueryBias), query);
+                TransformerOps.Add(Key(batch, i), _weights.Vector(names.KeyBias), Key(batch, i));
+                TransformerOps.Add(Value(batch, i), _weights.Vector(names.ValueBias), Value(batch, i));
+            }
+            if (names.HasHeadNorm)
+            {
+                TransformerOps.RmsNormHeads(query, _weights.Vector(names.QueryNorm), _epsilon, _headDim);
+                TransformerOps.RmsNormHeads(Key(batch, i), _weights.Vector(names.KeyNorm), _epsilon, _headDim);
+            }
+            TransformerOps.RopeHalf(query, _headDim, position, _ropeBase, _headDim);
+            TransformerOps.RopeHalf(Key(batch, i), _headDim, position, _ropeBase, _headDim);
+            if (observe is not null) observe(layer, position, "q", query);
+            Key(batch, i).CopyTo(keys.Slice(position * _kvWidth, _kvWidth));
+            Value(batch, i).CopyTo(values.Slice(position * _kvWidth, _kvWidth));
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            int position = start + i;
+            int tokens = position + 1;
+            Span<float> context = Context(batch, i);
+            TransformerOps.GroupedAttention(Query(batch, i), keys[..checked(tokens * _kvWidth)], values[..checked(tokens * _kvWidth)],
+                _shape.HeadCount, _shape.HeadCountKv, _headDim, tokens, batch.Scores, context);
+            if (observe is not null) observe(layer, position, "attn_ctx", context);
+        }
+
+        _weights.ProjectBatch(names.Output, batch.Context.AsSpan(0, count * _shape.QueryWidth), count,
+            batch.Projected.AsSpan(0, count * _embedding), threads);
+        for (int i = 0; i < count; i++)
+        {
+            TransformerOps.Add(Hidden(batch, i), Projected(batch, i), Hidden(batch, i));
+            if (observe is not null) observe(layer, start + i, "attn_residual", Hidden(batch, i));
+        }
+
+        for (int i = 0; i < count; i++)
+            TransformerOps.RmsNorm(Hidden(batch, i), _weights.Vector(names.FfnNorm), _epsilon, Normed(batch, i));
+        _weights.ProjectBatch(names.Gate, batch.Normed.AsSpan(0, count * _embedding), count,
+            batch.Gate.AsSpan(0, count * _shape.FeedForwardLength), threads);
+        _weights.ProjectBatch(names.Up, batch.Normed.AsSpan(0, count * _embedding), count,
+            batch.Up.AsSpan(0, count * _shape.FeedForwardLength), threads);
+        for (int i = 0; i < count; i++)
+        {
+            TransformerOps.SwiGlu(Gate(batch, i), Up(batch, i), Activated(batch, i));
+            if (observe is not null) observe(layer, start + i, "ffn_act", Activated(batch, i));
+        }
+        _weights.ProjectBatch(names.Down, batch.Activated.AsSpan(0, count * _shape.FeedForwardLength), count,
+            batch.Down.AsSpan(0, count * _embedding), threads);
+        for (int i = 0; i < count; i++)
+        {
+            TransformerOps.Add(Hidden(batch, i), Down(batch, i), Hidden(batch, i));
+            if (observe is not null) observe(layer, start + i, "out", Hidden(batch, i));
+        }
+    }
+
+    /// <summary>Residual of position <paramref name="index"/> in a chunk, as the stride-<c>EmbeddingLength</c> slice of <paramref name="batch"/>.</summary>
+    internal Span<float> Hidden(DenseBatchScratch batch, int index) => batch.Hidden.AsSpan(index * _embedding, _embedding);
+
+    private Span<float> Normed(DenseBatchScratch batch, int index) =>
+        batch.Normed.AsSpan(index * _embedding, _embedding);
+
+    private Span<float> Query(DenseBatchScratch batch, int index) =>
+        batch.Queries.AsSpan(index * _shape.QueryWidth, _shape.QueryWidth);
+
+    private Span<float> Key(DenseBatchScratch batch, int index) =>
+        batch.Keys.AsSpan(index * _kvWidth, _kvWidth);
+
+    private Span<float> Value(DenseBatchScratch batch, int index) =>
+        batch.Values.AsSpan(index * _kvWidth, _kvWidth);
+
+    private Span<float> Context(DenseBatchScratch batch, int index) =>
+        batch.Context.AsSpan(index * _shape.QueryWidth, _shape.QueryWidth);
+
+    private Span<float> Projected(DenseBatchScratch batch, int index) =>
+        batch.Projected.AsSpan(index * _embedding, _embedding);
+
+    private Span<float> Gate(DenseBatchScratch batch, int index) =>
+        batch.Gate.AsSpan(index * _shape.FeedForwardLength, _shape.FeedForwardLength);
+
+    private Span<float> Up(DenseBatchScratch batch, int index) =>
+        batch.Up.AsSpan(index * _shape.FeedForwardLength, _shape.FeedForwardLength);
+
+    private Span<float> Activated(DenseBatchScratch batch, int index) =>
+        batch.Activated.AsSpan(index * _shape.FeedForwardLength, _shape.FeedForwardLength);
+
+    private Span<float> Down(DenseBatchScratch batch, int index) =>
+        batch.Down.AsSpan(index * _embedding, _embedding);
+
     /// <summary>Applies the final normalization and the output projection.</summary>
     internal void Final(ReadOnlySpan<float> hidden, Span<float> logits, DenseScratch scratch, ForwardObserver? observe)
     {

@@ -8,8 +8,14 @@ against an independent float64 reference on two topologies.
 - `IModelWeights` is the weight-access boundary in `Satori.Core.Model`. Core depends only on this
   interface; the GGUF module provides `GgufWeightStore`. Projections call the shared quantized MatVec,
   vectors are decoded once and cached, embedding rows are decoded on demand. No payload is copied.
+- `Project` multiplies one input vector; `ProjectBatch` multiplies an array of `positions` vectors in one
+  pass, so a weight block is decoded once per pass instead of once per position. An implementation may split
+  the output rows over `threads` workers, and the result must not depend on that split.
 - `DenseForward(ModelShape, IModelWeights).Logits(ReadOnlySpan<int> tokens[, ForwardObserver])` returns the
   logits of the final position for a token sequence. Every cast is checked.
+- `DenseForward.LayerBatch` applies one layer to a whole chunk of positions through `ProjectBatch` with the
+  batch scratch of `DenseBatchScratch`; `DenseSession.Forward` is its only caller. `Step` stays the
+  single-position path, so decoding is unchanged and the two share the operator sequence.
 - All dimensions come from the validated `ModelShape`: layers, embedding, feed-forward, query/KV head
   counts, head dimension (from an explicit key/value length when declared), vocabulary, epsilon, RoPE base
   and the tied-embedding flag. Nothing is a nominal constant.

@@ -45,7 +45,7 @@ Each subtask has a dependency, an oracle and a verification criterion. Execute o
 | DW06.3 | Register Q4_K/Q6_K in the format dispatch | DW06.2 | n/a | `GgufTypes`, `BlockQuantization`, `GgufQuantizedMatrix` accept the types; a Q4_K_M file passes the capability check (done) |
 | DW06.4 | Q4_K_M end-to-end parity | DW06.3 | independent forward reference on the same artifact | every tensor type inventoried and decodable with no silent fallback; logits and greedy tokens against the reference (done: real-tensor byte parity + end-to-end run) |
 | DW06.5 | Q4_K/Q6_K AVX2 kernels | DW06.4 | the scalar kernels | numerical parity with scalar; benchmark on the same matrices; keep experimental without a measured advantage (done: 6.4x on the 7B artifact, default path) |
-| DW06.6 | Prefill optimization to meet TTFT ≤ 60 s at 2K | DW06.5 | the reference forward | batched prefill; TTFT at 2K ≤ 60 s on the target; identical logits |
+| DW06.6 | Prefill optimization to meet TTFT ≤ 60 s at 2K | DW06.5 | the reference forward | batched prefill; TTFT at 2K ≤ 60 s on the target; identical logits (structure done, batched prefill bit-identical to sequential append and 2.77x the AVX2 path, but 3.65 tok/s measures 560 s at 2K: criterion **not met**, kernel gap moved to DW09) |
 | DW06.7 | Decode optimization to meet ≥ 3 tok/s at 2K | DW06.5 | the reference forward | decode at 2K ≥ 3 tok/s; identical greedy tokens |
 | DW06.8 | Resource limits and cancellation | DW06.4 | n/a | memory and context bounds enforced; cancellation ≤ 2 s; no sustained swap |
 

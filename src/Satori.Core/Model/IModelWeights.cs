@@ -18,6 +18,17 @@ public interface IModelWeights : IDisposable
     /// <paramref name="output"/> length the row count.</remarks>
     void Project(string name, ReadOnlySpan<float> input, Span<float> output);
 
+    /// <summary>
+    /// Computes the named rank-2 tensor against <paramref name="positions"/> input vectors at once.
+    /// <paramref name="input"/> holds that many vectors of the tensor's column count, laid out position after
+    /// position, and <paramref name="output"/> receives as many vectors of its row count in the same layout.
+    /// </summary>
+    /// <remarks>
+    /// This exists so a prompt does not read the packed weights once per token. An implementation may split
+    /// the rows over <paramref name="threads"/> workers; the result must not depend on that split.
+    /// </remarks>
+    void ProjectBatch(string name, ReadOnlySpan<float> input, int positions, Span<float> output, int threads);
+
     /// <summary>Returns the named rank-1 F32 vector (a normalization weight or a projection bias).</summary>
     ReadOnlySpan<float> Vector(string name);
 

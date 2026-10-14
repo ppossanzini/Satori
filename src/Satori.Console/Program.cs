@@ -119,6 +119,7 @@ if (args.Length > 0)
             var options = new TextGenerationOptions(16);
             var sampling = new SamplingOptions();
             int context = 2048;
+            int threads = InferenceOptions.Default.Threads;
             int cursor = 3;
             if (cursor < args.Length && !args[cursor].StartsWith("--", StringComparison.Ordinal))
             {
@@ -132,6 +133,11 @@ if (args.Length > 0)
                 if (flag == "--context")
                 {
                     context = int.Parse(value, CultureInfo.InvariantCulture);
+                    continue;
+                }
+                if (flag == "--threads")
+                {
+                    threads = int.Parse(value, CultureInfo.InvariantCulture);
                     continue;
                 }
                 sampling = flag switch
@@ -153,7 +159,7 @@ if (args.Length > 0)
             var tokenizer = GgufBpeTokenizer.Open(args[1]);
             using var file = new GgufFile(args[1]);
             using var store = new GgufWeightStore(file);
-            using var session = new DenseSession(definition, store, context);
+            using var session = new DenseSession(definition, store, context, options: new InferenceOptions(threads));
             var generator = new TextGenerator(session, tokenizer, tokenization.EosTokenId);
             long started = Environment.TickCount64;
             var generation = generator.Generate(args[2], options);

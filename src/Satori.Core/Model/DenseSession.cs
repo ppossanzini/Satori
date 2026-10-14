@@ -10,19 +10,32 @@ namespace Satori.Core.Model;
 /// <c>Layers * 2 * HeadCountKv * HeadDim * ContextLength * 4</c> bytes, matching <see cref="ModelPlanner"/>.
 /// Only the incremental step is stored; the prompt and each decoded token reuse it. The session is not
 /// thread-safe and is usable until <see cref="Dispose"/>.
+/// <para>
+/// <see cref="Forward"/> runs the prompt as a batched prefill: it walks the prompt in chunks and hands each
+/// chunk to <see cref="DenseForward.LayerBatch"/>, so every projection decodes each weight block once for the
+/// whole chunk instead of once per position. <see cref="Append"/> stays the single-position step used for
+/// decoding, and the two agree because they run the same operator sequence from the same buffers.
+/// </para>
 /// </remarks>
 public sealed class DenseSession : IInferenceSession
 {
+    /// <summary>Positions one prefill chunk holds; large enough that each weight block pays for its own decode.</summary>
+    private const int ChunkPositions = 256;
+
     private readonly ModelDefinition _model;
     private readonly DenseForward _forward;
     private readonly ModelShape _shape;
     private readonly int _context;
     private readonly int _kvWidth;
+    private readonly int _embedding;
+    private readonly InferenceOptions _options;
     private readonly float[] _keys;
     private readonly float[] _values;
     private readonly float[] _hidden;
+    private readonly int _chunkPositions;
     private readonly float[] _logits;
     private readonly DenseScratch _scratch;
+    private readonly DenseBatchScratch _batch;
     private readonly ForwardObserver? _observe;
     private int _position;
     private bool _disposed;
@@ -31,7 +44,8 @@ public sealed class DenseSession : IInferenceSession
     /// Creates a session. <paramref name="contextLength"/> bounds the number of positions; the key/value
     /// state is dimensioned from the model shape and this bound, never from a nominal constant.
     /// </summary>
-    public DenseSession(ModelDefinition model, IModelWeights weights, int contextLength, ForwardObserver? observe = null)
+    public DenseSession(ModelDefinition model, IModelWeights weights, int contextLength,
+        ForwardObserver? observe = null, InferenceOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(weights);
@@ -45,7 +59,9 @@ public sealed class DenseSession : IInferenceSession
         _shape = model.Shape;
         _context = contextLength;
         _kvWidth = _shape.KvWidth;
+        _embedding = _shape.EmbeddingLength;
         _observe = observe;
+        _options = (options ?? InferenceOptions.Default).Validated();
         _forward = new DenseForward(_shape, weights);
 
         long slots = checked((long)_shape.Layers * 2 * _context * _kvWidth);
@@ -55,7 +71,9 @@ public sealed class DenseSession : IInferenceSession
         _values = new float[(int)slots / 2];
         _hidden = new float[_shape.EmbeddingLength];
         _logits = new float[_shape.VocabularySize];
+        _chunkPositions = Math.Min(_context, ChunkPositions);
         _scratch = _forward.CreateScratch(_context);
+        _batch = new DenseBatchScratch(_shape, _chunkPositions, _context);
     }
 
     public ModelDefinition Model => _model;
@@ -99,9 +117,43 @@ public sealed class DenseSession : IInferenceSession
         if (_position + tokens.Length > _context)
             throw new ArgumentOutOfRangeException(nameof(tokens),
                 $"Appending {tokens.Length} tokens at position {_position} exceeds the context limit {_context}.");
-        foreach (int token in tokens) Append(token);
+
+        int lastCount = 0;
+        for (int done = 0; done < tokens.Length; done += _chunkPositions)
+        {
+            lastCount = Math.Min(_chunkPositions, tokens.Length - done);
+            PrefillChunk(tokens.Slice(done, lastCount));
+        }
+
+        // Prefill does not need the logits of the positions a real continuation will never resample from, so
+        // the output projection runs once for the last prompt position instead of once for every one of them.
+        _forward.Final(Hidden(lastCount - 1), _logits, _scratch, _observe);
         _logits.CopyTo(logits);
     }
+
+    /// <summary>
+    /// Runs one chunk of positions through every layer by calling the batched layer once per layer. The chunk
+    /// holds positions <c>start..start+count-1</c>; the layer writes each position's key and value at its
+    /// absolute slot, and the next chunk appends after them.
+    /// </summary>
+    private void PrefillChunk(ReadOnlySpan<int> tokens)
+    {
+        int start = _position;
+        int count = tokens.Length;
+        for (int i = 0; i < count; i++) _forward.Embed(tokens[i], Hidden(i));
+
+        for (int layer = 0; layer < _shape.Layers; layer++)
+            _forward.LayerBatch(layer, start, count, _batch, LayerKeys(layer), LayerValues(layer),
+                _options.Threads, _observe);
+
+        _position = start + count;
+    }
+
+    private Span<float> Hidden(int index) => _batch.Hidden.AsSpan(index * _embedding, _embedding);
+
+    private Span<float> LayerKeys(int layer) => _keys.AsSpan(layer * _context * _kvWidth, _context * _kvWidth);
+
+    private Span<float> LayerValues(int layer) => _values.AsSpan(layer * _context * _kvWidth, _context * _kvWidth);
 
     public void Reset() => _position = 0;
 

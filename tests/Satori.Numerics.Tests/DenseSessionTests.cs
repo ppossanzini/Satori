@@ -83,6 +83,62 @@ public sealed class DenseSessionTests
         Assert.Equal(6, session.Position);
     }
 
+    /// <summary>
+    /// Two hundred positions cross the prefill chunk boundary at one thread (64 positions per chunk) and fit
+    /// one chunk at four threads (256), so both the chunked and the single-chunk path are covered.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void BatchedPrefillMatchesSequentialAppend(int threads)
+    {
+        var shape = Shape(false);
+        var weights = new SyntheticWeights(shape, bias: true, headNorm: false);
+        var definition = Definition(shape);
+        int[] prompt = [.. Enumerable.Range(0, 200).Select(i => (i * 7 + 3) % shape.VocabularySize)];
+
+        using var batched = new DenseSession(definition, weights, contextLength: 256, options: new InferenceOptions(threads));
+        float[] batchedLogits = new float[shape.VocabularySize];
+        batched.Forward(prompt, batchedLogits);
+
+        using var sequential = new DenseSession(definition, weights, contextLength: 256, options: new InferenceOptions(1));
+        foreach (int token in prompt) sequential.Append(token);
+
+        Assert.Equal(prompt.Length, batched.Position);
+        Assert.Equal(sequential.Position, batched.Position);
+        Assert.Equal(sequential.Logits.ToArray(), batchedLogits);
+    }
+
+    /// <summary>The decoded continuation continues from the prefilled state, not from a fresh one.</summary>
+    [Fact]
+    public void AppendAfterABatchedPrefillMatchesFullRecomputation()
+    {
+        var shape = Shape(false);
+        var weights = new SyntheticWeights(shape, bias: false, headNorm: true);
+        var definition = Definition(shape);
+        int[] prompt = [4, 9, 14, 21, 2, 8];
+        int next = 17;
+
+        using var session = new DenseSession(definition, weights, contextLength: 32, options: new InferenceOptions(3));
+        session.Forward(prompt, new float[shape.VocabularySize]);
+        session.Append(next);
+
+        float[] full = new DenseForward(shape, weights).Logits([.. prompt, next]);
+        AssertClose(full, session.Logits.ToArray(), 1e-6);
+    }
+
+    [Fact]
+    public void ThreadCountIsValidatedAndBoundedByTheProtocolBudget()
+    {
+        var shape = Shape(false);
+        var weights = new SyntheticWeights(shape, bias: false, headNorm: false);
+        var definition = Definition(shape);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new DenseSession(definition, weights, 4, options: new InferenceOptions(0)));
+        Assert.True(InferenceOptions.Default.Threads >= 1);
+        Assert.True(InferenceOptions.Default.Threads <= InferenceOptions.BudgetThreads);
+    }
+
     [Fact]
     public void DisposeIsIdempotentAndRejectsFurtherUse()
     {

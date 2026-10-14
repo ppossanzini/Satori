@@ -135,7 +135,7 @@ internal static class QuantizedKAvx2Kernel
         return Avx.ConvertToVector256Single(Avx2.Subtract(code, bias32));
     }
 
-    private static float HorizontalSum(Vector256<float> value)
+    internal static float HorizontalSum(Vector256<float> value)
     {
         var halves = Sse.Add(value.GetLower(), value.GetUpper());
         halves = Sse.Add(halves, Sse.Shuffle(halves, halves, 0x4e));

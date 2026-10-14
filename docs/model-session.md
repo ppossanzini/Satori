@@ -38,6 +38,22 @@ Both call the same `Step`, so the layer arithmetic has a single implementation a
 and full recomputation agree by construction — the contract's stated invariant. Every operator is
 `TransformerOps` and every projection is the shared quantized MatVec.
 
+## Batched Prefill
+
+`Forward` does not call `Append` per token. It walks the prompt in chunks of 256 positions and runs each
+chunk through `DenseForward.LayerBatch`, which executes the same operator sequence as `Step` but calls every
+projection once for the whole chunk. A projection that sees all positions at once decodes each weight block
+once instead of once per position, and that decode is what a prompt pays for: measured on the 7B Q4_K_M
+artifact, the batched prefill is 2.77x the per-position AVX2 path and 10.2x the scalar path. The prefill
+never projects the output layer per position — only the last prompt position needs logits — so the
+vocabulary-sized projection runs once.
+
+`InferenceOptions` fixes the thread budget once at construction (default 8, the protocol's limit) and the
+session never reads a process-wide setting. `DenseBatchScratch` holds the chunk's activations, sized from
+the shape and released with the session. Prefill and decode agree exactly, not merely closely:
+`BatchedPrefillMatchesSequentialAppend` requires bit-identical logits between a 200-position batched prefill
+and 200 `Append` calls.
+
 ## Errors and Limits
 
 | Condition | Result |

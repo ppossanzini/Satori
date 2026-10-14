@@ -513,6 +513,48 @@ still unbatched and single-threaded (DW06.6).
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW06.6 — 2026-10-14 — Criterion not met
+
+Implemented the batched prefill: `DenseSession.Forward` walks the prompt in chunks of 256 positions and
+hands each chunk to `DenseForward.LayerBatch`, which runs the same operator sequence as the single-position
+`Step` but calls every projection once for the whole chunk. Each weight block is therefore decoded once per
+chunk instead of once per position, which is the cost a prompt actually pays. The new
+`QuantizedMatVec.ExecuteBatch` splits rows over `InferenceOptions.Threads` workers, each worker processing
+rows in tiles of 16 with the block loop outside the position loop, so an input window is read once and then
+dotted with every row of the tile. `InferenceOptions` fixes the thread budget once (default 8, the
+protocol's limit) instead of reading a process-wide setting. The console gained `--threads`.
+
+Two defects were found by the checks and fixed: the projected query was shared across positions between the
+two attention phases, and `GgufWeightStore`'s lazy caches were plain dictionaries that the new parallel
+prefill corrupted — the process aborted with a collection-corruption exception. The caches are now
+`ConcurrentDictionary` of `Lazy<T>` with publication semantics, so each handle is built exactly once.
+
+Verification: Release build without warnings; the numerics suite is green at 191 tests. `DenseSessionTests`
+adds `BatchedPrefillMatchesSequentialAppend`, which requires **bit-identical** logits between a 200-position
+batched prefill and 200 `Append` calls at one and four threads, plus the continuation-after-prefill and
+thread-validation cases. `BatchedMatVecTests` checks the batched kernel against the per-position kernel on
+the DW06.1/DW06.2 fixture bytes and that the row split never changes a byte. `BatchedMatVecThroughputTests`
+is the measurement guard: it fails if the batched projection is not faster than one projection per position.
+
+Measured on the 7B Q4_K_M artifact: 607 prompt tokens in 166.35 s, peak RSS 4756 MiB, i.e. 3.65 prefill
+tok/s against the reference 22.16 tok/s on the same host. Isolated on a 3584x3584 Q4_K projection with 64
+positions the batched path is 2.77x the shipped AVX2 per-position path and 10.18x the scalar path, scaling
+to 43.9 GMAC/s at four threads and no further at eight. Report:
+`docs/benchmarks/prefill-2026-10-14/README.md`.
+
+**The DW06.6 criterion is not met**: TTFT at 2K extrapolates to roughly 560 s against a threshold of 60 s.
+The structure is correct and is a real gain, but the remaining gap is inside the dot kernel, not in the
+prefill structure: Satori reconstructs each block to F32 and multiplies with FMA, so one AVX2 instruction
+performs 8 multiply-adds, while the reference quantizes the activations per block and multiplies integers,
+performing 64 per instruction with the activation bytes shared across rows. Closing that is kernel work and
+belongs to DW06.7 and DW09; DW06 stays open.
+
+Limits: one host, one artifact, one repetition per figure. The isolated figures use a synthetic payload with
+uniform scales. The batched kernel is 2.77x the AVX2 path but still about 3.5x below the reference's
+per-thread rate, so the optimization is unfinished, not merely unmeasured.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

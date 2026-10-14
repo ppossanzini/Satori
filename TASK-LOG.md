@@ -1122,3 +1122,17 @@ the two revisions in one session: the two ranges are disjoint on both real Q6_K 
 figures when run inside the full suite, which is why the comparison is alternated and standalone.
 Suite 223/223. The DW06.7 target of 3 tok/s is still unmet; this removes 1.3x from a share that
 needs about 12x. Skills: phase-development-task-execution and base-dossier-writing.
+
+## Hardware dependence of the integer path — 2026-10-14
+
+Measured whether the Q6_K integer and floating-point paths rank the same across hardware, by running
+the A/B pinned to each core class of this hybrid host with the revisions alternated within each
+round. P cores: integer wins 1.26x and 1.36x, disjoint ranges. E cores: the output projection
+reverses and the floating-point path is 1.05x faster, disjoint ranges. A same-revision run left over
+from an earlier shell mistake calibrates the noise floor: 1.02x at P cores but 1.61x at E cores, so
+the inversion is real and smaller than the noise where it occurs. Also found the largest single
+effect measured: eight worker tasks on six physical P cores costs 1.7x against the same eight tasks
+unpinned. Conclusion recorded in `docs/benchmarks/hardware-dependence-2026-10-14/README.md`: no
+install-time probe, an explicit Auto/Integer/Float preference instead, and a thread budget derived
+from physical cores. No code changed. Skills: phase-development-task-execution and
+base-dossier-writing.

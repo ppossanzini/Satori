@@ -640,6 +640,44 @@ in-cache payloads and are documented as bounding the kernel only.
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW06.7-diagnosis — 2026-10-14 — The bottleneck is Q6_K, not the Q4_K kernel
+
+Measured the real artifact's own tensors against synthetic payloads of the same shape and format
+(`RealArtifactProjectionsAgainstSynthetic`, nine repetitions, minimum). The cache effect is real but small,
+1.07x to 2.43x. The dominant fact had never been measured: **`ffn_down` and the output projection are
+Q6_K, not Q4_K**, as are 29 of the artifact's 198 quantized tensors and about 2.0 GB of the 4.3 GB a token
+reads.
+
+| Tensor | Format | Real GMAC/s | Q4_K integer path |
+|---|---|---:|---:|
+| blk.0.ffn_gate | Q4_K | 12.0 | 12.0 |
+| blk.0.ffn_down | **Q6_K** | **3.3** | — |
+| output | **Q6_K** | **3.4** | — |
+
+Q6_K has no integer kernel, so it runs the F32 decode path at **2.5x to 3.6x less per MAC**. One decode
+token spends 159 ms on the output projection plus 571 ms on 28 `ffn_down` calls: **730 ms of about
+1409 ms, more than half**.
+
+Three hypotheses were tested and discarded rather than assumed: the activation quantization is 1% to 8% of
+a call, not its cost; raising the thread-pool floor changes nothing (1.11x and 0.94x); and the thread curve
+does not flatten after the fast cores, so the hybrid core mixture is not the ceiling. The thread count is
+worth about 7% (1.070x against an 1.11x spread) and is therefore **not established**. The path streams
+4.3 GB in 1409 ms, about 3.1 GB/s against a memory system above 50 GB/s, so it is **not bandwidth-bound**.
+
+Also measured: the same code and shape gave 2078 us and 5769 us at one thread in two different test runs,
+a 2.8x difference. Repetition removes noise **within** a run, not drift **between** runs, so only the
+alternated A/B produces figures to decide on. `tools/ab_decode.py` now compares two **configurations** as
+well as two binaries, which is how the thread question was asked.
+
+Verified: `RealArtifactProjectionsAgainstSynthetic` skips when the 4.7 GB artifact is absent, so a checkout
+without it still passes. Report: `docs/benchmarks/decode-2026-10-14/README.md`.
+
+The next decode work, in measured order of value: a Q6_K integer kernel (730 ms of a token), prefetching
+and software pipelining in the row loop (the rate is at 6% of memory capacity and the pattern streams), and
+attention plus the elementwise operators, which are still untouched.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

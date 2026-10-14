@@ -31,50 +31,53 @@ def one_run(binary: Path, model: Path, prompt: str, tokens: int, context: int, t
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
-    parser.add_argument("--a", required=True, help="first binary (label=path)")
-    parser.add_argument("--b", required=True, help="second binary (label=path)")
+    parser.add_argument("--a", required=True, help="first configuration, label=path or label=path:threads")
+    parser.add_argument("--b", required=True, help="second configuration, label=path or label=path:threads")
     parser.add_argument("--prompt", default="def fibonacci(n):")
     parser.add_argument("--tokens", type=int, default=8)
     parser.add_argument("--context", type=int, default=512)
-    parser.add_argument("--threads", type=int, default=8)
+    parser.add_argument("--threads", type=int, default=8, help="thread count for a side that names none")
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--warmup", type=int, default=1)
     args = parser.parse_args()
 
-    def parse(spec: str) -> tuple[str, Path]:
-        label, _, path = spec.partition("=")
-        return label, Path(path) / "Satori.Console"
+    def parse(spec: str) -> tuple[str, Path, int]:
+        """label=path[:threads]; the thread count lets one binary be compared with itself."""
+        label, _, rest = spec.partition("=")
+        path, _, thread_text = rest.partition(":")
+        threads = int(thread_text) if thread_text else args.threads
+        return label, Path(path) / "Satori.Console", threads
 
     configs = [parse(args.a), parse(args.b)]
     model = Path(args.model)
-    samples: dict[str, list[float]] = {label: [] for label, _ in configs}
+    samples: dict[str, list[float]] = {label: [] for label, _, _ in configs}
     prompt_tokens = generated = 0
 
-    for label, binary in configs:
+    for label, binary, threads in configs:
         for _ in range(args.warmup):
-            one_run(binary, model, args.prompt, args.tokens, args.context, args.threads)
-        print(f"# {label}: {binary}", file=sys.stderr)
+            one_run(binary, model, args.prompt, args.tokens, args.context, threads)
+        print(f"# {label}: {binary} threads={threads}", file=sys.stderr)
 
     # Alternate A and B within each round so drift is shared, and reverse the order every round so
     # neither side always runs right after the other's cache-warming work.
     for round_index in range(args.repeats):
         order = configs if round_index % 2 == 0 else list(reversed(configs))
-        for label, binary in order:
+        for label, binary, threads in order:
             elapsed, prompt_tokens, generated = one_run(binary, model, args.prompt, args.tokens,
-                                                        args.context, args.threads)
+                                                        args.context, threads)
             per_token = elapsed / max(generated, 1)
             samples[label].append(per_token)
             print(f"round {round_index + 1:2d} {label:>10}: {elapsed:7d} ms total, {per_token:8.1f} ms/token")
 
     print()
-    print(f"prompt {prompt_tokens} tokens, generated {generated}, context {args.context}, threads {args.threads}")
-    print(f"{'config':>10} {'min':>10} {'median':>10} {'max':>10} {'tok/s at min':>13}")
+    print(f"prompt {prompt_tokens} tokens, generated {generated}, context {args.context}")
+    print(f"{'config':>10} {'threads':>8} {'min':>10} {'median':>10} {'max':>10} {'tok/s at min':>13}")
     summaries = {}
-    for label, _ in configs:
+    for label, _, threads in configs:
         values = samples[label]
         minimum = min(values)
         summaries[label] = minimum
-        print(f"{label:>10} {minimum:10.1f} {statistics.median(values):10.1f} {max(values):10.1f} {1000 / minimum:13.3f}")
+        print(f"{label:>10} {threads:8d} {minimum:10.1f} {statistics.median(values):10.1f} {max(values):10.1f} {1000 / minimum:13.3f}")
 
     first, second = configs[0][0], configs[1][0]
     ratio = summaries[first] / summaries[second]

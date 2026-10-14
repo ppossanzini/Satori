@@ -45,20 +45,28 @@ public sealed class BatchedMatVecThroughputTests
         $"{macs / milliseconds / 1e3,6:F1} GMAC/s";
 
     /// <summary>Realistic coding-model projection: 3584 columns in, 3584 rows out.</summary>
-    private static (byte[] Payload, QuantizedMatrixShape Shape) Matrix(int rows, int columns)
+    private static (byte[] Payload, QuantizedMatrixShape Shape) Matrix(int rows, int columns) =>
+        Matrix(rows, columns, BlockQuantization.Q4_K);
+
+    /// <summary>
+    /// A synthetic payload of the requested shape and format. The format matters: a Q6_K tensor takes a
+    /// different code path from a Q4_K one, so a comparison that assumes Q4_K measures the wrong kernel.
+    /// </summary>
+    private static (byte[] Payload, QuantizedMatrixShape Shape) Matrix(int rows, int columns, BlockQuantization format)
     {
-        var shape = new QuantizedMatrixShape(rows, columns, BlockQuantization.Q4_K);
+        var shape = new QuantizedMatrixShape(rows, columns, format);
         byte[] payload = new byte[shape.ByteLength];
         var random = new Random(20261014);
         random.NextBytes(payload);
         // Keep the FP16 super-scales finite so the payload is a legal one.
-        int blocksPerRow = columns / Q4KCodec.ElementsPerBlock;
+        int blocksPerRow = columns / shape.BlockElements;
         for (int row = 0; row < rows; row++)
             for (int block = 0; block < blocksPerRow; block++)
             {
-                int offset = (row * blocksPerRow + block) * Q4KCodec.BytesPerBlock;
+                int offset = (row * blocksPerRow + block) * shape.BlockBytes;
                 BitConverter.TryWriteBytes(payload.AsSpan(offset, 2), (Half)0.01f);
-                BitConverter.TryWriteBytes(payload.AsSpan(offset + 2, 2), (Half)0.005f);
+                if (format == BlockQuantization.Q4_K)
+                    BitConverter.TryWriteBytes(payload.AsSpan(offset + 2, 2), (Half)0.005f);
             }
         return (payload, shape);
     }
@@ -97,6 +105,199 @@ public sealed class BatchedMatVecThroughputTests
             $"per-position {perPositionMs,7:F3} ms (median {perPositionMedian,7:F3}, {Rate(perPositionMs, macs)}), " +
             $"ratio {perPositionMs / batchedMs:F2}x");
         Assert.True(batchedMs > 0 && perPositionMs > 0);
+    }
+
+    /// <summary>
+    /// Isolates the components of one <c>ExecuteBatch</c> call so the per-call cost can be attacked with
+    /// evidence rather than assumption: the activation quantization, the row split over tasks, and the
+    /// projection itself. The same bytes are used for every margin, so the only thing that changes is how the
+    /// call is structured.
+    /// </summary>
+    [Theory]
+    [InlineData("k/v", 512, 3584)]
+    [InlineData("q/o", 3584, 3584)]
+    public void CallCostBreakdown(string name, int rows, int columns)
+    {
+        var (payload, shape) = Matrix(rows, columns);
+        float[] input = Input(1, columns);
+        float[] output = new float[rows];
+
+        (double oneThread, _) = Time(() => QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 1));
+        (double twoThreads, _) = Time(() => QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 2));
+        (double fourThreads, _) = Time(() => QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 4));
+        (double eightThreads, _) = Time(() => QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 8));
+        // Quantization alone: the same activation, quantized to Q8_K, with no projection.
+        byte[] quantized = new byte[Q8KCodec.RowBytes(columns)];
+        (double quantize, _) = Time(() => Q8KCodec.QuantizeRow(input, quantized));
+
+        long macs = (long)rows * columns;
+        _output.WriteLine($"{name} {rows}x{columns}, one position:");
+        _output.WriteLine($"  quantize activation      {quantize * 1000,8:F1} us");
+        _output.WriteLine($"  batch t=1                {oneThread * 1000,8:F1} us  ({Rate(oneThread, macs)})");
+        _output.WriteLine($"  batch t=2                {twoThreads * 1000,8:F1} us  ({Rate(twoThreads, macs)})");
+        _output.WriteLine($"  batch t=4                {fourThreads * 1000,8:F1} us  ({Rate(fourThreads, macs)})");
+        _output.WriteLine($"  batch t=8                {eightThreads * 1000,8:F1} us  ({Rate(eightThreads, macs)})");
+        _output.WriteLine($"  speedup t=8 over t=1     {oneThread / eightThreads,8:F2}x");
+        Assert.True(oneThread > 0 && eightThreads > 0);
+    }
+
+    /// <summary>
+    /// The decisive experiment for the gap between the kernel benchmark and the workload: the same
+    /// projection, on the real artifact's bytes and on a synthetic payload of the same shape. Every figure in
+    /// this class before this test is in-cache synthetic data, which answers "how fast is the kernel" and
+    /// never "how fast is the model". If the real bytes run at a fraction of the synthetic ones, the
+    /// difference is the memory system and the optimization belongs there.
+    /// </summary>
+    /// <remarks>
+    /// The artifact is a 4.7 GB download kept out of version control, so the test skips when it is absent
+    /// rather than failing a checkout that never fetched it. The shapes it uses are read from the artifact's
+    /// own catalogue, never assumed.
+    /// </remarks>
+    [Fact]
+    public void RealArtifactProjectionsAgainstSynthetic()
+    {
+        const string artifact = ".temp/deepseek/dw02/models/qwen2.5-coder-7b-instruct-q4_k_m.gguf";
+        string path = Path.Combine(GgufTests.Root, artifact);
+        if (!File.Exists(path))
+        {
+            _output.WriteLine($"SKIPPED: {artifact} is not present.");
+            return;
+        }
+
+        string[] names = ["blk.0.attn_q.weight", "blk.0.ffn_gate.weight", "blk.0.ffn_down.weight", "output.weight"];
+        using var file = new Satori.Formats.Gguf.GgufFile(path);
+        foreach (string name in names)
+        {
+            if (!file.Tensors.ContainsKey(name))
+            {
+                _output.WriteLine($"{name}: absent from the artifact");
+                continue;
+            }
+            var matrix = new Satori.Formats.Gguf.GgufQuantizedMatrix(file, name);
+            int rows = matrix.Shape.Rows, columns = matrix.Shape.Columns;
+            long macs = (long)rows * columns;
+
+            byte[] real = new byte[matrix.Shape.ByteLength];
+            file.ReadTensor(name, 0, real.Length, static (bytes, target) => bytes.CopyTo(target), real);
+            float[] input = Input(1, columns);
+            float[] output = new float[rows];
+
+            (double realMs, double realMedian) = Time(() =>
+                QuantizedMatVec.ExecuteBatch(real, matrix.Shape, input, 1, output, threads: 8));
+
+            var (synthetic, _) = Matrix(rows, columns, matrix.Shape.Format);
+            float[] syntheticOutput = new float[rows];
+            (double syntheticMs, double syntheticMedian) = Time(() =>
+                QuantizedMatVec.ExecuteBatch(synthetic, matrix.Shape, input, 1, syntheticOutput, threads: 8));
+
+            _output.WriteLine($"{name} {matrix.Shape.Format} {rows}x{columns}:");
+            _output.WriteLine($"  real bytes   {realMs * 1000,9:F1} us (median {realMedian * 1000,9:F1})  {Rate(realMs, macs)}");
+            _output.WriteLine($"  synthetic    {syntheticMs * 1000,9:F1} us (median {syntheticMedian * 1000,9:F1})  {Rate(syntheticMs, macs)}");
+            _output.WriteLine($"  ratio        {realMs / syntheticMs,9:F2}x");
+            Assert.True(realMs > 0);
+        }
+    }
+
+    /// <summary>
+    /// The thread curve, because the static row split makes a call take as long as its slowest worker. On a
+    /// hybrid processor the workers land on cores of different speeds, so adding threads past the fast cores
+    /// adds a slow worker to every call. The curve is the evidence for whether the ceiling is the core
+    /// mixture, and it decides whether the thread budget should come from the topology.
+    /// </summary>
+    [Theory]
+    [InlineData("q/o", 3584, 3584)]
+    public void ThreadCurve(string name, int rows, int columns)
+    {
+        var (payload, shape) = Matrix(rows, columns);
+        float[] input = Input(1, columns);
+        float[] output = new float[rows];
+        long macs = (long)rows * columns;
+        double best = double.MaxValue;
+        int bestThreads = 0;
+        _output.WriteLine($"{name} {rows}x{columns}, one position");
+        for (int threads = 1; threads <= Environment.ProcessorCount; threads++)
+        {
+            (double milliseconds, double median) = Time(() =>
+                QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads));
+            if (milliseconds < best)
+            {
+                best = milliseconds;
+                bestThreads = threads;
+            }
+            _output.WriteLine($"  threads={threads,3}  {milliseconds * 1000,9:F1} us (median {median * 1000,9:F1})  {Rate(milliseconds, macs)}");
+        }
+        _output.WriteLine($"best at {bestThreads} threads ({best * 1000:F1} us); ProcessorCount={Environment.ProcessorCount}");
+        Assert.True(bestThreads >= 1);
+    }
+
+    /// <summary>
+    /// Tests whether the thread pool is what caps the scaling. The batched kernel splits its rows with one
+    /// <c>Task.Factory.StartNew</c> per worker and waits, and the pool injects threads at a limited rate, so a
+    /// call that needs eight of them may run with fewer. Raising the pool's minimum thread count is a
+    /// process-wide change that a library must not make, but as a diagnostic it separates "the pool is the
+    /// wall" from "the kernel is the wall".
+    /// </summary>
+    [Theory]
+    [InlineData("k/v", 512, 3584)]
+    [InlineData("q/o", 3584, 3584)]
+    public void ScalingAgainstARaisedThreadPoolFloor(string name, int rows, int columns)
+    {
+        var (payload, shape) = Matrix(rows, columns);
+        float[] input = Input(1, columns);
+        float[] output = new float[rows];
+
+        (double before, _) = Time(() => QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 8));
+        ThreadPool.GetMinThreads(out int minWorkers, out int minIo);
+        ThreadPool.SetMinThreads(64, minIo);
+        try
+        {
+            (double after, _) = Time(() => QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 8));
+            _output.WriteLine($"{name} {rows}x{columns}, one position, 8 threads:");
+            _output.WriteLine($"  pool default floor        {before * 1000,8:F1} us");
+            _output.WriteLine($"  pool floor raised to 64   {after * 1000,8:F1} us   ratio {before / after:F2}x");
+            Assert.True(after > 0);
+        }
+        finally
+        {
+            ThreadPool.SetMinThreads(minWorkers, minIo);
+        }
+    }
+
+    /// <summary>
+    /// The same projection called many times in a row, as a decode step does: 197 calls per token, most of
+    /// them small. This is the shape of the real cost and the number a per-call optimization must move.
+    /// </summary>
+    [Fact]
+    public void ManySmallCallsAsOneDecodeStep()
+    {
+        (int Rows, int Columns)[] shapes = [(3584, 3584), (512, 3584), (512, 3584), (3584, 3584),
+            (18944, 3584), (18944, 3584), (3584, 18944)];
+        var matrices = shapes.Select(s => Matrix(s.Rows, s.Columns)).ToArray();
+        var sources = shapes.Select(s => Input(1, s.Columns)).ToArray();
+        var outputs = shapes.Select(s => new float[s.Rows]).ToArray();
+
+        // One layer: 7 projections. 28 layers is one token. Repeat the layer 28 times to time a token.
+        (double perToken, _) = Time(() =>
+        {
+            for (int layer = 0; layer < 28; layer++)
+                for (int index = 0; index < shapes.Length; index++)
+                    QuantizedMatVec.ExecuteBatch(matrices[index].Payload, matrices[index].Shape,
+                        sources[index], 1, outputs[index], threads: 8);
+        });
+
+        // The same work with the small k/v projections kept single-threaded, since spawning 8 tasks for
+        // 512 rows may cost more than the rows do.
+        (double smallSingleThread, _) = Time(() =>
+        {
+            for (int layer = 0; layer < 28; layer++)
+                for (int index = 0; index < shapes.Length; index++)
+                    QuantizedMatVec.ExecuteBatch(matrices[index].Payload, matrices[index].Shape,
+                        sources[index], 1, outputs[index], threads: index is 1 or 2 ? 1 : 8);
+        });
+
+        _output.WriteLine($"196 projections, one token: {perToken:F1} ms ({1000 / perToken:F2} tok/s)");
+        _output.WriteLine($"k/v single-threaded:        {smallSingleThread:F1} ms ({1000 / smallSingleThread:F2} tok/s)");
+        Assert.True(perToken > 0);
     }
 
     /// <summary>

@@ -159,7 +159,7 @@ internal static class QuantizedKAvx2Kernel
     /// block already carries, which is why the centring costs one integer per sub-block.
     /// </para>
     /// </remarks>
-    internal static unsafe int DotProductQ6K(byte* block, byte* activation)
+    private static unsafe int DotProductQ6K(byte* block, byte* activation)
     {
         byte* ql = block;
         byte* qh = block + 128;

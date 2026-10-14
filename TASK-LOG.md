@@ -1202,3 +1202,26 @@ descheduling event read as a property of the code. The guard moved behind `SATOR
 only the identity that every claim size produces identical bytes. Report in
 `docs/benchmarks/thread-budget-2026-10-14/README.md`. Suite 234/234. No further code change. Skills:
 phase-development-task-execution and base-dossier-writing.
+
+## Test-only affordances removed from the product — 2026-10-14
+
+Correction of a design fault introduced while measuring: the product had been given three entry points that
+existed only so a test could reach inside it. `QuantizedMatVec.ExecuteBatchTuned` took the claim granularity
+as a parameter that production never varied, `Satori.Core` published its internals to the test assembly to
+expose it, and `QuantizedKAvx2Kernel.DotProductQ6K` was made internal for the same reason. All three are
+gone: the parameter with its forwarding method, the `InternalsVisibleTo`, and the kernel back to private.
+
+The tests now hold the product through the product's own surface. The equality that guarded the vectorised
+product was rewritten to compare `QuantizedMatVec.ExecuteBatch` — the integer path as shipped — against a
+reference assembled from the two public codecs, the Q8_K quantizer the kernel consumes and the Q6_K codec
+whose decoder an independent fixture validates. Exact equality is preserved and is now asserted on the API a
+caller would use, on synthetic payloads and on the artifact's own Q6_K tensors. The claim-granularity sweep
+became a throwaway: the shipped value and the curve that produced it are recorded in
+`docs/benchmarks/thread-budget-2026-10-14/README.md`, which is where evidence belongs, rather than in a
+parameter the product carries for a test's convenience.
+
+Measured on the way past, and recorded in `docs/benchmarks/q6k-vector-2026-10-14/README.md`: the vectorised
+Q6_K product is 1.26x on `ffn_down` and 3.69x on the output projection over seven alternating rounds, ranges
+disjoint on both, seven of seven each. The output projection moves from 4.1 to 15.2 GMAC/s. The Q6_K share of
+a decode token falls from 730 ms to about 500 ms, which projects decode from 0.71 to about 0.85 tok/s — the
+threshold of 3 remains unmet. Skills: phase-development-task-execution and base-dossier-writing.

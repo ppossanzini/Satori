@@ -102,21 +102,10 @@ public static class QuantizedMatVec
     /// caller discards with the rest of the projection.
     /// </remarks>
     public static unsafe void ExecuteBatch(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input,
-        int positions, Span<float> output, int threads, CancellationToken cancellationToken = default) =>
-        ExecuteBatchTuned(data, shape, input, positions, output, threads, RowsPerClaim, cancellationToken);
-
-    /// <summary>
-    /// <see cref="ExecuteBatch"/> with the claim granularity stated by the caller, so a benchmark can show
-    /// whether the value is a property of the technique or of one machine. Production always takes
-    /// <see cref="RowsPerClaim"/>.
-    /// </summary>
-    internal static unsafe void ExecuteBatchTuned(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
-        ReadOnlySpan<float> input, int positions, Span<float> output, int threads, int rowsPerClaim,
-        CancellationToken cancellationToken = default)
+        int positions, Span<float> output, int threads, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(positions);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(threads);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(rowsPerClaim);
         if (data.Length != shape.ByteLength) throw new ArgumentException("Incorrect quantized payload length.", nameof(data));
         if (input.Length != Checked(positions, shape.Columns))
             throw new ArgumentException("Input must hold one vector per position.", nameof(input));
@@ -125,7 +114,7 @@ public static class QuantizedMatVec
         if (MemoryMarshal.AsBytes(input).Overlaps(MemoryMarshal.AsBytes(output)))
             throw new ArgumentException("Input and output must not overlap.");
         if (Avx2.IsSupported && shape.Format is BlockQuantization.Q4_K or BlockQuantization.Q6_K)
-            ExecuteBatchQuantized(data, shape, input, positions, output, threads, rowsPerClaim, cancellationToken);
+            ExecuteBatchQuantized(data, shape, input, positions, output, threads, RowsPerClaim, cancellationToken);
         else
             ExecuteBatchFloat(data, shape, input, positions, output, threads, cancellationToken);
     }

@@ -7,10 +7,4 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <!-- The measurement entry points of QuantizedMatVec are internal so that a benchmark can vary a tuning
-       value and show whether it is a property of the technique or of one machine. -->
-  <ItemGroup>
-    <InternalsVisibleTo Include="Satori.Numerics.Tests" />
-  </ItemGroup>
-
 </Project>

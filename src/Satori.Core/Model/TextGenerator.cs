@@ -50,15 +50,17 @@ public sealed class TextGenerator
     }
 
     /// <summary>Encodes <paramref name="prompt"/> and generates a continuation.</summary>
-    public TextGenerationResult Generate(string prompt, TextGenerationOptions options, Action<int>? onToken = null)
+    public TextGenerationResult Generate(string prompt, TextGenerationOptions options, Action<int>? onToken = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(prompt);
         int[] encoded = [.. _tokenizer.Encode(prompt)];
-        return GenerateFromTokens(encoded, options, onToken);
+        return GenerateFromTokens(encoded, options, onToken, cancellationToken);
     }
 
     /// <summary>Generates a continuation from explicit prompt tokens.</summary>
-    public TextGenerationResult GenerateFromTokens(ReadOnlySpan<int> promptTokens, TextGenerationOptions options, Action<int>? onToken = null)
+    public TextGenerationResult GenerateFromTokens(ReadOnlySpan<int> promptTokens, TextGenerationOptions options,
+        Action<int>? onToken = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
         if (promptTokens.IsEmpty) throw new ArgumentException("Prompt must contain at least one token.", nameof(promptTokens));
@@ -68,13 +70,16 @@ public sealed class TextGenerator
 
         int vocabulary = _session.Model.Shape!.VocabularySize;
         int[] prompt = promptTokens.ToArray();
-        _session.Forward(prompt, new float[vocabulary]);
+        _session.Forward(prompt, new float[vocabulary], cancellationToken);
 
         var sampler = new TokenSampler(vocabulary, sampling);
         var generated = new List<int>(options.MaxNewTokens);
         var stop = GenerationStop.TokenLimit;
         for (int i = 0; i < options.MaxNewTokens; i++)
         {
+            // Between tokens as well as inside them: a decode step checks before every projection, but a step
+            // that has finished should not be followed by another once the caller asked to stop.
+            cancellationToken.ThrowIfCancellationRequested();
             if (_session.Position >= _session.ContextLength)
             {
                 stop = GenerationStop.ContextFull;
@@ -88,7 +93,7 @@ public sealed class TextGenerator
             }
             generated.Add(next);
             onToken?.Invoke(next);
-            _session.Append(next);
+            _session.Append(next, cancellationToken);
         }
         return new TextGenerationResult(prompt, generated, _tokenizer.Decode(generated), stop);
     }

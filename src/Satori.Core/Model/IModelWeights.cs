@@ -26,8 +26,15 @@ public interface IModelWeights : IDisposable
     /// <remarks>
     /// This exists so a prompt does not read the packed weights once per token. An implementation may split
     /// the rows over <paramref name="threads"/> workers; the result must not depend on that split.
+    /// <para>
+    /// <paramref name="cancellationToken"/> is observed between the pieces of work that split produces, so a
+    /// request to stop waits at most one piece and not one whole projection. A projection of the largest shape
+    /// in the model is the longest uninterruptible step of a layer, and bounding the delay by a piece rather
+    /// than by the projection is what makes the delay a property of the design instead of of luck.
+    /// </para>
     /// </remarks>
-    void ProjectBatch(string name, ReadOnlySpan<float> input, int positions, Span<float> output, int threads);
+    void ProjectBatch(string name, ReadOnlySpan<float> input, int positions, Span<float> output, int threads,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Returns the named rank-1 F32 vector (a normalization weight or a projection bias).</summary>
     ReadOnlySpan<float> Vector(string name);

@@ -144,4 +144,105 @@ public sealed class Q6KQuantizedProductTests
         Assert.Throws<ArgumentException>(() => Q6KCodec.DotProduct(weights, activation[..100]));
         Assert.Throws<ArgumentException>(() => Q6KCodec.DotBlockQuantized(weights[..100], activation));
     }
+
+    /// <summary>
+    /// The vectorised kernel must return the scalar product's integer exactly, block for block. Both compute
+    /// <c>Σ scale_s * Σ (q - 32) * code</c>, which is a sum of integer products, so agreement is required bit
+    /// for bit and a difference is a defect rather than a rounding artefact. This is the check the scalar form
+    /// could not make on the vector form: the first attempt at this kernel produced a sign error that a
+    /// tolerance-based test would have absorbed.
+    /// </summary>
+    /// <remarks>
+    /// The activations are real Q8_K blocks and not arbitrary bytes, because a random activation byte pattern
+    /// gives a scale that is not a finite number and the kernel would then compare two infinities. The test
+    /// says so rather than relying on the reader to notice.
+    /// </remarks>
+    [Fact]
+    public void TheVectorisedProductEqualsTheScalarProductExactly()
+    {
+        if (!System.Runtime.Intrinsics.X86.Avx2.IsSupported)
+        {
+            return;
+        }
+        const int blocks = 200;
+        var random = new Random(20261014);
+        float[] activationValues = new float[Q8KCodec.ElementsPerBlock];
+        byte[] activation = new byte[Q8KCodec.BytesPerBlock];
+        int compared = 0;
+        for (int block = 0; block < blocks; block++)
+        {
+            byte[] weights = new byte[Q6KCodec.BytesPerBlock];
+            random.NextBytes(weights);
+            // Six-bit quants are six bits; the two spare bits of each byte belong to no quant and the decoder
+            // ignores them, so leaving them random is the realistic case and also the harder one.
+            for (int index = 0; index < activationValues.Length; index++)
+                activationValues[index] = (float)(random.NextDouble() * 2 - 1);
+            Q8KCodec.QuantizeBlock(activationValues, activation);
+            if (Q8KCodec.IsZero(activation))
+            {
+                continue;
+            }
+
+            int scalar = Q6KCodec.DotProduct(weights, activation);
+            int vector;
+            unsafe
+            {
+                fixed (byte* weightsPointer = weights)
+                fixed (byte* activationPointer = activation)
+                    vector = Satori.Core.QuantizedKAvx2Kernel.DotProductQ6K(weightsPointer, activationPointer);
+            }
+            Assert.Equal(scalar, vector);
+            compared++;
+        }
+        Assert.True(compared > blocks / 2, $"Only {compared} of {blocks} blocks were comparable.");
+    }
+
+    /// <summary>
+    /// The same equality on the artifact's own Q6_K blocks, where the scales and quants come from a real model
+    /// rather than a generator. Skipped when the artifact is absent, like the other real-bytes tests.
+    /// </summary>
+    [Fact]
+    public void TheVectorisedProductEqualsTheScalarProductOnRealBlocks()
+    {
+        const string artifact = ".temp/deepseek/dw02/models/qwen2.5-coder-7b-instruct-q4_k_m.gguf";
+        string path = Path.Combine(GgufTests.Root, artifact);
+        if (!File.Exists(path))
+        {
+            return;
+        }
+        using var file = new Satori.Formats.Gguf.GgufFile(path);
+        var random = new Random(20261014);
+        float[] activationValues = new float[Q8KCodec.ElementsPerBlock];
+        byte[] activation = new byte[Q8KCodec.BytesPerBlock];
+        int compared = 0;
+        foreach (string name in new[] { "blk.0.ffn_down.weight", "output.weight" })
+        {
+            var matrix = new Satori.Formats.Gguf.GgufQuantizedMatrix(file, name);
+            Assert.Equal(BlockQuantization.Q6_K, matrix.Shape.Format);
+            byte[] payload = new byte[matrix.Shape.ByteLength];
+            file.ReadTensor(name, 0, payload.Length, static (bytes, target) => bytes.CopyTo(target), payload);
+            int blocksPerRow = matrix.Shape.Columns / Q6KCodec.ElementsPerBlock;
+            for (int row = 0; row < matrix.Shape.Rows; row += 97)
+            {
+                for (int columnBlock = 0; columnBlock < blocksPerRow; columnBlock++)
+                {
+                    int offset = (row * blocksPerRow + columnBlock) * Q6KCodec.BytesPerBlock;
+                    for (int index = 0; index < activationValues.Length; index++)
+                        activationValues[index] = (float)(random.NextDouble() * 2 - 1);
+                    Q8KCodec.QuantizeBlock(activationValues, activation);
+                    int scalar = Q6KCodec.DotProduct(payload.AsSpan(offset, Q6KCodec.BytesPerBlock), activation);
+                    int vector;
+                    unsafe
+                    {
+                        fixed (byte* weightsPointer = payload.AsSpan(offset, Q6KCodec.BytesPerBlock))
+                        fixed (byte* activationPointer = activation)
+                            vector = Satori.Core.QuantizedKAvx2Kernel.DotProductQ6K(weightsPointer, activationPointer);
+                    }
+                    Assert.Equal(scalar, vector);
+                    compared++;
+                }
+            }
+        }
+        Assert.True(compared > 100, $"Only {compared} real blocks were compared.");
+    }
 }

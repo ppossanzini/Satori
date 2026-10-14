@@ -33,8 +33,9 @@ public sealed class GgufWeightStore : IModelWeights
     public void Project(string name, ReadOnlySpan<float> input, Span<float> output) =>
         Matrix(name).Execute(input, output);
 
-    public void ProjectBatch(string name, ReadOnlySpan<float> input, int positions, Span<float> output, int threads) =>
-        Matrix(name).ExecuteBatch(input, positions, output, threads);
+    public void ProjectBatch(string name, ReadOnlySpan<float> input, int positions, Span<float> output, int threads,
+        CancellationToken cancellationToken = default) =>
+        Matrix(name).ExecuteBatch(input, positions, output, threads, cancellationToken);
 
     public ReadOnlySpan<float> Vector(string name) => VectorOf(name).Values;
 

@@ -64,6 +64,19 @@ public sealed class DenseSession : IInferenceSession
         _options = (options ?? InferenceOptions.Default).Validated();
         _forward = new DenseForward(_shape, weights);
 
+        // The budget is applied here, before any large allocation, because a session that cannot fit must be
+        // refused rather than allowed to commit the memory and fail later on an allocation it cannot honour.
+        // The plan counts the compressed weights, the key/value state for this context and the per-layer
+        // workspace, which is the same account the operator sees from `describe`.
+        if (_options.BudgetBytes > 0)
+        {
+            ModelPlan plan = model.Plan(contextLength, _options.BudgetBytes);
+            if (plan.ExceedsBudget)
+                throw new InvalidOperationException(
+                    $"The session needs {plan.TotalBytes} bytes and the budget is {plan.BudgetBytes}: " +
+                    $"weights {plan.WeightBytes}, state {plan.StateBytes}, workspace {plan.WorkspaceBytes}.");
+        }
+
         long slots = checked((long)_shape.Layers * 2 * _context * _kvWidth);
         if (slots > int.MaxValue)
             throw new NotSupportedException($"Key/value state of {slots} floats exceeds Int32.");
@@ -85,11 +98,17 @@ public sealed class DenseSession : IInferenceSession
     /// <summary>Bytes owned by the key/value state, consistent with <see cref="ModelPlan.StateBytes"/>.</summary>
     public long StateBytes => checked((long)_shape.Layers * 2 * _context * _kvWidth * ModelPlanner.F32Bytes);
 
+    /// <summary>Budget this session was created with, or zero when the host stated none.</summary>
+    public long BudgetBytes => _options.BudgetBytes;
+
     /// <summary>Logits of the most recently appended position.</summary>
     public ReadOnlySpan<float> Logits => _logits;
 
     /// <summary>Appends a single token and returns the logits of that position.</summary>
-    public ReadOnlySpan<float> Append(int token)
+    public ReadOnlySpan<float> Append(int token) => Append(token, CancellationToken.None);
+
+    /// <summary>Appends a single token, observing <paramref name="cancellationToken"/> before every projection.</summary>
+    public ReadOnlySpan<float> Append(int token, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if ((uint)token >= (uint)_shape.VocabularySize)
@@ -101,14 +120,20 @@ public sealed class DenseSession : IInferenceSession
         {
             Span<float> keys = _keys.AsSpan(layer * _context * _kvWidth, _context * _kvWidth);
             Span<float> values = _values.AsSpan(layer * _context * _kvWidth, _context * _kvWidth);
-            _forward.Step(layer, _position, _hidden, keys, values, _scratch, _observe, _options.Threads);
+            _forward.Step(layer, _position, _hidden, keys, values, _scratch, _observe, _options.Threads, cancellationToken);
         }
-        _forward.Final(_hidden, _logits, _scratch, _observe);
+        _forward.Final(_hidden, _logits, _scratch, _observe, cancellationToken: cancellationToken);
         _position++;
+        // A request that arrived during the last projection is honored before this call reports success, so a
+        // cancelled call never looks like a completed one. The position it advanced by is work that was done.
+        cancellationToken.ThrowIfCancellationRequested();
         return _logits;
     }
 
-    public void Forward(ReadOnlySpan<int> tokens, Span<float> logits)
+    public void Forward(ReadOnlySpan<int> tokens, Span<float> logits) =>
+        Forward(tokens, logits, CancellationToken.None);
+
+    public void Forward(ReadOnlySpan<int> tokens, Span<float> logits, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (tokens.IsEmpty) throw new ArgumentException("At least one token is required.", nameof(tokens));
@@ -118,17 +143,23 @@ public sealed class DenseSession : IInferenceSession
             throw new ArgumentOutOfRangeException(nameof(tokens),
                 $"Appending {tokens.Length} tokens at position {_position} exceeds the context limit {_context}.");
 
+        // A chunk commits its positions only once every layer of it has run, so a stop request between chunks
+        // leaves the session at a chunk boundary rather than mid-prompt. Within a chunk the checkpoints inside
+        // each layer bound the delay.
         int lastCount = 0;
         for (int done = 0; done < tokens.Length; done += _chunkPositions)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             lastCount = Math.Min(_chunkPositions, tokens.Length - done);
-            PrefillChunk(tokens.Slice(done, lastCount));
+            PrefillChunk(tokens.Slice(done, lastCount), cancellationToken);
         }
 
         // Prefill does not need the logits of the positions a real continuation will never resample from, so
         // the output projection runs once for the last prompt position instead of once for every one of them.
-        _forward.Final(Hidden(lastCount - 1), _logits, _scratch, _observe);
+        _forward.Final(Hidden(lastCount - 1), _logits, _scratch, _observe, cancellationToken: cancellationToken);
         _logits.CopyTo(logits);
+        // Same as Append: a request raised during the last projection must not be reported as a completed run.
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     /// <summary>
@@ -136,7 +167,7 @@ public sealed class DenseSession : IInferenceSession
     /// holds positions <c>start..start+count-1</c>; the layer writes each position's key and value at its
     /// absolute slot, and the next chunk appends after them.
     /// </summary>
-    private void PrefillChunk(ReadOnlySpan<int> tokens)
+    private void PrefillChunk(ReadOnlySpan<int> tokens, CancellationToken cancellationToken)
     {
         int start = _position;
         int count = tokens.Length;
@@ -144,7 +175,7 @@ public sealed class DenseSession : IInferenceSession
 
         for (int layer = 0; layer < _shape.Layers; layer++)
             _forward.LayerBatch(layer, start, count, _batch, LayerKeys(layer), LayerValues(layer),
-                _options.Threads, _observe);
+                _options.Threads, _observe, cancellationToken);
 
         _position = start + count;
     }

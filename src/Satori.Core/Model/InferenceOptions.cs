@@ -10,6 +10,14 @@ namespace Satori.Core.Model;
 /// </remarks>
 public sealed record InferenceOptions(int Threads)
 {
+    /// <summary>
+    /// Bytes the session may occupy, or zero for no stated limit. The figure covers compressed weights, the
+    /// key/value state for the context and the per-layer workspace, which is what <see cref="ModelPlanner"/>
+    /// accounts for. A session that cannot fit is refused before it allocates rather than after it has
+    /// committed the memory it cannot honor.
+    /// </summary>
+    public long BudgetBytes { get; init; }
+
     /// <summary>The protocol's inference thread budget, used when the host states no limit.</summary>
     public const int BudgetThreads = 8;
 
@@ -25,10 +33,11 @@ public sealed record InferenceOptions(int Threads)
     /// </remarks>
     public static InferenceOptions Default { get; } = new(Math.Min(BudgetThreads, Environment.ProcessorCount));
 
-    /// <summary>Rejects a thread count that cannot be served.</summary>
+    /// <summary>Rejects a thread count or a budget that cannot be served.</summary>
     public InferenceOptions Validated()
     {
         if (Threads < 1) throw new ArgumentOutOfRangeException(nameof(Threads), "Threads must be at least one.");
+        if (BudgetBytes < 0) throw new ArgumentOutOfRangeException(nameof(BudgetBytes), "BudgetBytes must not be negative.");
         return this;
     }
 }

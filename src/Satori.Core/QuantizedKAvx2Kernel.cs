@@ -29,16 +29,18 @@ internal static class QuantizedKAvx2Kernel
     /// </summary>
     /// <remarks>
     /// The loop is row, then block, then position: a row's weight blocks are streamed once and stay in the
-    /// first-level cache, and the activation rows are swept once per weight row. For Q4_K the two block scales
-    /// and the eight 6-bit scales and mins are extracted once per weight block outside the position loop,
-    /// because extracting them per position was measured to cost more than the products themselves.
+    /// first-level cache, and the activation rows are swept once per weight row. The block constants that do not
+    /// depend on the position are read once per block rather than once per position, which was measured to
+    /// matter more than the products themselves: for Q4_K the two block scales and the eight 6-bit scales and
+    /// mins, for Q6_K the single block scale.
     /// <para>
-    /// Both K formats take this path. Q4_K gets the vectorised <see cref="DotQuantizedQ4K"/>. Q6_K gets the
-    /// scalar codec product, because its four codes per byte sit under four different sub-scales, so the
-    /// byte-pair multiply-add that makes the Q4_K kernel fast does not apply. The scalar product re-reads the
-    /// sixteen sub-scales on every call instead of hoisting them, and it still pays: measured on the real
-    /// artifact's two Q6_K tensors, with the two revisions alternated in one session, this path runs them
-    /// 1.25x to 1.33x faster than the floating-point path it replaced.
+    /// Both K formats get a vectorised integer product, and both are required to return the scalar codec's
+    /// integer exactly. Q4_K's eight sub-blocks of thirty-two weights each land one sub-scale per
+    /// thirty-two-weight step; Q6_K's sixteen sub-blocks of sixteen weights land two, so its second
+    /// multiply-add consumes a lane pattern with the two scales interleaved by half. Neither kernel copies the
+    /// reference implementation's formulation of the centring term: the reference removes it through a scale
+    /// grouping the format's own decoder does not share, and reproducing that grouping without deriving it once
+    /// produced a sign error. Both derive it from the decoder's index mapping instead.
     /// </para>
     /// </remarks>
     internal static unsafe void ExecuteQuantizedTiled(byte* weights, QuantizedMatrixShape shape,
@@ -72,16 +74,22 @@ internal static class QuantizedKAvx2Kernel
                     d = Half(new ReadOnlySpan<byte>(blockWeights, 2));
                     dmin = Half(new ReadOnlySpan<byte>(blockWeights + 2, 2));
                 }
+                else
+                {
+                    d = Half(new ReadOnlySpan<byte>(blockWeights + Q6KCodec.BytesPerBlock - 2, 2));
+                }
                 for (int position = 0; position < positions; position++)
                 {
                     byte* activation = activations + (long)position * activationRowBytes + (long)block * Q8KCodec.BytesPerBlock;
                     var activationBlock = new ReadOnlySpan<byte>(activation, Q8KCodec.BytesPerBlock);
                     if (Q8KCodec.IsZero(activationBlock)) continue;
                     float activationScale = Q8KCodec.Scale(activationBlock);
+                    // The two paths are written so that the same integer product reaches the same float: the
+                    // activation scale multiplies the block scale first and the product after, in both.
                     accumulator[position] += q4
                         ? DotQuantizedQ4K(blockWeights, activation, lowMask, subScales, subMins,
                             d * activationScale, dmin * activationScale)
-                        : Q6KCodec.DotBlockQuantized(new ReadOnlySpan<byte>(blockWeights, Q6KCodec.BytesPerBlock), activationBlock);
+                        : activationScale * d * DotProductQ6K(blockWeights, activation);
                 }
             }
             for (int position = 0; position < positions; position++)
@@ -125,6 +133,93 @@ internal static class QuantizedKAvx2Kernel
         halves = Sse2.Add(halves, Sse2.Shuffle(halves, 0xb1));
         return halves.ToScalar();
     }
+
+    /// <summary>
+    /// <c>Σ scale_s * Σ (q - 32) * code</c> over the sixteen 16-weight sub-blocks, in exact integer
+    /// arithmetic, vectorised. This is the same quantity <see cref="Q6KCodec.DotProduct"/> computes scalars
+    /// for, and the two are required to agree exactly: the products, the sub-scale weighting and the centring
+    /// term are all integers, so a difference is a defect and not a rounding artefact.
+    /// </summary>
+    /// <remarks>
+    /// The block is walked as eight groups of thirty-two weights, which is the width the unsigned-times-signed
+    /// byte multiply-add works at, and is the same walk <see cref="DotQuantizedQ4K"/> makes. Within a group
+    /// the thirty-two six-bit quants are assembled from one thirty-two-byte <c>ql</c> word and one
+    /// thirty-two-byte <c>qh</c> word: the low nibble of <c>ql</c> and one two-bit field of <c>qh</c> in the
+    /// first two groups, the high nibble in the last two, and the second <c>ql</c> word of the half for the
+    /// odd groups. The index mapping is the decoder's, which the independent fixture already validates; it is
+    /// reproduced here rather than taken from the reference kernel's formulation, because the reference
+    /// multiplies <b>uncentred</b> codes and removes the offset afterwards through a scale grouping this
+    /// format's decoder does not share, and copying that grouping without deriving it once produced a sign
+    /// error.
+    /// <para>
+    /// The two differences from the Q4_K walk follow from the format. A Q6_K sub-block holds sixteen weights
+    /// and not thirty-two, so each thirty-two-weight step carries two sub-scales rather than one, laid out as
+    /// the sixteen lanes the second multiply-add consumes. The code offset is a constant thirty-two, so the
+    /// term that removes it is <c>32 * Σ scale_s * Σ code</c>, and the inner group sums are the ones the Q8_K
+    /// block already carries, which is why the centring costs one integer per sub-block.
+    /// </para>
+    /// </remarks>
+    internal static unsafe int DotProductQ6K(byte* block, byte* activation)
+    {
+        byte* ql = block;
+        byte* qh = block + 128;
+        sbyte* scales = (sbyte*)(block + 192);
+        byte* codes = activation + Q8KCodec.QuantsOffset;
+        short* sums = (short*)(activation + Q8KCodec.SumsOffset);
+        var lowNibble = Vector256.Create((byte)0x0F);
+        var twoBits = Vector256.Create((byte)0x03);
+        var upperHalf = Vector256.Create((byte)0x30);
+        var accumulator = Vector256<int>.Zero;
+        int centring = 0;
+        for (int group = 0; group < 8; group++)
+        {
+            int half = group / 4;
+            int quarter = group % 4;
+            byte* qlWord = ql + half * 64 + (quarter % 2) * 32;
+            byte* qhWord = qh + half * 32;
+            var packed = Avx.LoadVector256(qlWord);
+            var nibbles = quarter >= 2
+                ? Avx2.And(Avx2.ShiftRightLogical(packed.AsUInt16(), 4).AsByte(), lowNibble)
+                : Avx2.And(packed, lowNibble);
+            // A right shift of a sixteen-bit lane moves the neighbouring byte's low nibble into the byte being
+            // read, and masking to two bits discards it, so each byte yields its own field. The shift count is
+            // written as four constants rather than one variable: the immediate form is the only one the
+            // sixteen-bit shift has, and a variable count would make the compiler materialise it elsewhere.
+            var high = Avx2.And(Q6KHighField(Avx.LoadVector256(qhWord), quarter), twoBits);
+            // The same trick on the way back: shifting the sixteen-bit lane left moves the field to bits four
+            // and five of its own byte, and the mask keeps exactly those two bits.
+            var quants = Avx2.Or(nibbles,
+                Avx2.And(Avx2.ShiftLeftLogical(high.AsUInt16(), 4).AsByte(), upperHalf));
+            var groupCodes = Avx.LoadVector256(codes + group * 32).AsSByte();
+            var pairs = Avx2.MultiplyAddAdjacent(quants, groupCodes);
+            sbyte low = scales[group * 2];
+            sbyte highScale = scales[group * 2 + 1];
+            accumulator = Avx2.Add(accumulator, Avx2.MultiplyAddAdjacent(pairs, LaneScales(low, highScale)));
+            centring += 32 * (low * sums[group * 2] + highScale * sums[group * 2 + 1]);
+        }
+        return HorizontalSum(accumulator) - centring;
+    }
+
+    /// <summary>
+    /// The two-bit field of <paramref name="packed"/> that <paramref name="quarter"/> selects, moved down to
+    /// the low bits of each byte. Written as constants because a variable shift count is not the immediate form.
+    /// </summary>
+    private static Vector256<byte> Q6KHighField(Vector256<byte> packed, int quarter) => quarter switch
+    {
+        0 => packed,
+        1 => Avx2.ShiftRightLogical(packed.AsUInt16(), 2).AsByte(),
+        2 => Avx2.ShiftRightLogical(packed.AsUInt16(), 4).AsByte(),
+        _ => Avx2.ShiftRightLogical(packed.AsUInt16(), 6).AsByte(),
+    };
+
+    /// <summary>
+    /// The two sub-scales of one thirty-two-weight step, laid out for the second multiply-add: it pairs adjacent
+    /// sixteen-bit lanes, so the first eight lanes weight the first sixteen weights and the last eight the
+    /// second sixteen.
+    /// </summary>
+    private static Vector256<short> LaneScales(sbyte low, sbyte high) => Vector256.Create(
+        (short)low, (short)low, (short)low, (short)low, (short)low, (short)low, (short)low, (short)low,
+        (short)high, (short)high, (short)high, (short)high, (short)high, (short)high, (short)high, (short)high);
 
     private static void ExecuteQ4K(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
         ReadOnlySpan<float> input, Span<float> output)

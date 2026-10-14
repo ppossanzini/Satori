@@ -97,10 +97,13 @@ public static class QuantizedMatVec
     /// The inner dot uses fused multiply-add when the host has it, which rounds once per product instead of
     /// twice. The batched result can therefore differ from <see cref="Execute"/> in the last bits while
     /// agreeing to within the tolerance the tests assert; both compute the same mathematical quantity.
+    /// <paramref name="cancellationToken"/> is observed between the row claims, so the delay a stop request can
+    /// wait is one claim and not the projection; the rows of an abandoned claim are left unwritten, which the
+    /// caller discards with the rest of the projection.
     /// </remarks>
     public static unsafe void ExecuteBatch(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input,
-        int positions, Span<float> output, int threads) =>
-        ExecuteBatchTuned(data, shape, input, positions, output, threads, RowsPerClaim);
+        int positions, Span<float> output, int threads, CancellationToken cancellationToken = default) =>
+        ExecuteBatchTuned(data, shape, input, positions, output, threads, RowsPerClaim, cancellationToken);
 
     /// <summary>
     /// <see cref="ExecuteBatch"/> with the claim granularity stated by the caller, so a benchmark can show
@@ -108,7 +111,8 @@ public static class QuantizedMatVec
     /// <see cref="RowsPerClaim"/>.
     /// </summary>
     internal static unsafe void ExecuteBatchTuned(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
-        ReadOnlySpan<float> input, int positions, Span<float> output, int threads, int rowsPerClaim)
+        ReadOnlySpan<float> input, int positions, Span<float> output, int threads, int rowsPerClaim,
+        CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(positions);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(threads);
@@ -121,9 +125,9 @@ public static class QuantizedMatVec
         if (MemoryMarshal.AsBytes(input).Overlaps(MemoryMarshal.AsBytes(output)))
             throw new ArgumentException("Input and output must not overlap.");
         if (Avx2.IsSupported && shape.Format is BlockQuantization.Q4_K or BlockQuantization.Q6_K)
-            ExecuteBatchQuantized(data, shape, input, positions, output, threads, rowsPerClaim);
+            ExecuteBatchQuantized(data, shape, input, positions, output, threads, rowsPerClaim, cancellationToken);
         else
-            ExecuteBatchFloat(data, shape, input, positions, output, threads);
+            ExecuteBatchFloat(data, shape, input, positions, output, threads, cancellationToken);
     }
 
     /// <summary>
@@ -141,7 +145,8 @@ public static class QuantizedMatVec
     /// <paramref name="positions"/> is bounded by the kernel's accumulator size.
     /// </remarks>
     private static unsafe void ExecuteBatchQuantized(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
-        ReadOnlySpan<float> input, int positions, Span<float> output, int threads, int rowsPerClaim)
+        ReadOnlySpan<float> input, int positions, Span<float> output, int threads, int rowsPerClaim,
+        CancellationToken cancellationToken)
     {
         int rowBytes = Q8KCodec.RowBytes(shape.Columns);
         byte[] quantized = ArrayPool<byte>.Shared.Rent(Checked(positions, rowBytes));
@@ -185,6 +190,10 @@ public static class QuantizedMatVec
                     {
                         while (true)
                         {
+                            // Between claims rather than inside one: a claim is eight rows of one tensor,
+                            // tens of milliseconds at the largest shape in the model, so this bounds a stop
+                            // request by that and not by the whole projection.
+                            cancellationToken.ThrowIfCancellationRequested();
                             int begin = Interlocked.Add(ref claimed[0], chunk) - chunk;
                             if (begin >= shape.Rows) return;
                             QuantizedKAvx2Kernel.ExecuteQuantizedTiled(workerData, shape, workerActivations, positions,
@@ -192,7 +201,19 @@ public static class QuantizedMatVec
                         }
                     }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
                 }
-                Task.WaitAll(running);
+                try
+                {
+                    Task.WaitAll(running);
+                }
+                catch (AggregateException aggregate) when (aggregate.InnerExceptions.Any(
+                    static inner => inner is OperationCanceledException))
+                {
+                    // A worker's cancellation arrives wrapped in the aggregate the wait produces. It is
+                    // unwrapped here so the caller sees the stop it asked for and not a fault, which is what
+                    // distinguishes a cancellation from a defect in everything that catches it.
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw;
+                }
             }
         }
         finally
@@ -202,7 +223,7 @@ public static class QuantizedMatVec
     }
 
     private static unsafe void ExecuteBatchFloat(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input,
-        int positions, Span<float> output, int threads)
+        int positions, Span<float> output, int threads, CancellationToken cancellationToken)
     {
         int workers = Math.Min(threads, shape.Rows);
         if (workers <= 1)
@@ -211,7 +232,8 @@ public static class QuantizedMatVec
             fixed (byte* dataPointer = &MemoryMarshal.GetReference(data))
             fixed (float* inputPointer = &MemoryMarshal.GetReference(input))
             fixed (float* outputPointer = &MemoryMarshal.GetReference(output))
-                ExecuteBatchRows(dataPointer, shape, inputPointer, positions, outputPointer, 0, shape.Rows, 0, workspace);
+                ExecuteBatchRows(dataPointer, shape, inputPointer, positions, outputPointer, 0, shape.Rows, 0, workspace,
+                    cancellationToken);
             return;
         }
 
@@ -239,11 +261,21 @@ public static class QuantizedMatVec
                     float* workerInput = inputPointer;
                     float* workerOutput = outputPointer;
                     int offset = worker * WorkspacePerWorker(shape, positions);
+                    CancellationToken workerToken = cancellationToken;
                     running[worker] = Task.Factory.StartNew(() =>
                         ExecuteBatchRows(workerData, shape, workerInput, positions, workerOutput, begin, end, offset,
-                            workspace), CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+                            workspace, workerToken), CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
                 }
-                Task.WaitAll(running);
+                try
+                {
+                    Task.WaitAll(running);
+                }
+                catch (AggregateException aggregate) when (aggregate.InnerExceptions.Any(
+                    static inner => inner is OperationCanceledException))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw;
+                }
             }
             finally
             {
@@ -278,7 +310,8 @@ public static class QuantizedMatVec
     /// system and one that streams the same bytes thousands of times.
     /// </summary>
     private static unsafe void ExecuteBatchRows(byte* data, QuantizedMatrixShape shape, float* input,
-        int positions, float* output, int begin, int end, int workspaceOffset, float[] workspaceBuffer)
+        int positions, float* output, int begin, int end, int workspaceOffset, float[] workspaceBuffer,
+        CancellationToken cancellationToken)
     {
         int columns = shape.Columns;
         int blocksPerRow = columns / shape.BlockElements;
@@ -287,6 +320,9 @@ public static class QuantizedMatVec
         Span<float> accumulator = workspaceBuffer.AsSpan(workspaceOffset + RowTile * blockElements, RowTile * positions);
         for (int tile = begin; tile < end; tile += RowTile)
         {
+            // One tile is the piece this path can abandon, so the token is checked here for the same reason
+            // the integer path checks between claims.
+            cancellationToken.ThrowIfCancellationRequested();
             int tileRows = Math.Min(RowTile, end - tile);
             accumulator[..checked(tileRows * positions)].Clear();
             for (int block = 0; block < blocksPerRow; block++)

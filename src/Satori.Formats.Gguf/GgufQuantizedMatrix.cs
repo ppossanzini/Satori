@@ -40,10 +40,12 @@ public sealed class GgufQuantizedMatrix
             QuantizedMatVec.Execute(bytes, state.Shape, state.Input, state.Output), new Execution(Shape, input, output));
 
     /// <summary>Multiplies the tensor by <paramref name="positions"/> input vectors in one pass.</summary>
-    public void ExecuteBatch(ReadOnlySpan<float> input, int positions, Span<float> output, int threads) =>
+    public void ExecuteBatch(ReadOnlySpan<float> input, int positions, Span<float> output, int threads,
+        CancellationToken cancellationToken = default) =>
         _file.ReadTensor(_name, 0, Shape.ByteLength, static (bytes, state) =>
-            QuantizedMatVec.ExecuteBatch(bytes, state.Shape, state.Input, state.Positions, state.Output, state.Threads),
-            new BatchExecution(Shape, input, positions, output, threads));
+            QuantizedMatVec.ExecuteBatch(bytes, state.Shape, state.Input, state.Positions, state.Output, state.Threads,
+                state.Token),
+            new BatchExecution(Shape, input, positions, output, threads, cancellationToken));
 
     public void ExecuteScalar(ReadOnlySpan<float> input, Span<float> output) =>
         _file.ReadTensor(_name, 0, Shape.ByteLength, static (bytes, state) =>
@@ -72,12 +74,13 @@ public sealed class GgufQuantizedMatrix
     }
 
     private readonly ref struct BatchExecution(QuantizedMatrixShape shape, ReadOnlySpan<float> input, int positions,
-        Span<float> output, int threads)
+        Span<float> output, int threads, CancellationToken token)
     {
         public QuantizedMatrixShape Shape { get; } = shape;
         public ReadOnlySpan<float> Input { get; } = input;
         public int Positions { get; } = positions;
         public Span<float> Output { get; } = output;
         public int Threads { get; } = threads;
+        public CancellationToken Token { get; } = token;
     }
 }

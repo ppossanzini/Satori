@@ -19,6 +19,11 @@ public interface IInferenceSession : IDisposable
     /// <summary>Discards all committed positions; the session returns to its initial state.</summary>
     void Reset();
 
-    /// <summary>Appends tokens, advances <see cref="Position"/> and writes the logits of the last position.</summary>
-    void Forward(ReadOnlySpan<int> tokens, Span<float> logits);
+    /// <summary>
+    /// Appends tokens, advances <see cref="Position"/> and writes the logits of the last position.
+    /// <paramref name="cancellationToken"/> is observed before every projection, so a request to stop is
+    /// honored within one projection of the largest shape in the model and never leaves a partially written
+    /// position committed.
+    /// </summary>
+    void Forward(ReadOnlySpan<int> tokens, Span<float> logits, CancellationToken cancellationToken = default);
 }

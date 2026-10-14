@@ -73,7 +73,8 @@ internal sealed class SyntheticWeights : IModelWeights
     /// split over <paramref name="threads"/> workers exactly as the quantized kernel splits them, and each
     /// worker writes its own rows, so the split cannot change a value.
     /// </summary>
-    public void ProjectBatch(string name, ReadOnlySpan<float> input, int positions, Span<float> output, int threads)
+    public void ProjectBatch(string name, ReadOnlySpan<float> input, int positions, Span<float> output, int threads,
+        CancellationToken cancellationToken = default)
     {
         var (rows, columns) = _shapes[name];
         if (input.Length != positions * columns) throw new ArgumentException($"Input must hold {positions} vectors for {name}.");

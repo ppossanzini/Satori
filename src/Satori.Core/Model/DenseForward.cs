@@ -98,7 +98,7 @@ public sealed class DenseForward
     /// <c>(position + 1)</c> key/value slots.
     /// </summary>
     internal void Step(int layer, int position, Span<float> residual, Span<float> keys, Span<float> values,
-        DenseScratch scratch, ForwardObserver? observe, int threads = 1)
+        DenseScratch scratch, ForwardObserver? observe, int threads = 1, CancellationToken cancellationToken = default)
     {
         var names = _layers[layer];
         Span<float> query = scratch.Query, key = scratch.Key, value = scratch.Value,
@@ -111,9 +111,16 @@ public sealed class DenseForward
         // formality: the batched kernel quantizes the activation once and then multiplies integers, which
         // measured 3.7x the per-position kernel on a projection of this shape, and decoding is nothing but a
         // sequence of single-position projections.
-        _weights.ProjectBatch(names.Query, normed, 1, query, threads);
-        _weights.ProjectBatch(names.Key, normed, 1, key, threads);
-        _weights.ProjectBatch(names.Value, normed, 1, value, threads);
+        //
+        // Cancellation is checked before every projection and not inside one. A projection is the longest
+        // uninterruptible step of a layer, so checking here bounds the response to a stop request by one
+        // projection, and the kernels stay free of cancellation state.
+        cancellationToken.ThrowIfCancellationRequested();
+        _weights.ProjectBatch(names.Query, normed, 1, query, threads, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        _weights.ProjectBatch(names.Key, normed, 1, key, threads, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        _weights.ProjectBatch(names.Value, normed, 1, value, threads, cancellationToken);
         if (names.HasBias)
         {
             TransformerOps.Add(query, _weights.Vector(names.QueryBias), query);
@@ -136,16 +143,20 @@ public sealed class DenseForward
             _shape.HeadCount, _shape.HeadCountKv, _headDim, tokens, scratch.Scores, context);
         observe?.Invoke(layer, position, "attn_ctx", context);
 
-        _weights.ProjectBatch(names.Output, context, 1, projected, threads);
+        cancellationToken.ThrowIfCancellationRequested();
+        _weights.ProjectBatch(names.Output, context, 1, projected, threads, cancellationToken);
         TransformerOps.Add(residual, projected, residual);
         observe?.Invoke(layer, position, "attn_residual", residual);
 
         TransformerOps.RmsNorm(residual, _weights.Vector(names.FfnNorm), _epsilon, normed);
-        _weights.ProjectBatch(names.Gate, normed, 1, scratch.Gate, threads);
-        _weights.ProjectBatch(names.Up, normed, 1, scratch.Up, threads);
+        cancellationToken.ThrowIfCancellationRequested();
+        _weights.ProjectBatch(names.Gate, normed, 1, scratch.Gate, threads, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        _weights.ProjectBatch(names.Up, normed, 1, scratch.Up, threads, cancellationToken);
         TransformerOps.SwiGlu(scratch.Gate, scratch.Up, scratch.Activated);
         observe?.Invoke(layer, position, "ffn_act", scratch.Activated);
-        _weights.ProjectBatch(names.Down, scratch.Activated, 1, projected, threads);
+        cancellationToken.ThrowIfCancellationRequested();
+        _weights.ProjectBatch(names.Down, scratch.Activated, 1, projected, threads, cancellationToken);
         TransformerOps.Add(residual, projected, residual);
         observe?.Invoke(layer, position, "out", residual);
     }
@@ -165,18 +176,22 @@ public sealed class DenseForward
     /// the batch buffers already give each of them a private slice.
     /// </remarks>
     internal void LayerBatch(int layer, int start, int count, DenseBatchScratch batch,
-        Span<float> keys, Span<float> values, int threads, ForwardObserver? observe)
+        Span<float> keys, Span<float> values, int threads, ForwardObserver? observe,
+        CancellationToken cancellationToken = default)
     {
         var names = _layers[layer];
 
         for (int i = 0; i < count; i++)
             TransformerOps.RmsNorm(Hidden(batch, i), _weights.Vector(names.AttnNorm), _epsilon, Normed(batch, i));
+        cancellationToken.ThrowIfCancellationRequested();
         _weights.ProjectBatch(names.Query, batch.Normed.AsSpan(0, count * _embedding), count,
-            batch.Queries.AsSpan(0, count * _shape.QueryWidth), threads);
+            batch.Queries.AsSpan(0, count * _shape.QueryWidth), threads, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         _weights.ProjectBatch(names.Key, batch.Normed.AsSpan(0, count * _embedding), count,
-            batch.Keys.AsSpan(0, count * _kvWidth), threads);
+            batch.Keys.AsSpan(0, count * _kvWidth), threads, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         _weights.ProjectBatch(names.Value, batch.Normed.AsSpan(0, count * _embedding), count,
-            batch.Values.AsSpan(0, count * _kvWidth), threads);
+            batch.Values.AsSpan(0, count * _kvWidth), threads, cancellationToken);
 
         for (int i = 0; i < count; i++)
         {
@@ -206,13 +221,17 @@ public sealed class DenseForward
             int position = start + i;
             int tokens = position + 1;
             Span<float> context = Context(batch, i);
+            // Attention is the second phase whose cost grows with the chunk, so it carries a checkpoint too.
+            // The read is a volatile flag against a millisecond of arithmetic, so it costs nothing measurable.
+            cancellationToken.ThrowIfCancellationRequested();
             TransformerOps.GroupedAttention(Query(batch, i), keys[..checked(tokens * _kvWidth)], values[..checked(tokens * _kvWidth)],
                 _shape.HeadCount, _shape.HeadCountKv, _headDim, tokens, batch.Scores, context);
             if (observe is not null) observe(layer, position, "attn_ctx", context);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         _weights.ProjectBatch(names.Output, batch.Context.AsSpan(0, count * _shape.QueryWidth), count,
-            batch.Projected.AsSpan(0, count * _embedding), threads);
+            batch.Projected.AsSpan(0, count * _embedding), threads, cancellationToken);
         for (int i = 0; i < count; i++)
         {
             TransformerOps.Add(Hidden(batch, i), Projected(batch, i), Hidden(batch, i));
@@ -221,17 +240,20 @@ public sealed class DenseForward
 
         for (int i = 0; i < count; i++)
             TransformerOps.RmsNorm(Hidden(batch, i), _weights.Vector(names.FfnNorm), _epsilon, Normed(batch, i));
+        cancellationToken.ThrowIfCancellationRequested();
         _weights.ProjectBatch(names.Gate, batch.Normed.AsSpan(0, count * _embedding), count,
-            batch.Gate.AsSpan(0, count * _shape.FeedForwardLength), threads);
+            batch.Gate.AsSpan(0, count * _shape.FeedForwardLength), threads, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         _weights.ProjectBatch(names.Up, batch.Normed.AsSpan(0, count * _embedding), count,
-            batch.Up.AsSpan(0, count * _shape.FeedForwardLength), threads);
+            batch.Up.AsSpan(0, count * _shape.FeedForwardLength), threads, cancellationToken);
         for (int i = 0; i < count; i++)
         {
             TransformerOps.SwiGlu(Gate(batch, i), Up(batch, i), Activated(batch, i));
             if (observe is not null) observe(layer, start + i, "ffn_act", Activated(batch, i));
         }
+        cancellationToken.ThrowIfCancellationRequested();
         _weights.ProjectBatch(names.Down, batch.Activated.AsSpan(0, count * _shape.FeedForwardLength), count,
-            batch.Down.AsSpan(0, count * _embedding), threads);
+            batch.Down.AsSpan(0, count * _embedding), threads, cancellationToken);
         for (int i = 0; i < count; i++)
         {
             TransformerOps.Add(Hidden(batch, i), Down(batch, i), Hidden(batch, i));
@@ -273,11 +295,13 @@ public sealed class DenseForward
         batch.Down.AsSpan(index * _embedding, _embedding);
 
     /// <summary>Applies the final normalization and the output projection.</summary>
-    internal void Final(ReadOnlySpan<float> hidden, Span<float> logits, DenseScratch scratch, ForwardObserver? observe, int threads = 1)
+    internal void Final(ReadOnlySpan<float> hidden, Span<float> logits, DenseScratch scratch, ForwardObserver? observe,
+        int threads = 1, CancellationToken cancellationToken = default)
     {
         TransformerOps.RmsNorm(hidden, _weights.Vector(_outputNorm), _epsilon, scratch.Normed);
         observe?.Invoke(-1, -1, "final_norm", scratch.Normed);
-        _weights.ProjectBatch(_output, scratch.Normed, 1, logits, threads);
+        cancellationToken.ThrowIfCancellationRequested();
+        _weights.ProjectBatch(_output, scratch.Normed, 1, logits, threads, cancellationToken);
         observe?.Invoke(-1, -1, "logits", logits);
     }
 

@@ -110,6 +110,51 @@ bash tools/ab-pinned.sh 7 none        # unpinned, alternating the revision order
 bash tools/ab-pinned.sh 3 0-11        # confined to the performance cores
 ```
 
+## Addendum: the gain scales with core heterogeneity
+
+The claim above rests on the unpinned numbers, where `ffn_down` covers 1.05x to 1.41x. Repeating the
+comparison confined to the six performance cores was meant to resolve that range, since the noise
+floor there is 1.02x against 1.61x on the efficiency cores. It did not resolve it. It explained it.
+
+Seven alternating rounds, confined to `taskset -c 0-11`:
+
+| Round | ffn_down dealt | ffn_down claimed | output dealt | output claimed |
+|---|---:|---:|---:|---:|
+| 1 | 21845.1 | 20833.2 | 161921.0 | 159463.8 |
+| 2 | 24441.4 | 19653.5 | 168854.4 | 150766.3 |
+| 3 | 23430.1 | 20976.4 | 168045.0 | 153569.1 |
+| 4 | 22647.7 | 22742.2 | 164908.1 | 157723.0 |
+| 5 | 24341.6 | 19248.8 | 166632.1 | 154428.7 |
+| 6 | 21472.2 | 20635.6 | 156281.0 | 157137.6 |
+| 7 | 24817.5 | 19601.8 | 160370.4 | 158408.9 |
+
+| Configuration | Tensor | Winning rounds | Median ratio | Ranges |
+|---|---|---:|---:|---|
+| unpinned (mixed cores) | ffn_down | 7 of 7 | 1.24x | overlap in one round |
+| unpinned (mixed cores) | output | 7 of 7 | 1.13x | disjoint |
+| pinned to P cores (uniform) | ffn_down | 6 of 7 | 1.14x | overlap |
+| pinned to P cores (uniform) | output | 6 of 7 | 1.05x | overlap |
+
+The effect is smaller where the cores are alike, and that is what the mechanism predicts rather than
+an exception to it: rebalancing recovers the time workers spend finishing at different moments, and
+workers on six identical cores finish close together whatever the split. Confined to the performance
+cores the change is worth 1.05x on the output projection — near neutral — and unpinned on a hybrid
+processor it is worth 1.13x. The benefit tracks the heterogeneity, which is also why the pinned
+configuration is the quieter place to measure and the wrong place to ask how much the change is
+worth.
+
+Across both configurations the claimed split wins 13 of 14 paired rounds (sign test, p = 0.0009).
+
+## A negative result worth recording
+
+The 104 background entries in the editor's status bar prompted the guess that the editor's own build
+servers were injecting timing noise: ten `MSBuild` node-reuse workers holding 1.3 GB were running
+throughout the earlier measurements. Measured, they consume **1.6% of one processor in total** on a
+97.6% idle machine holding 22 GB free, and they hold memory rather than compute. They are not a
+noise source for a test that saturates eight cores, and shutting them down would have bought
+nothing. The variance has a different cause, and it is the core mixture above: the same binary varies
+by 1.02x on uniform cores and 1.61x on mixed ones.
+
 ## Limits
 
 - One host, one artifact, one tensor pair. The direction is 7 of 7; the magnitude is a range whose

@@ -1157,3 +1157,24 @@ than a shell loop retyped per experiment — two earlier attempts this session w
 splitting. Report in `docs/benchmarks/thread-budget-2026-10-14/README.md`. `ExecuteBatchFloat` still
 deals rows out in equal parts, left alone deliberately rather than changed without its own
 measurement. Skills: phase-development-task-execution and base-dossier-writing.
+
+## Where the measurement variance comes from — 2026-10-14
+
+Follow-up on the thread-budget result, prompted by an editor status bar reporting 104 tracked
+terminal sessions. Inspecting the workspace state showed those are 107 historical entries with 14
+shells alive, not 104 running processes, and reloading the window clears them.
+
+The same inspection found ten `MSBuild` node-reuse workers holding 1.3 GB throughout the earlier
+measurements, and the guess that they were injecting timing noise was tested and **refuted**: they
+consume 1.6% of one processor in total on a 97.6% idle machine. Memory, not compute. Recorded so it
+is not investigated twice.
+
+Repeating the claimed-split comparison confined to the six performance cores, where the noise floor
+is 1.02x, gave 1.14x and 1.05x over seven rounds — smaller than unpinned, 6 of 7 rather than 7 of 7,
+with overlapping ranges. That does not weaken the change: it is the mechanism confirming itself,
+since rebalancing recovers the time workers spend finishing apart and workers on six identical cores
+finish together. Across both configurations the change wins 13 of 14 paired rounds, sign test
+p = 0.0009. The finding of record is that the variance the earlier reports blamed on scheduling has
+a name — the heterogeneous core mixture — and is 1.02x on uniform cores against 1.61x on mixed ones.
+Report updated in place rather than superseded. No code change. Skills:
+phase-development-task-execution and base-dossier-writing.

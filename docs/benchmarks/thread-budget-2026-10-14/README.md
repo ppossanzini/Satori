@@ -50,9 +50,10 @@ carry little of the cost.
 for all of them, so the call lasted as long as its slowest worker. A worker that drew slow cores, or
 that was descheduled, held the whole call at the barrier.
 
-The workers now claim chunks of `rows / (workers x 4)` rows from a shared counter, so a worker that
-falls behind claims fewer. Chunks are claimed exactly once and the outputs of a row range are
-independent, so the split still produces the same result.
+The workers now claim rows from a shared counter, so a worker that falls behind claims fewer. A claim is
+taken exactly once and the outputs of a row range are independent, so the split still produces the same
+result. The size of a claim is `RowsPerClaim`, eight rows, and how that number was arrived at is the subject
+of the last section.
 
 Measured against `6314155`, seven rounds alternating the two revisions, unpinned — the configuration
 the runtime actually uses:
@@ -160,10 +161,89 @@ by 1.02x on uniform cores and 1.61x on mixed ones.
 - One host, one artifact, one tensor pair. The direction is 7 of 7; the magnitude is a range whose
   floor is inside the within-configuration spread, so 1.05x is a floor and 1.24x is a median and
   neither is a guarantee.
-- The chunk size, four per worker, was chosen by argument and not searched: two would claim twice as
-  often, sixteen would reduce imbalance at the same claim rate but on a smaller granularity than a
-  projection needs. A sweep is possible with the same harness and was not run.
+- The claim size was swept after the fact and the shipped value changed. See the section below; the sweep
+  found the original constant both too coarse and expressed in the wrong unit.
 - `output` is the last tensor the test times, so it carries the heat of the two before it. The
   alternation cancels that between revisions; it does not remove it.
 - `ExecuteBatchFloat` still deals rows out in equal parts. It was left alone deliberately: changing
   it without a measurement would be the same mistake the withdrawn budget change made.
+
+## The claim size was coupled to the worker count
+
+The change first shipped with its granularity stated as four chunks per worker, chosen by argument. Sweeping
+it showed two problems.
+
+**The unit was wrong.** Four chunks per worker is 112 rows on eight workers and 28 on thirty-two, so the same
+constant asks for a different division of the same matrix depending on the machine's parallelism, for no
+reason connected to the matrix. The granularity is now stated in rows, which decouples it. This is a
+structural defect and does not need a measurement to establish.
+
+**The value was wrong.** On the artifact's own tensors, eight threads, one position, minimum of seven
+repetitions, microseconds per call:
+
+| rows per claim | 448 | 224 | 112 | 64 | 32 | 16 | 8 | 4 | 2 | 1 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `blk.0.ffn_down` Q6_K 3584x18944 | 23195.8 | 20886.0 | 20330.1 | 18212.7 | 18685.3 | 17290.5 | **16852.5** | 17030.9 | 18034.5 | 19109.8 |
+| `output` Q6_K 152064x3584 | 130622.7 | 129214.9 | 130119.9 | 130038.5 | 131594.7 | **130695.1** | 132917.4 | 134095.3 | 133168.9 | 139082.5 |
+
+The curve is monotone from 448 rows down to about 8 and rises again below it, so **the value shipped at first —
+112 rows on this tensor — was 1.2x past the knee on `ffn_down`**. The wide tensor is flat from 16 rows to 448
+within 1.1%, which is why a finer claim there changes nothing: with more columns per row the claim is already
+a small share of the work.
+
+**Repeating the knee guard moved the knee.** In one run eight rows was the minimum on both tensors; in another,
+sixteen was faster on both, inside the 10% the guard allows. The exact value therefore does not matter much,
+and that is the property that makes it portable: a machine whose knee sits at four or sixteen rows still
+satisfies the guard. An earlier version of the sweep asserted something stronger — that the curve was flat —
+on the reasoning that a value which does not matter cannot be machine-specific. That assertion was refuted and
+replaced rather than relaxed.
+
+**A sweep on a synthetic payload is not a measurement.** The first two sweeps used a megabyte-scale synthetic
+tensor and disagreed with each other by six times on the same claim size, with the ordering between sizes
+reversing: 448 rows measured 7254 us in one and 1210 us in the other. A call that short cannot be timed on a
+machine with this much scheduling and frequency variation. Both synthetic sweeps were discarded; the curve
+above is from artifact bytes, where a call lasts tens of milliseconds, and the synthetic sweep is kept only
+for the identity it can support — that every claim size produces byte-identical output.
+
+### What the corrected value is worth
+
+Measured against `6314155`, which carried the per-worker constant, seven alternating rounds in each
+configuration, microseconds per call:
+
+| Round | unpinned ffn_down 112 -> 8 | unpinned output | pinned ffn_down | pinned output |
+|---|---:|---:|---:|---:|
+| 1 | 27838.7 -> 19478.5 | 194050.7 -> 156175.5 | 27733.0 -> 29576.4 | 199853.0 -> 168959.2 |
+| 2 | 23082.7 -> 18888.7 | 172408.8 -> 149635.6 | 24442.5 -> 21955.1 | 178293.3 -> 169625.6 |
+| 3 | 24033.0 -> 20039.5 | 183942.9 -> 152255.4 | 24663.7 -> 21092.4 | 190074.2 -> 163667.6 |
+| 4 | 22561.2 -> 20464.8 | 177667.8 -> 148975.8 | 28640.3 -> 20998.0 | 191189.6 -> 163142.2 |
+| 5 | 25528.0 -> 20595.7 | 183828.6 -> 149427.7 | 25255.0 -> 21925.9 | 189104.9 -> 162327.7 |
+| 6 | 24305.4 -> 19807.9 | 188652.1 -> 142421.1 | 29297.1 -> 21805.8 | 224093.2 -> 166354.9 |
+| 7 | 25243.7 -> 20082.7 | 188706.4 -> 152254.3 | 31012.6 -> 21332.7 | 234666.3 -> 171321.4 |
+
+| Configuration | Tensor | Winning rounds | Median ratio | Ranges |
+|---|---|---:|---:|---|
+| unpinned | ffn_down | 7 of 7 | 1.21x | disjoint |
+| unpinned | output | 7 of 7 | 1.23x | disjoint |
+| pinned to P cores | ffn_down | 6 of 7 | 1.30x | overlap |
+| pinned to P cores | output | 7 of 7 | 1.17x | disjoint |
+
+Correcting the claim size is worth as much as the claiming was: **1.21x and 1.23x unpinned**, on top of the
+1.24x and 1.13x the claiming itself returned. Against the equal split the two changes together are about
+**1.5x** on `ffn_down`, and the intermediate value measured in the middle of this session was not the
+shipped one.
+
+### Why this is portable, stated as evidence rather than intent
+
+The exact knee **moves between runs and between configurations**: in one sweep eight rows was the minimum on
+both tensors, in another sixteen was faster on both. A number that moves that much is not a property of the
+machine, which is the argument for its portability. The guard that protects the shipped value is a local
+condition with a 10% tolerance — a claim half as fine and one twice as coarse must both stay within 10% of it
+— so a machine whose knee sits at four rows or sixteen still passes, and one whose curve is sharply peaked
+fails and is telling the truth.
+
+That guard is **not** in the test suite. A duration assertion inside the suite failed on a full run with four
+rows at 80156 us against eight at 22317 us, a 3.6x outlier no isolated run produced: a descheduling event read
+as a property of the code. It is exactly the mistake rules 1, 5 and 6 of
+[measurement-method.md](../../measurement-method.md) exist to prevent, and it was made by the test written to
+enforce them. The sweeps now run only under `SATORI_MEASURE=1`; the suite keeps the identity — every claim
+size produces identical bytes — and the rejection of an unservable claim.

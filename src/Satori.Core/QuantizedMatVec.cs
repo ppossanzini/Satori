@@ -99,10 +99,20 @@ public static class QuantizedMatVec
     /// agreeing to within the tolerance the tests assert; both compute the same mathematical quantity.
     /// </remarks>
     public static unsafe void ExecuteBatch(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input,
-        int positions, Span<float> output, int threads)
+        int positions, Span<float> output, int threads) =>
+        ExecuteBatchTuned(data, shape, input, positions, output, threads, RowsPerClaim);
+
+    /// <summary>
+    /// <see cref="ExecuteBatch"/> with the claim granularity stated by the caller, so a benchmark can show
+    /// whether the value is a property of the technique or of one machine. Production always takes
+    /// <see cref="RowsPerClaim"/>.
+    /// </summary>
+    internal static unsafe void ExecuteBatchTuned(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
+        ReadOnlySpan<float> input, int positions, Span<float> output, int threads, int rowsPerClaim)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(positions);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(threads);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(rowsPerClaim);
         if (data.Length != shape.ByteLength) throw new ArgumentException("Incorrect quantized payload length.", nameof(data));
         if (input.Length != Checked(positions, shape.Columns))
             throw new ArgumentException("Input must hold one vector per position.", nameof(input));
@@ -111,7 +121,7 @@ public static class QuantizedMatVec
         if (MemoryMarshal.AsBytes(input).Overlaps(MemoryMarshal.AsBytes(output)))
             throw new ArgumentException("Input and output must not overlap.");
         if (Avx2.IsSupported && shape.Format is BlockQuantization.Q4_K or BlockQuantization.Q6_K)
-            ExecuteBatchQuantized(data, shape, input, positions, output, threads);
+            ExecuteBatchQuantized(data, shape, input, positions, output, threads, rowsPerClaim);
         else
             ExecuteBatchFloat(data, shape, input, positions, output, threads);
     }
@@ -125,13 +135,13 @@ public static class QuantizedMatVec
     /// Quantization is lossy by construction, so this path differs from <see cref="Execute"/> in the last bits
     /// and on low-order terms; the tests bound that difference rather than hiding it. An all-zero activation
     /// block produces a zero scale and the kernel skips it, so no code is multiplied by a meaningless one.
-    /// The rows are claimed by the workers from a shared counter in chunks of <see cref="ChunksPerWorker"/>
-    /// each, so a worker that draws slower cores takes fewer of them instead of holding the whole call at the
-    /// barrier; chunks are claimed once each, so the split still cannot change the result.
+    /// The rows are claimed by the workers from a shared counter in pieces of <see cref="RowsPerClaim"/>
+    /// rows, so a worker that draws slower cores takes fewer of them instead of holding the whole call at the
+    /// barrier; a piece is claimed once each, so the split still cannot change the result.
     /// <paramref name="positions"/> is bounded by the kernel's accumulator size.
     /// </remarks>
     private static unsafe void ExecuteBatchQuantized(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
-        ReadOnlySpan<float> input, int positions, Span<float> output, int threads)
+        ReadOnlySpan<float> input, int positions, Span<float> output, int threads, int rowsPerClaim)
     {
         int rowBytes = Q8KCodec.RowBytes(shape.Columns);
         byte[] quantized = ArrayPool<byte>.Shared.Rent(Checked(positions, rowBytes));
@@ -157,7 +167,13 @@ public static class QuantizedMatVec
                 // different speeds the workers do not finish together, so every call waits for whichever
                 // worker drew the slow cores. The claim costs one atomic per chunk and the chunks stay
                 // disjoint and complete, so the result is the one an equal split produces.
-                int chunk = Math.Max(1, (shape.Rows + workers * ChunksPerWorker - 1) / (workers * ChunksPerWorker));
+                //
+                // The claim is sized in rows and not in chunks per worker, so the granularity does not move
+                // when the worker count does: a machine with more parallel workers would otherwise claim
+                // progressively smaller pieces of the same matrix for no reason. The floor keeps every worker
+                // fed when the matrix is short, and the ceiling stops a long matrix from paying one kernel
+                // entry per row.
+                int chunk = Math.Clamp(rowsPerClaim, 1, Math.Max(1, shape.Rows / workers));
                 int[] claimed = new int[1];
                 var running = new Task[workers];
                 for (int worker = 0; worker < workers; worker++)
@@ -240,11 +256,15 @@ public static class QuantizedMatVec
     private const int RowTile = 16;
 
     /// <summary>
-    /// Chunks of rows each worker may claim when the rows are claimed dynamically. Four per worker keeps the
-    /// claim frequency negligible at one atomic per chunk while leaving enough chunks that a worker which drew
-    /// slow cores does not hold the whole call.
+    /// Rows a worker claims at a time from the shared counter. The value is a knee and not a point: sweeping
+    /// it over two real projection shapes showed the projection getting faster from 448 rows per claim down
+    /// to about seven, where it flattens and then loses again near one row. Seven rows of a 3584-column matrix
+    /// is already tens of thousands of products, so the claim itself is negligible next to the work it hands
+    /// out, while a claim four times larger lets whichever worker drew a slow core hold a quarter of the
+    /// matrix. The value is chosen from the knee rather than from a per-worker count, so a machine with more
+    /// workers claims the same rows rather than progressively fewer.
     /// </summary>
-    private const int ChunksPerWorker = 4;
+    private const int RowsPerClaim = 8;
 
     /// <summary>Floats one worker needs: the weight tile plus one accumulator tile.</summary>
     private static int WorkspacePerWorker(QuantizedMatrixShape shape, int positions) =>

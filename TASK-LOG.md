@@ -1178,3 +1178,27 @@ p = 0.0009. The finding of record is that the variance the earlier reports blame
 a name — the heterogeneous core mixture — and is 1.02x on uniform cores against 1.61x on mixed ones.
 Report updated in place rather than superseded. No code change. Skills:
 phase-development-task-execution and base-dossier-writing.
+
+## The row claim was stated in units that moved with the machine — 2026-10-14
+
+Prompted by the objection that a technique measured on one machine must not be tied to it. Audited every
+tuning constant in `Satori.Core`: the GGML block sizes are spec, the `IsSupported` checks are ISA capability,
+the tiling constants are structural. One constant was machine-coupled — the row claim was expressed as chunks
+per worker, so the same value asked for 112 rows on eight workers and 28 on thirty-two for no reason
+connected to the matrix. It is now stated in rows, an unit the machine cannot move, and two rules were added
+to `docs/measurement-method.md`: a duration assertion does not belong in the test suite, and a tuning value is
+stated in units the machine cannot move.
+
+Sweeping it showed the value was also wrong by 1.2x: the shipped claim sat past the knee. Measured on the
+artifact's own tensors over seven alternating rounds in each of two configurations, the corrected value is
+1.21x and 1.23x better unpinned with disjoint ranges on both tensors, 26 of 28 paired rounds across both
+configurations. Against the equal split the claiming plus the corrected claim size is about 1.5x on
+`ffn_down`.
+
+Two sweeps were discarded rather than reported: both used a megabyte-scale synthetic tensor and disagreed
+sixfold on the same claim size with the ordering reversing, which reads as a curve and is not one. A knee
+guard written into the suite then failed on a full run with a 3.6x outlier that no isolated run produced — a
+descheduling event read as a property of the code. The guard moved behind `SATORI_MEASURE=1`; the suite keeps
+only the identity that every claim size produces identical bytes. Report in
+`docs/benchmarks/thread-budget-2026-10-14/README.md`. Suite 234/234. No further code change. Skills:
+phase-development-task-execution and base-dossier-writing.

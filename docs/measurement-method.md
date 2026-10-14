@@ -36,11 +36,28 @@ justification for a piece of design work that would have made the code worse.
    stays in the last-level cache; a real model streams 4.3 GB per token. The two differ by more
    than 5x here. A synthetic figure bounds a kernel's own cost and may never be presented as the
    workload rate.
-5. **Every reported figure names what it measured.** Kernel cost, projection subset, one token, or
+5. **A workload too short to time cannot be swept.** Sweeping a tuning value needs the call to be
+   long against the machine's scheduling and frequency variation, which is what rule 1 guards and
+   repetitions do not fix: repetitions remove noise within a configuration, not a signal buried in
+   it. Two sweeps of the same binary over a megabyte-scale synthetic tensor disagreed sixfold on the
+   same value with the ordering between values reversing, which reads as a curve and is not one.
+   Where a sweep has to be taken from a small payload, say so and treat the curve as unmeasured.
+6. **A duration assertion does not belong in the test suite.** The suite is not a controlled
+   condition: tests run back to back, the machine is warm and other work interleaves. A knee check
+   written into it failed on a full run with four rows at 80156 us against eight at 22317 us — a
+   3.6x outlier that no isolated run produced — which is a descheduling event read as a property of
+   the code. Keep duration comparisons in the harness where they are run deliberately on an idle
+   machine, and keep in the suite only what is an identity: that the outputs are equal, that an
+   unservable argument is rejected, that a bound holds by construction.
+7. **Every reported figure names what it measured.** Kernel cost, projection subset, one token, or
    end to end including startup. The four are not interchangeable and mixing them produced the
    discrepancy this document exists to prevent.
-6. **A change that cannot be shown to help is reverted.** Carrying an unproven optimization
+8. **A change that cannot be shown to help is reverted.** Carrying an unproven optimization
    forward costs maintenance and hides the next measurement's signal.
+9. **A tuning value is stated in units the machine cannot move.** A granularity expressed per worker
+   changes with the worker count; the same constant asked for 112 rows on eight workers and 28 on
+   thirty-two. State it in the unit of the work — rows, bytes, blocks — so that the value describes
+   the shape and not the host, and let the parallelism decide only how many pieces are claimed.
 
 ## The A/B harness
 

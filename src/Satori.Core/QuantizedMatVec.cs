@@ -110,7 +110,76 @@ public static class QuantizedMatVec
             throw new ArgumentException("Output must hold one vector per position.", nameof(output));
         if (MemoryMarshal.AsBytes(input).Overlaps(MemoryMarshal.AsBytes(output)))
             throw new ArgumentException("Input and output must not overlap.");
+        if (Avx2.IsSupported && shape.Format == BlockQuantization.Q4_K)
+            ExecuteBatchQuantized(data, shape, input, positions, output, threads);
+        else
+            ExecuteBatchFloat(data, shape, input, positions, output, threads);
+    }
 
+    /// <summary>
+    /// Integer batched projection. The activation vectors are quantized to Q8_K once for the whole call and
+    /// then reused by every row, which is what makes the integer kernel pay: the activation is read once per
+    /// matrix instead of once per row, and each product is an integer multiply-add.
+    /// </summary>
+    /// <remarks>
+    /// Quantization is lossy by construction, so this path differs from <see cref="Execute"/> in the last bits
+    /// and on low-order terms; the tests bound that difference rather than hiding it. An all-zero activation
+    /// block produces a zero scale and the kernel skips it, so no code is multiplied by a meaningless one.
+    /// <paramref name="positions"/> is bounded by the kernel's accumulator size.
+    /// </remarks>
+    private static unsafe void ExecuteBatchQuantized(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
+        ReadOnlySpan<float> input, int positions, Span<float> output, int threads)
+    {
+        int rowBytes = Q8KCodec.RowBytes(shape.Columns);
+        byte[] quantized = ArrayPool<byte>.Shared.Rent(Checked(positions, rowBytes));
+        try
+        {
+            for (int position = 0; position < positions; position++)
+                Q8KCodec.QuantizeRow(input.Slice(position * shape.Columns, shape.Columns),
+                    quantized.AsSpan(position * rowBytes, rowBytes));
+
+            fixed (byte* dataPointer = &MemoryMarshal.GetReference(data))
+            fixed (byte* activationPointer = &quantized[0])
+            fixed (float* outputPointer = &MemoryMarshal.GetReference(output))
+            {
+                int workers = Math.Min(threads, shape.Rows);
+                if (workers <= 1)
+                {
+                    QuantizedKAvx2Kernel.ExecuteQuantizedTiled(dataPointer, shape, activationPointer, positions,
+                        outputPointer, 0, shape.Rows);
+                    return;
+                }
+                int stride = (shape.Rows + workers - 1) / workers;
+                var running = new Task[workers];
+                for (int worker = 0; worker < workers; worker++)
+                {
+                    int begin = worker * stride;
+                    int end = Math.Min(begin + stride, shape.Rows);
+                    if (begin >= end)
+                    {
+                        running[worker] = Task.CompletedTask;
+                        continue;
+                    }
+                    byte* workerData = dataPointer;
+                    byte* workerActivations = activationPointer;
+                    float* workerOutput = outputPointer;
+                    running[worker] = Task.Factory.StartNew(() =>
+                        QuantizedKAvx2Kernel.ExecuteQuantizedTiled(workerData, shape, workerActivations, positions,
+                            workerOutput, begin, end), CancellationToken.None,
+                        TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+                }
+                Task.WaitAll(running);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(quantized);
+        }
+    }
+
+    private static unsafe void ExecuteBatchFloat(ReadOnlySpan<byte> data, QuantizedMatrixShape shape, ReadOnlySpan<float> input,
+        int positions, Span<float> output, int threads)
+    {
         int workers = Math.Min(threads, shape.Rows);
         if (workers <= 1)
         {

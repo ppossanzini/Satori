@@ -98,7 +98,7 @@ public sealed class DenseForward
     /// <c>(position + 1)</c> key/value slots.
     /// </summary>
     internal void Step(int layer, int position, Span<float> residual, Span<float> keys, Span<float> values,
-        DenseScratch scratch, ForwardObserver? observe)
+        DenseScratch scratch, ForwardObserver? observe, int threads = 1)
     {
         var names = _layers[layer];
         Span<float> query = scratch.Query, key = scratch.Key, value = scratch.Value,
@@ -107,9 +107,13 @@ public sealed class DenseForward
         TransformerOps.RmsNorm(residual, _weights.Vector(names.AttnNorm), _epsilon, normed);
         observe?.Invoke(layer, position, "attn_norm", normed);
 
-        _weights.Project(names.Query, normed, query);
-        _weights.Project(names.Key, normed, key);
-        _weights.Project(names.Value, normed, value);
+        // One position goes through the batched projection too. For a quantized tensor that is not a
+        // formality: the batched kernel quantizes the activation once and then multiplies integers, which
+        // measured 3.7x the per-position kernel on a projection of this shape, and decoding is nothing but a
+        // sequence of single-position projections.
+        _weights.ProjectBatch(names.Query, normed, 1, query, threads);
+        _weights.ProjectBatch(names.Key, normed, 1, key, threads);
+        _weights.ProjectBatch(names.Value, normed, 1, value, threads);
         if (names.HasBias)
         {
             TransformerOps.Add(query, _weights.Vector(names.QueryBias), query);
@@ -132,16 +136,16 @@ public sealed class DenseForward
             _shape.HeadCount, _shape.HeadCountKv, _headDim, tokens, scratch.Scores, context);
         observe?.Invoke(layer, position, "attn_ctx", context);
 
-        _weights.Project(names.Output, context, projected);
+        _weights.ProjectBatch(names.Output, context, 1, projected, threads);
         TransformerOps.Add(residual, projected, residual);
         observe?.Invoke(layer, position, "attn_residual", residual);
 
         TransformerOps.RmsNorm(residual, _weights.Vector(names.FfnNorm), _epsilon, normed);
-        _weights.Project(names.Gate, normed, scratch.Gate);
-        _weights.Project(names.Up, normed, scratch.Up);
+        _weights.ProjectBatch(names.Gate, normed, 1, scratch.Gate, threads);
+        _weights.ProjectBatch(names.Up, normed, 1, scratch.Up, threads);
         TransformerOps.SwiGlu(scratch.Gate, scratch.Up, scratch.Activated);
         observe?.Invoke(layer, position, "ffn_act", scratch.Activated);
-        _weights.Project(names.Down, scratch.Activated, projected);
+        _weights.ProjectBatch(names.Down, scratch.Activated, 1, projected, threads);
         TransformerOps.Add(residual, projected, residual);
         observe?.Invoke(layer, position, "out", residual);
     }
@@ -269,11 +273,11 @@ public sealed class DenseForward
         batch.Down.AsSpan(index * _embedding, _embedding);
 
     /// <summary>Applies the final normalization and the output projection.</summary>
-    internal void Final(ReadOnlySpan<float> hidden, Span<float> logits, DenseScratch scratch, ForwardObserver? observe)
+    internal void Final(ReadOnlySpan<float> hidden, Span<float> logits, DenseScratch scratch, ForwardObserver? observe, int threads = 1)
     {
         TransformerOps.RmsNorm(hidden, _weights.Vector(_outputNorm), _epsilon, scratch.Normed);
         observe?.Invoke(-1, -1, "final_norm", scratch.Normed);
-        _weights.Project(_output, scratch.Normed, logits);
+        _weights.ProjectBatch(_output, scratch.Normed, 1, logits, threads);
         observe?.Invoke(-1, -1, "logits", logits);
     }
 

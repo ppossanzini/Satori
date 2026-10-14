@@ -19,6 +19,98 @@ internal static class QuantizedKAvx2Kernel
         else ExecuteQ6K(data, shape, input, output);
     }
 
+    /// <summary>Positions one worker accumulates at a time; the accumulator is one float per position.</summary>
+    internal const int TilePositions = 256;
+
+    /// <summary>
+    /// Batched integer product for Q4_K. <paramref name="activations"/> holds <paramref name="positions"/> Q8_K
+    /// rows, quantized once for the whole matrix, so every row multiplies the same integer activation.
+    /// </summary>
+    /// <remarks>
+    /// The loop is row, then block, then position: a row's weight blocks are streamed once and stay in the
+    /// first-level cache, and the activation rows are swept once per weight row. The per-block constants —
+    /// the two block scales and the eight 6-bit scales and mins — are extracted once per weight block outside
+    /// the position loop, because extracting them per position was measured to cost more than the products
+    /// themselves. Only Q4_K is handled here: it is 169 of the artifact's 198 quantized tensors, and Q6_K's
+    /// four-codes-per-byte-under-four-scales layout does not map onto the byte-pair multiply-add that gives
+    /// this kernel its advantage, so Q6_K stays on the floating-point path.
+    /// </remarks>
+    internal static unsafe void ExecuteQuantizedTiled(byte* weights, QuantizedMatrixShape shape,
+        byte* activations, int positions, float* output, int begin, int end)
+    {
+        if (positions > TilePositions)
+            throw new ArgumentOutOfRangeException(nameof(positions), $"At most {TilePositions} positions per call.");
+        int blocksPerRow = shape.Columns / shape.BlockElements;
+        int activationRowBytes = Q8KCodec.RowBytes(shape.Columns);
+        int blockBytes = shape.BlockBytes;
+        var lowMask = Vector256.Create((byte)15);
+        Span<int> subScales = stackalloc int[8];
+        Span<int> subMins = stackalloc int[8];
+        Span<float> accumulator = stackalloc float[TilePositions];
+        accumulator = accumulator[..positions];
+        for (int row = begin; row < end; row++)
+        {
+            accumulator.Clear();
+            byte* weightRow = weights + (long)row * blocksPerRow * blockBytes;
+            for (int block = 0; block < blocksPerRow; block++)
+            {
+                byte* blockWeights = weightRow + block * blockBytes;
+                byte* scales = blockWeights + 4;
+                var packedScales = new ReadOnlySpan<byte>(scales, 12);
+                for (int sub = 0; sub < 8; sub++)
+                    Q4KCodec.GetScaleMin(sub, packedScales, out subScales[sub], out subMins[sub]);
+                float d = Half(new ReadOnlySpan<byte>(blockWeights, 2));
+                float dmin = Half(new ReadOnlySpan<byte>(blockWeights + 2, 2));
+                for (int position = 0; position < positions; position++)
+                {
+                    byte* activation = activations + (long)position * activationRowBytes + (long)block * Q8KCodec.BytesPerBlock;
+                    float activationScale = Q8KCodec.Scale(new ReadOnlySpan<byte>(activation, 4));
+                    if (activationScale == 0) continue;
+                    accumulator[position] += DotQuantizedQ4K(blockWeights, activation, lowMask, subScales, subMins,
+                        d * activationScale, dmin * activationScale);
+                }
+            }
+            for (int position = 0; position < positions; position++)
+                output[(long)position * shape.Rows + row] = accumulator[position];
+        }
+    }
+
+    /// <summary>
+    /// One Q4_K weight block against one Q8_K activation block. The nibbles are unsigned and the codes are
+    /// signed, so one unsigned-times-signed multiply-add handles 64 products, and the 6-bit min of each
+    /// sub-block multiplies the code sum the activation block already carries. <paramref name="scales"/> and
+    /// <paramref name="mins"/> arrive pre-extracted because they do not depend on the position.
+    /// </summary>
+    private static unsafe float DotQuantizedQ4K(byte* weights, byte* activation, Vector256<byte> lowMask,
+        ReadOnlySpan<int> scales, ReadOnlySpan<int> mins, float d, float dmin)
+    {
+        byte* quants = weights + 16;
+        byte* codes = activation + Q8KCodec.QuantsOffset;
+        short* sums = (short*)(activation + Q8KCodec.SumsOffset);
+        var accumulator = Vector256<int>.Zero;
+        int minTotal = 0;
+        for (int sub = 0; sub < 8; sub++)
+        {
+            var packed = Avx.LoadVector256(quants + sub / 2 * 32);
+            var nibbles = (sub & 1) == 0
+                ? Avx2.And(packed, lowMask)
+                : Avx2.And(Avx2.ShiftRightLogical(packed.AsUInt16(), 4).AsByte(), lowMask);
+            var groupCodes = Avx.LoadVector256(codes + sub * 32).AsSByte();
+            var pairs = Avx2.MultiplyAddAdjacent(nibbles, groupCodes);
+            accumulator = Avx2.Add(accumulator, Avx2.MultiplyAddAdjacent(pairs, Vector256.Create((short)scales[sub])));
+            minTotal += mins[sub] * (sums[sub * 2] + sums[sub * 2 + 1]);
+        }
+        return d * HorizontalSum(accumulator) - dmin * minTotal;
+    }
+
+    private static int HorizontalSum(Vector256<int> value)
+    {
+        var halves = Sse2.Add(value.GetLower(), value.GetUpper());
+        halves = Sse2.Add(halves, Sse2.Shuffle(halves, 0x4e));
+        halves = Sse2.Add(halves, Sse2.Shuffle(halves, 0xb1));
+        return halves.ToScalar();
+    }
+
     private static void ExecuteQ4K(ReadOnlySpan<byte> data, QuantizedMatrixShape shape,
         ReadOnlySpan<float> input, Span<float> output)
     {

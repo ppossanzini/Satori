@@ -555,6 +555,50 @@ per-thread rate, so the optimization is unfinished, not merely unmeasured.
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW06.7 — 2026-10-14 — Criterion not met
+
+Built the two pieces DW06.6's report named: a Q8_K activation quantizer with the integer weight products it
+feeds (`Q8KCodec`, `Q4KCodec.DotProduct`/`MinProduct`), and a row-tiled batched kernel whose per-block
+constants are extracted once per weight block instead of once per position
+(`QuantizedKAvx2Kernel.ExecuteQuantizedTiled`). The integer batched path is wired for Q4_K only: it is 169 of
+the artifact's 198 quantized tensors, and Q6_K's four-codes-per-byte-under-four-scales layout does not map
+onto the byte-pair multiply-add that gives the kernel its advantage. A Q6_K integer product was written,
+found wrong by its test, and removed rather than shipped; Q6_K stays on the floating-point path.
+
+The decisive change was not the integers. Measuring the real decode shapes showed that the per-position
+kernel scalarized its constant extraction inside the innermost loop, so `Step` and `Final` now route through
+the batched projection: at one position — the decode case — the batched kernel is 9.38x the per-position one
+on gate/up and 3.38x on the output projection.
+
+Verification: Release build without warnings; the numerics suite is green at 205 tests.
+`Q8KCodecTests` quantizes the fixture inputs and requires the block bytes to be **identical** to an
+independent FP64 reproduction of `quantize_row_q8_K_ref` by `tools/q8k_reference.py`, together with the
+integer product against a reproduction of `ggml_vec_dot_q4_K_q8_K`. Reproducing the reference's
+`nearest_int` value by value mattered: it rounds through the 12582912 trick in single precision, and a
+substitute rounding produced a different byte on one fixture. `BatchedMatVecTests` bounds the integer path
+against the per-position path within 1e-2 absolute and 1e-3 relative, which is the 8-bit activation
+quantization's own error level and is stated as such; `BatchedMatVecThroughputTests` carries the shape
+breakdown and fails if the batched path ever stops beating the per-position one on the large shapes.
+
+Measured, 512 context, 8 threads: 16 tokens in 21.47 s against 28.41 s before, a **1.32x** gain, i.e.
+0.81 tok/s against the 3 tok/s threshold. A decode token's 197 projections total 7.07 GMAC and take 1050.5 ms,
+a ceiling of 0.95 tok/s before attention, which matches the end-to-end figure. The best single projection
+reaches 13.1 GMAC/s at one position against the reference's ~154 GMAC/s, so decode is about 12x below the
+reference. Report: `docs/benchmarks/decode-2026-10-14/README.md`.
+
+**The DW06.7 criterion is not met**, and this corrects DW06.6's diagnosis: the integer dot is worth about
+30%, while the batched structure and constant hoisting are worth the rest. The remaining factor of 3.7 needs
+three things this subtask did not do: a size-aware dispatch, since the batched kernel's fixed per-call cost
+makes it 2.2x **slower** on the 512x3584 k/v projection; a kernel that reaches more than 13 GMAC/s on a
+single large projection at one position; and attention and the elementwise operators, which account for the
+0.95 to 0.81 tok/s gap and have not been touched. DW06 stays open; no protocol threshold was changed.
+
+Limits: one host, one artifact, one repetition per end-to-end figure. Isolated figures use synthetic payloads
+with uniform scales. The integer path is lossy by construction, so it differs from the floating-point path in
+the last bits; that difference is bounded by a test and not eliminated.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

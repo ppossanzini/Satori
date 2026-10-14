@@ -42,6 +42,108 @@ public sealed class BatchedMatVecThroughputTests
         return values;
     }
 
+    /// <summary>
+    /// The shapes one decode token actually projects, at one position. This is the breakdown that decides
+    /// where the remaining decode time goes: if a real shape is far off the rate of the square projection, the
+    /// per-call cost dominates and the call count is the problem.
+    /// </summary>
+    [Theory]
+    [InlineData("q/k/v/o", 3584, 3584)]
+    [InlineData("k/v", 512, 3584)]
+    [InlineData("gate/up", 18944, 3584)]
+    [InlineData("down", 3584, 18944)]
+    [InlineData("output", 152064, 3584)]
+    public void RealDecodeShapesAtOnePosition(string name, int rows, int columns)
+    {
+        var (payload, shape) = Matrix(rows, columns);
+        float[] input = Input(1, columns);
+        float[] output = new float[rows];
+
+        QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 8);
+        var watch = Stopwatch.StartNew();
+        QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 8);
+        double batchedMs = watch.Elapsed.TotalMilliseconds;
+
+        QuantizedMatVec.Execute(payload, shape, input, output);
+        watch.Restart();
+        QuantizedMatVec.Execute(payload, shape, input, output);
+        double perPositionMs = watch.Elapsed.TotalMilliseconds;
+
+        double gmac = (double)rows * columns / 1e9;
+        _output.WriteLine($"{name,-10} {rows,6}x{columns}: batched {batchedMs,7:F3} ms ({gmac * 1000 / batchedMs,5:F1} GMAC/s), " +
+            $"per-position {perPositionMs,7:F3} ms ({gmac * 1000 / perPositionMs,5:F1} GMAC/s), ratio {perPositionMs / batchedMs:F2}x");
+        Assert.True(batchedMs > 0 && perPositionMs > 0);
+    }
+
+    /// <summary>
+    /// One full decode token's projections, measured as a whole. There are 197 of them per token, so the sum
+    /// of the parts is the number that has to beat the decode threshold, not any single projection.
+    /// </summary>
+    [Fact]
+    public void OneDecodeTokenOfProjections()
+    {
+        (int Rows, int Columns)[] perLayer = [(3584, 3584), (512, 3584), (512, 3584), (3584, 3584),
+            (18944, 3584), (18944, 3584), (3584, 18944)];
+        var matrices = perLayer.Select(s => Matrix(s.Rows, s.Columns)).ToArray();
+        float[] input = Input(1, 3584);
+        var watch = Stopwatch.StartNew();
+        double totalMacs = 0;
+        for (int layer = 0; layer < 28; layer++)
+        {
+            for (int index = 0; index < perLayer.Length; index++)
+            {
+                var (payload, shape) = matrices[index];
+                var source = index >= 4 ? Input(1, shape.Columns) : input;
+                float[] output = new float[shape.Rows];
+                QuantizedMatVec.ExecuteBatch(payload, shape, source, 1, output, threads: 8);
+                totalMacs += (double)shape.Rows * shape.Columns;
+            }
+        }
+        double milliseconds = watch.Elapsed.TotalMilliseconds;
+        var (outPayload, outShape) = Matrix(152064, 3584);
+        float[] logits = new float[outShape.Rows];
+        QuantizedMatVec.ExecuteBatch(outPayload, outShape, input, 1, logits, threads: 8);
+        totalMacs += (double)outShape.Rows * outShape.Columns;
+        milliseconds = watch.Elapsed.TotalMilliseconds;
+        _output.WriteLine($"one token of projections: {milliseconds:F1} ms, {totalMacs / 1e9:F2} GMAC, " +
+            $"{totalMacs / 1e9 / (milliseconds / 1000):F1} GMAC/s, {1000 / milliseconds:F2} tok/s ceiling");
+        Assert.True(milliseconds > 0);
+    }
+
+    /// <summary>
+    /// The decode case: one position. This is what decides whether a single-token projection should go through
+    /// the batched kernel at all, because the batched kernel pays an activation quantization that a projection
+    /// per position does not.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    [InlineData(16)]
+    public void SinglePositionBatchedIsComparedWithThePerPositionKernel(int positions)
+    {
+        const int rows = 3584, columns = 3584;
+        var (payload, shape) = Matrix(rows, columns);
+        float[] input = Input(positions, columns);
+        float[] batched = new float[positions * rows];
+        float[] single = new float[rows];
+
+        QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads: 8);
+        var watch = Stopwatch.StartNew();
+        QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads: 8);
+        double batchedMs = watch.Elapsed.TotalMilliseconds;
+
+        watch.Restart();
+        for (int position = 0; position < positions; position++)
+            QuantizedMatVec.Execute(payload, shape, input.AsSpan(position * columns, columns), single);
+        double perPositionMs = watch.Elapsed.TotalMilliseconds;
+
+        double macs = (double)rows * columns * positions;
+        _output.WriteLine($"positions={positions,3}: batched {batchedMs,7:F2} ms ({macs / batchedMs / 1e6,5:F1} GMAC/s), " +
+            $"per-position {perPositionMs,7:F2} ms ({macs / perPositionMs / 1e6,5:F1} GMAC/s), " +
+            $"ratio {perPositionMs / batchedMs:F2}x");
+        Assert.True(batchedMs > 0 && perPositionMs > 0);
+    }
+
     [Fact]
     public void BatchBeatsOneProjectionPerPosition()
     {

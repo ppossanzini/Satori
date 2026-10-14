@@ -101,7 +101,7 @@ public sealed class DenseSession : IInferenceSession
         {
             Span<float> keys = _keys.AsSpan(layer * _context * _kvWidth, _context * _kvWidth);
             Span<float> values = _values.AsSpan(layer * _context * _kvWidth, _context * _kvWidth);
-            _forward.Step(layer, _position, _hidden, keys, values, _scratch, _observe);
+            _forward.Step(layer, _position, _hidden, keys, values, _scratch, _observe, _options.Threads);
         }
         _forward.Final(_hidden, _logits, _scratch, _observe);
         _position++;

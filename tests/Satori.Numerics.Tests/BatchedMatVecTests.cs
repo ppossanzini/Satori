@@ -49,6 +49,17 @@ public sealed class BatchedMatVecTests
         { 2, 256, 8, BlockQuantization.Q6_K },
     };
 
+    /// <summary>
+    /// The batched Q4_K path quantizes the activation to 8 bits before multiplying, so it is not expected to
+    /// reproduce the floating-point path bit for bit: an 8-bit code carries about 1/254 of the activation's
+    /// magnitude, and over a 256-term sum of mixed signs the relative error on the result lands around 1e-4.
+    /// The tolerance below is that bound with headroom, not a tuned number; the Q4_K codec itself has its own
+    /// exact tests against the independent reference. Q6_K is not on this path and stays on the floating path.
+    /// </summary>
+    private const double QuantizedTolerance = 1e-2;
+
+    private const double QuantizedRelativeTolerance = 1e-3;
+
     [Theory]
     [MemberData(nameof(Cases))]
     public void BatchMatchesPerPositionProjection(int rows, int columns, int positions, BlockQuantization format)
@@ -70,7 +81,7 @@ public sealed class BatchedMatVecTests
             {
                 float expected = single[row];
                 float actual = batched[position * rows + row];
-                Assert.True(Math.Abs(expected - actual) <= 1e-2 + 1e-4 * Math.Abs(expected),
+                Assert.True(Math.Abs(expected - actual) <= QuantizedTolerance + QuantizedRelativeTolerance * Math.Abs(expected),
                     $"position {position} row {row}: {actual} vs {expected}");
             }
         }

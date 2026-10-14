@@ -83,4 +83,65 @@ public static class Q6KCodec
     /// <summary>Checks that the super-block scale is finite.</summary>
     public static bool AreScalesFinite(ReadOnlySpan<byte> block) =>
         float.IsFinite((float)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(block[208..])));
+
+    /// <summary>
+    /// One super-block against one Q8_K activation block: the integer form of <see cref="DotBlock"/>, where the
+    /// floating-point input window is replaced by the signed codes the reference quantizer produced.
+    /// </summary>
+    /// <remarks>
+    /// The sub-scale selection is written out deliberately instead of vectorised along the lines of the
+    /// reference kernel. The reference multiplies <b>uncentred</b> six-bit codes there and removes the
+    /// <c>-32</c> offset afterwards through the activation's group sums, which is a different grouping from
+    /// the one the format's own decoder uses; copying it without deriving it once produced a sign error in an
+    /// AVX2 attempt. This form is the decoder's own arithmetic with the input replaced, so it cannot describe
+    /// a different weight layout from the decoder that the independent fixture already validates.
+    /// </remarks>
+    public static float DotBlockQuantized(ReadOnlySpan<byte> block, ReadOnlySpan<byte> activation)
+    {
+        if (block.Length != BytesPerBlock || activation.Length != Q8KCodec.BytesPerBlock)
+            throw new ArgumentException("Q6_K block or Q8_K activation has the wrong length.");
+        if (Q8KCodec.IsZero(activation)) return 0;
+        float d = Q8KCodec.Scale(activation) *
+            (float)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(block[208..]));
+        return d * DotProduct(block, activation);
+    }
+
+    /// <summary>
+    /// <c>Σ scale_s * Σ (q - 32) * code</c> over the sixteen 16-weight sub-blocks, in exact integer
+    /// arithmetic. Kept separate from <see cref="DotBlockQuantized"/> so a vectorised form can be compared
+    /// against the integer quantity directly, where any difference is a defect and not a rounding artefact.
+    /// </summary>
+    public static int DotProduct(ReadOnlySpan<byte> block, ReadOnlySpan<byte> activation)
+    {
+        if (block.Length != BytesPerBlock || activation.Length != Q8KCodec.BytesPerBlock)
+            throw new ArgumentException("Q6_K block or Q8_K activation has the wrong length.");
+        var codes = Q8KCodec.Codes(activation);
+        var ql = block[..128];
+        var qh = block.Slice(128, 64);
+        var scales = MemoryMarshal.Cast<byte, sbyte>(block.Slice(192, 16));
+        int total = 0;
+        for (int half = 0; half < 2; half++)
+        {
+            var lql = ql.Slice(half * 64, 64);
+            var lqh = qh.Slice(half * 32, 32);
+            var lsc = scales.Slice(half * 8, 8);
+            int baseIndex = half * 128;
+            // The four codes of one l pair the low and high nibbles of two ql bytes with the four 2-bit fields
+            // of one qh byte, and each lands in its own quarter of the half-block under its own scale. The
+            // index expressions below are the decoder's, with codes in place of the input window.
+            for (int l = 0; l < 32; l++)
+            {
+                int sub = l / 16;
+                int q1 = ((lql[l] & 0xF) | (((lqh[l] >> 0) & 3) << 4)) - 32;
+                int q2 = ((lql[l + 32] & 0xF) | (((lqh[l] >> 2) & 3) << 4)) - 32;
+                int q3 = ((lql[l] >> 4) | (((lqh[l] >> 4) & 3) << 4)) - 32;
+                int q4 = ((lql[l + 32] >> 4) | (((lqh[l] >> 6) & 3) << 4)) - 32;
+                total += lsc[sub + 0] * q1 * codes[baseIndex + l + 0];
+                total += lsc[sub + 2] * q2 * codes[baseIndex + l + 32];
+                total += lsc[sub + 4] * q3 * codes[baseIndex + l + 64];
+                total += lsc[sub + 6] * q4 * codes[baseIndex + l + 96];
+            }
+        }
+        return total;
+    }
 }

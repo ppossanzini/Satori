@@ -50,16 +50,14 @@ public sealed class BatchedMatVecTests
     };
 
     /// <summary>
-    /// The batched Q4_K path quantizes the activation to 8 bits before multiplying, so it is not expected to
-    /// reproduce the floating-point path bit for bit: an 8-bit code carries about 1/254 of the activation's
-    /// magnitude, and over a 256-term sum of mixed signs the relative error on the result lands around 1e-4.
-    /// The tolerance below is that bound with headroom, not a tuned number; the Q4_K codec itself has its own
-    /// exact tests against the independent reference. Q6_K is not on this path and stays on the floating path.
+    /// The batched path for a K format quantizes the activation to 8 bits before multiplying, so it cannot
+    /// reproduce the exact path bit for bit. Rather than pick a tolerance by eye, the bound is **derived from
+    /// the data**: the quantizer represents each activation to within half a step, and a step is
+    /// <c>max/127</c>, so the error on a dot product cannot exceed <c>Σ|weight| * max/254</c> for the block.
+    /// The assertion is that the difference is inside that bound, which is a property of the activation
+    /// format and not of the code under test. The products themselves are checked exactly against the
+    /// independent reference in <see cref="Q6KQuantizedProductTests"/> and <see cref="Q8KCodecTests"/>.
     /// </summary>
-    private const double QuantizedTolerance = 1e-2;
-
-    private const double QuantizedRelativeTolerance = 1e-3;
-
     [Theory]
     [MemberData(nameof(Cases))]
     public void BatchMatchesPerPositionProjection(int rows, int columns, int positions, BlockQuantization format)
@@ -79,12 +77,39 @@ public sealed class BatchedMatVecTests
             QuantizedMatVec.ExecuteScalar(payload, shape, input.AsSpan(position * columns, columns), single);
             for (int row = 0; row < rows; row++)
             {
-                float expected = single[row];
-                float actual = batched[position * rows + row];
-                Assert.True(Math.Abs(expected - actual) <= QuantizedTolerance + QuantizedRelativeTolerance * Math.Abs(expected),
-                    $"position {position} row {row}: {actual} vs {expected}");
+                double expected = single[row];
+                double actual = batched[position * rows + row];
+                double bound = QuantizationBound(payload, shape, input.AsSpan(position * columns, columns), row);
+                Assert.True(Math.Abs(expected - actual) <= bound,
+                    $"position {position} row {row}: |{actual} - {expected}| = {Math.Abs(expected - actual)} exceeds " +
+                    $"the quantization bound {bound}");
             }
         }
+    }
+
+    /// <summary>
+    /// The largest error the activation quantization alone can produce on one output cell:
+    /// <c>Σ_blocks Σ_i |weight_i| * (max_activation/254)</c>. Computed from the payload and the input, so it
+    /// tightens automatically when a case is added and it cannot be satisfied by a wrong product.
+    /// </summary>
+    private static double QuantizationBound(byte[] payload, QuantizedMatrixShape shape, ReadOnlySpan<float> input, int row)
+    {
+        int blocks = shape.Columns / shape.BlockElements;
+        int rowBytes = shape.ByteLength / shape.Rows;
+        var oneBlock = new QuantizedMatrixShape(1, shape.BlockElements, shape.Format);
+        float[] weights = new float[shape.BlockElements];
+        double total = 0;
+        for (int block = 0; block < blocks; block++)
+        {
+            QuantizedRow.DecodeRow(payload.AsSpan(row * rowBytes + block * shape.BlockBytes, shape.BlockBytes), oneBlock, weights);
+            var window = input.Slice(block * shape.BlockElements, shape.BlockElements);
+            float largest = 0;
+            for (int i = 0; i < window.Length; i++) largest = Math.Max(largest, Math.Abs(window[i]));
+            double weightSum = 0;
+            for (int i = 0; i < weights.Length; i++) weightSum += Math.Abs(weights[i]);
+            total += weightSum * (largest / 254.0);
+        }
+        return total;
     }
 
     /// <summary>The row split is only an assignment of work, so every thread count must produce the same bytes.</summary>

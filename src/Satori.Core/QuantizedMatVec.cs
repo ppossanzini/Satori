@@ -110,7 +110,7 @@ public static class QuantizedMatVec
             throw new ArgumentException("Output must hold one vector per position.", nameof(output));
         if (MemoryMarshal.AsBytes(input).Overlaps(MemoryMarshal.AsBytes(output)))
             throw new ArgumentException("Input and output must not overlap.");
-        if (Avx2.IsSupported && shape.Format == BlockQuantization.Q4_K)
+        if (Avx2.IsSupported && shape.Format is BlockQuantization.Q4_K or BlockQuantization.Q6_K)
             ExecuteBatchQuantized(data, shape, input, positions, output, threads);
         else
             ExecuteBatchFloat(data, shape, input, positions, output, threads);

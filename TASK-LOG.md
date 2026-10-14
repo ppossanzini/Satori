@@ -1109,3 +1109,16 @@ Consolidated applicability of DS4, AirLLM and AirLLM-plus for bounded residency,
 ## DeepSeek implementation plan — 2026-10-13
 
 Created DeepSeek_todo.md with forty ordered tasks, contract gates, per-task outputs/checks/exclusions and commit policy. Covers generic CPU inference, K/IQ, BitNet, APEX bounded streaming/expert cache, Bonsai codecs/rotations and measured Vulkan. Critical-only testing; performance acceptance requires declared targets. Documentation links and whitespace verified; no runtime tests needed. Skill: analysis-piano-task.
+
+## Q6_K integer path — 2026-10-14
+
+Moved Q6_K off the floating-point batched path onto the integer kernel, with a scalar codec product
+written to the already-validated decoder's index mapping. The product is checked against two
+independent oracles: a Python reference in `tools/q6k_q8k_reference.py` and a composition of
+`Q6KCodec.DecodeBlock` with the Q8_K codes. A/B in a worktree at `dfbe274`, three rounds alternating
+the two revisions in one session: the two ranges are disjoint on both real Q6_K tensors, `ffn_down`
+1.31x and the output projection 1.23x faster. Report in
+`docs/benchmarks/q6k-integer-2026-10-14/README.md`. The same candidate also reported 14-19% worse
+figures when run inside the full suite, which is why the comparison is alternated and standalone.
+Suite 223/223. The DW06.7 target of 3 tok/s is still unmet; this removes 1.3x from a share that
+needs about 12x. Skills: phase-development-task-execution and base-dossier-writing.

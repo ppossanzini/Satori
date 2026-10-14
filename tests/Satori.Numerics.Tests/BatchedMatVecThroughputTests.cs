@@ -47,10 +47,11 @@ public sealed class BatchedMatVecThroughputTests
     /// <summary>Realistic coding-model projection: 3584 columns in, 3584 rows out.</summary>
     private static (byte[] Payload, QuantizedMatrixShape Shape) Matrix(int rows, int columns) =>
         Matrix(rows, columns, BlockQuantization.Q4_K);
-
     /// <summary>
-    /// A synthetic payload of the requested shape and format. The format matters: a Q6_K tensor takes a
-    /// different code path from a Q4_K one, so a comparison that assumes Q4_K measures the wrong kernel.
+    /// A synthetic payload of the requested shape and format, with finite scales in the right places. The
+    /// scale offsets differ per format — Q4_K keeps <c>d</c> at 0 and <c>dmin</c> at 2, Q6_K keeps its single
+    /// <c>d</c> at the end of the block — so writing one at a fixed offset produced a block whose real scale
+    /// was leftover random bytes. That is not a legal block and it made the format comparison meaningless.
     /// </summary>
     private static (byte[] Payload, QuantizedMatrixShape Shape) Matrix(int rows, int columns, BlockQuantization format)
     {
@@ -58,18 +59,30 @@ public sealed class BatchedMatVecThroughputTests
         byte[] payload = new byte[shape.ByteLength];
         var random = new Random(20261014);
         random.NextBytes(payload);
-        // Keep the FP16 super-scales finite so the payload is a legal one.
         int blocksPerRow = columns / shape.BlockElements;
         for (int row = 0; row < rows; row++)
             for (int block = 0; block < blocksPerRow; block++)
             {
                 int offset = (row * blocksPerRow + block) * shape.BlockBytes;
-                BitConverter.TryWriteBytes(payload.AsSpan(offset, 2), (Half)0.01f);
-                if (format == BlockQuantization.Q4_K)
-                    BitConverter.TryWriteBytes(payload.AsSpan(offset + 2, 2), (Half)0.005f);
+                switch (format)
+                {
+                    case BlockQuantization.Q4_K:
+                        WriteHalf(payload, offset, 0.01f);
+                        WriteHalf(payload, offset + 2, 0.005f);
+                        break;
+                    case BlockQuantization.Q6_K:
+                        WriteHalf(payload, offset + Q6KCodec.BytesPerBlock - 2, 0.01f);
+                        break;
+                    default:
+                        WriteHalf(payload, offset, 0.01f);
+                        break;
+                }
             }
         return (payload, shape);
     }
+
+    private static void WriteHalf(byte[] payload, int offset, float value) =>
+        BitConverter.TryWriteBytes(payload.AsSpan(offset, 2), (Half)value);
 
     private static float[] Input(int positions, int columns)
     {

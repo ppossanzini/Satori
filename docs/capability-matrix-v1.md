@@ -1,6 +1,6 @@
 # Capability Matrix v1
 
-Status: DS02. Derived only from descriptor inventories of the candidate artifacts at pinned revisions.
+Status: candidate inventory. Selection is governed by P01–P03 in [the product plan](../TASKS.md). This inventory is not an implementation checklist for all candidates. Derived only from descriptor inventories of the candidate artifacts at pinned revisions.
 No weights were downloaded and no numerical claim is made here; the matrix states what must be added for
 each artifact to run, not that it runs.
 
@@ -58,9 +58,6 @@ a `tokenizer.chat_template` string.
 |---|---|---|---|
 | qwen2 / qwen3 / qwen35 / qwen35moe | qwen2, qwen35 | chat template with tool-call markup | Missing BPE tokenizer + template |
 | bitnet-b1.58 | absent | Llama-3 style merges, `add_bos_token = true` | Missing BPE tokenizer + template |
-
-The laboratory tokenizer (`StoriesTokenizer`) is a SentencePiece profile and does not cover these
-gpt2/BPE files.
 
 ## Operators
 

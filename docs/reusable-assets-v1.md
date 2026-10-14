@@ -27,9 +27,8 @@ was confirmed on the current tree by the Release build and the numerics suite, n
 | Dense CPU forward | `Model/DenseForward.cs`, `DenseScratch.cs` | [model-forward](model-forward.md) | `QwenForwardTests`, `fixtures/qwen/*` |
 | Incremental session: KV state, limits, lifetime | `Model/DenseSession.cs`, `IInferenceSession.cs` | [model-session](model-session.md) | `DenseSessionTests` |
 | Sampling and greedy generation | `Model/TextGenerator.cs`, `TokenSampler.cs`, `GreedyTokenSelector.cs`, `SamplingOptions.cs` | [text-generation](text-generation.md) | `TextGeneratorTests`, `TokenSamplerTests`, `GreedyTokenSelectorTests` |
-| Console commands `save`, `run`, `inventory`, `describe`, `text`, `generate` | `src/Satori.Console/Program.cs` | — | command help |
-| Vulkan primitives: context, buffer, shader, Q8 MatVec, FP32 operators, attention session | `src/Satori.Backends.Vulkan/*`, `Shaders/` | [vulkan-backend-v1](vulkan-backend-v1.md), [vulkan-q8-matvec](vulkan-q8-matvec.md), [vulkan-transformer-operators](vulkan-transformer-operators.md) | `VulkanQ8Tests`, `VulkanTransformerTests`, `VulkanAttentionTests` |
-| Stories15M laboratory path | `src/Satori.Formats.Gguf/Stories*.cs` | [benchmarks/stories15m](benchmarks/stories15m-2026-10-12/README.md) | `Stories*Tests`, `fixtures/models/stories15m-q8-v1` |
+| Console commands `save`, `run`, `inventory`, `describe`, `text` | `src/Satori.Console/Program.cs` | — | command help |
+| Vulkan primitives: context, buffer, shader, Q8 MatVec, FP32 operators, attention session | `src/Satori.Backends.Vulkan/*`, `Shaders/` | [vulkan-backend-v1](vulkan-backend-v1.md), [vulkan-q8-matvec](vulkan-q8-matvec.md), [vulkan-transformer-operators](vulkan-transformer-operators.md) | `VulkanQ8Tests`, `VulkanAttentionTests` |
 
 ## Independent references
 
@@ -40,8 +39,8 @@ was confirmed on the current tree by the Release build and the numerics suite, n
 | `tools/qwen_forward_reference.py` | Independent dense forward and greedy token oracle |
 | `tools/qwen_bpe_tokenizer_fixture.py` | Official tokenizer fixture and chat render |
 | `tools/gguf_header_inventory.py` | Candidate descriptor inventory |
-| `tools/attention_reference.py`, `tools/stories15m_reference.py`, `tools/tokenizer_fixture.py` | Attention, Stories15M and tokenizer fixtures |
-| `tools/download_gguf_corpus.py`, `tools/download_qwen_models.py`, `tools/compile_vulkan_shaders.py` | Corpus download and shader build |
+| `tools/attention_reference.py` | Attention boundaries |
+| `tools/download_qwen_models.py`, `tools/compile_vulkan_shaders.py` | Corpus download and shader build |
 | `tools/model-reference/` | Pinned external model sources |
 
 ## Fixtures
@@ -52,7 +51,6 @@ was confirmed on the current tree by the Release build and the numerics suite, n
 | `fixtures/operators` | Operator oracles and attention boundaries |
 | `fixtures/qwen` | Forward and greedy reference for Qwen2.5-Coder 1.5B and Qwen3 4B |
 | `fixtures/tokenizers/qwen2.5-coder-1.5b` | Tokenizer-only GGUF and official ids |
-| `fixtures/models/stories15m-q8-v1` | Laboratory regression model |
 
 ## Reports
 
@@ -61,7 +59,7 @@ was confirmed on the current tree by the Release build and the numerics suite, n
 | `docs/benchmarks/scalar-2026-10-12`, `avx2-2026-10-12`, `bitplane-2026-10-12` | Ternary2 and Bitplane kernel performance |
 | `docs/benchmarks/gguf-2026-10-12`, `mapped-2026-10-12` | Q4_0/Q8_0 kernels and mapping |
 | `docs/benchmarks/qwen-2026-10-13`, [qwen-baseline-v1](benchmarks/qwen-baseline-v1.md) | Resident dense CPU baseline on coding artifacts |
-| `docs/benchmarks/vulkan-*`, `stories15m-2026-10-12` | Vulkan primitives and laboratory path |
+| `docs/benchmarks/vulkan-*` | Vulkan primitives |
 | `docs/benchmarks/planner*-2026-10-12`, `resident-final-2026-10-12` | Removed model-specific Vulkan planner; historical only |
 | `docs/benchmark-method.md` | Benchmark method |
 

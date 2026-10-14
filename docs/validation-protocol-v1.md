@@ -14,8 +14,6 @@ P01 pins artifact revisions, hashes, licenses, compatible reference runtime vers
 
 P02 compares candidates in compatible reference runtimes. P03 selects one primary Satori path. Later engine comparisons use the same artifact, tokenizer, context and sampling. Different models or quantizations are compared by task success, not token identity.
 
-The `stories15m-q8-v1` fixture establishes laboratory regression only.
-
 ## 2. Numerical Correctness
 
 Independently of quality or speed. A codec or operator is correct when it matches an independent reference

@@ -599,6 +599,47 @@ the last bits; that difference is bounded by a test and not eliminated.
 
 Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
 
+## DW06.7-correction — 2026-10-14 — Measurement base rebuilt
+
+The performance figures in DW06.5-DW06.7 were taken with one warmed call and one timed call per
+configuration. Two runs of the **same published binary** on the same artifact gave 1390 and 2080 ms per
+token, 1.5x apart, so every ratio derived from those figures was inside the noise and one of them was
+wrong in direction.
+
+Built `tools/ab_decode.py`, which runs two published revisions alternately within each round, reverses
+their order every round, and reports minimum, median, maximum and the within-configuration spread per
+configuration, warning above 15%. Built the A/B pair from a Git worktree at the commit, so the working
+tree was never disturbed. Wrote `docs/measurement-method.md`: never a single run; alternate revisions;
+state the resolution before the comparison; an in-cache benchmark never answers a workload question;
+name what each figure measured; revert a change that cannot be shown to help. Corrected
+`docs/benchmarks/decode-2026-10-14/README.md` and `docs/benchmarks/prefill-2026-10-14/README.md`, with
+the corrections stated as corrections rather than edited silently.
+
+What the corrected measurement changed:
+
+| Claim | Corrected |
+|---|---|
+| batched kernel is 2.2x slower on the 512x3584 k/v projection | 3.1x **faster** |
+| one 3584x3584 projection at one position: 5.2 GMAC/s | 23.6 GMAC/s |
+| a size-aware dispatch is required | not required; the fixed cost never dominated |
+| decode is ~12x below the reference | ~6x |
+| decode 1.32x over DW06.6 (single runs) | not established: 0.980 against a 1.22x spread |
+
+A branch-free Q4_K scale/min unpacking was written to replace eight branchy per-sub-block accesses.
+The A/B measured it at 0.980 of the committed revision against a 1.22x spread: **unresolved and
+marginally the wrong direction, so it was reverted**, and the kernel returned to `0d4581a`. Only the
+measurement fix was kept.
+
+Verified: Release build without warnings and the numerics suite green. `BatchedMatVecThroughputTests`
+now takes nine repetitions per figure and reports minimum and median, so a kernel regression shows as a
+number rather than as a claim.
+
+Limits: the within-configuration spread is still 1.22x, so ratios below that are unresolved on this
+host and resolving tighter needs more rounds or a quieter machine. The synthetic figures remain
+in-cache payloads and are documented as bounding the kernel only.
+
+Skills: phase-development-task-execution, capabilities-dev-problem-solving-methodology, base-dossier-writing.
+
 # Execution Log
 
 ## T11 — 2026-10-12 — Completed

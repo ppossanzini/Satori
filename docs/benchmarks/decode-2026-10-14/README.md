@@ -1,9 +1,23 @@
 # Decode Measurement 2026-10-14
 
-Status: DW06.7 (P04). The Satori CPU path's decode rate against its own previous design and against the DW04
-reference on the same host. Two things were built here — a Q8_K activation quantizer with integer weight
-products, and a row-tiled batched kernel with its constants hoisted out of the position loop — and one of
-them is the reason the decode rate moved. The DW06.7 threshold is **not** met.
+Status: DW06.7 (P04). **Corrected 2026-10-14.** The first version of this report used single-run
+measurements and reached a wrong diagnosis; the section "Correction" below states what changed and
+why. The figures here follow [measurement-method.md](../../measurement-method.md).
+
+## Correction
+
+The first version reported that the batched kernel was 2.2x **slower** than the per-position kernel
+on the 512x3584 k/v projection, and concluded that a size-aware dispatch was required. Both came
+from one warmed call and one timed call. With five repetitions and the minimum taken:
+
+| Claim in the first version | Measured | Verdict |
+|---|---|---|
+| batched is 2.2x slower on k/v (512x3584) | batched 0.116 ms, per-position 0.358 ms | **wrong direction**: batched is 3.1x faster |
+| one 3584x3584 projection at one position: 5.2 GMAC/s | 23.6 GMAC/s | understated 4.5x |
+| a size-aware dispatch is needed | it is not; the fixed cost never exceeded the work | **withdrawn** |
+| decode is ~12x below the reference | ~6x below, using the reference's 154 GMAC/s | understated |
+
+The design is simpler than the first report said: no dispatch, one kernel per format.
 
 ## Environment
 
@@ -12,87 +26,86 @@ them is the reason the decode rate moved. The DW06.7 threshold is **not** met.
 | Host | Intel Core Ultra 7 155H, 22 logical processors, 32 GB, Arch Linux |
 | Artifact | Qwen2.5-Coder 7B Instruct Q4_K_M, SHA-256 `509287f78cb4d4cf6b3843734733b914b2c158e43e22a7f4bf5e963800894d3c` |
 | Context / threads | 512 / 8 |
-| Command | `text <model> "def fibonacci(n):" 16 --context 512 --threads 8` |
+| Revision | `0d4581a` (DW06.7) |
+| Harness | `tools/ab_decode.py`, 5 rounds alternating the two configurations |
 
 ## End-to-end decode
 
-| Revision | Wall (s) | Total (ms) | Per token (ms) | Decode (tok/s) |
-|---|---:|---:|---:|---:|
-| DW06.6 (per-position F32 kernel) | 29.23 | 28405 | 1673 | 0.60 |
-| DW06.7 (batched step) | 22.31 | 21473 | 1233 | 0.81 |
+| Config | min ms/token | median | max | tok/s at min | tok/s at median |
+|---|---:|---:|---:|---:|---:|
+| `0d4581a` | 1479.1 | 1619.6 | 1807.5 | 0.676 | 0.617 |
+| working tree, branch-free scale unpacking | 1508.6 | 1612.6 | 1690.9 | 0.663 | 0.620 |
 
-Process start plus a four-token prompt costs 1743 ms (measured with `max-new-tokens 0`), so the per-token
-figure is the generation cost alone. The gain is **1.32x**. The threshold is 3 tok/s, so decode is **3.7x
-short** of it.
+Ratio 0.980 against a within-configuration spread of **1.22x**. The unpacking is **unresolved and
+marginally the wrong direction**, so it was reverted. What the working tree keeps is the
+measurement fix, not the optimization.
 
-## Where a decode token's time goes
+The threshold is 3 tok/s. Decode sits at **0.65 tok/s, 4.6x short**, and this is the first figure in
+this project stated with a resolution behind it.
 
-`BatchedMatVecThroughputTests`, synthetic Q4_K payloads, real model shapes, one position, 8 threads.
+An earlier single-run sequence on the same artifact gave 1390, 2080 and 1172 ms/token for
+equivalent code — the 1.5x inconsistency that motivated writing the method document down.
+
+## The gap between the kernel benchmark and the workload
+
+`BatchedMatVecThroughputTests`, synthetic Q4_K payloads, real shapes, one position, 8 threads,
+minimum of nine repetitions:
 
 | Projection | Shape | Batched (ms) | Batched GMAC/s | Per-position GMAC/s | Ratio |
 |---|---|---:|---:|---:|---:|
-| gate / up | 18944 x 3584 | 7.087 | 9.6 | 1.0 | 9.38x |
-| down | 3584 x 18944 | 6.961 | 9.8 | 3.0 | 3.23x |
-| q / o | 3584 x 3584 | 2.490 | 5.2 | 4.5 | 1.15x |
-| output | 152064 x 3584 | 41.551 | 13.1 | 3.9 | 3.38x |
-| k / v | 512 x 3584 | 0.883 | 2.1 | 4.6 | **0.45x** |
+| gate / up | 18944 x 3584 | 2.115 | 32.1 | 5.2 | 6.22x |
+| down | 3584 x 18944 | 2.046 | 33.2 | 5.0 | 6.64x |
+| q / o | 3584 x 3584 | 0.544 | 23.6 | 5.2 | 4.53x |
+| output | 152064 x 3584 | 12.323 | 44.2 | 5.0 | 8.83x |
+| k / v | 512 x 3584 | 0.116 | 15.8 | 5.1 | 3.09x |
 
-One token is 197 of these projections, 7.07 GMAC in total. Timed as a whole they take 1050.5 ms, a ceiling
-of 0.95 tok/s before attention and the elementwise operators, which is consistent with the 0.81 tok/s
-measured end to end.
+The batched kernel is faster on **every** shape, including the smallest: the fixed per-call cost
+never dominates. One token's 197 projections total 7.07 GMAC in **271.7 ms**, a ceiling of
+**3.68 tok/s** — above the threshold.
 
-Two facts follow from the table and neither was what DW06.6 predicted:
+**That ceiling is not the workload, and the difference is the finding.** The workload runs 5.5x
+slower: 1479 ms against 272 ms. The synthetic payload reuses the same matrices, so they stay in the
+last-level cache; the real model streams 4.3 GB of weights per token. The synthetic figure bounds
+the kernel's own cost and nothing else.
 
-- **The gain is structural, not integral.** At 16 positions the batched F32 kernel reaches 41.9 GMAC/s and
-  the batched integer kernel 55.6 GMAC/s, so the integer path adds about 30%. But the step from 4.5 to
-  9.6 GMAC/s on gate/up comes from hoisting the block constants and tiling the rows, not from multiplying
-  integers. DW06.6's report named the integer dot as the missing piece; that was half right at most.
-- **The batched kernel has a fixed per-call cost of about 0.5 ms** that the per-position kernel does not
-  have, because it quantizes its activation and builds a tiled sweep. On `k`/`v`, 1.8 MMAC, that cost is
-  larger than the whole projection and the batched path is **2.2x slower**. Routing every projection through
-  it is a net 1.32x on decode only because gate/up/down and the output projection are much larger.
+What the gap therefore means:
 
-## Distance to the reference
+- 4.3 GB in 1479 ms is **2.9 GB/s** of weight traffic. This machine's memory does well over
+  50 GB/s, so the path is **not** bandwidth-bound and the memory system is not the wall.
+- Scaling is poor: 1 thread 2816 ms/token, 8 threads 1172-1479 ms/token, about 2.4x for 8x the
+  threads. A compute-bound path would scale further; a path dominated by per-call fixed costs
+  scales like this.
+- The fixed costs are known and countable. A decode token makes 197 projections, and each one
+  takes a lock and acquires a pointer on the mapping, rents an activation buffer, quantizes the
+  activation row, and **spawns one task per worker**. That is roughly 1576 task spawns and 197
+  lock acquisitions per token. The synthetic benchmark hides them twice over: the mapping is warm
+  and uncontended, and the payload fits in cache.
 
-The reference reaches about 154 GMAC/s on this host. The best single projection here reaches 13.1 GMAC/s at
-one position and the token as a whole achieves 6.7 GMAC/s, so decode is roughly **12x below** the reference
-before any memory-bandwidth limit is considered. Reaching 3 tok/s needs about 0.33 s per token against the
-1.23 s measured: a factor 3.7, which the identified causes cannot supply.
-
-## Verdict
-
-The DW06.7 criterion is not met. What is delivered is a verified 1.32x decode gain and a measured account of
-where the remaining factor lives:
-
-1. a per-call fixed cost that makes the batched kernel wrong for small projections, so a size-aware dispatch
-   is needed and its threshold must come from more than one host's timing;
-2. a rate ceiling of 13 GMAC/s on a single large projection at one position, about 12x below the reference,
-   which is kernel work: wider register blocking, weight-side 8-bit multiply-add for the small-K case,
-   software prefetch of the next weight block;
-3. attention and the elementwise operators account for the gap between the 0.95 tok/s projection ceiling and
-   the 0.81 tok/s measured, and have not been optimized at all.
-
-None of these is a prefill structure problem and none is a codec problem. They are kernel and dispatch work
-whose size is now known rather than guessed.
+The next optimization therefore targets scheduling and per-call cost, not arithmetic: a threshold
+below which the row split is not worth a task, and a mapping kept open across a layer step instead
+of reacquired per projection. Both are measurable with the harness above, and neither is justified
+until it is.
 
 ## Reproduce
 
 ```sh
-python3 docs/benchmarks/comparison-2026-10-13/measure.py --label decode -- \
-  dotnet run --project src/Satori.Console -c Release --no-build -- text \
-  .temp/deepseek/dw02/models/qwen2.5-coder-7b-instruct-q4_k_m.gguf "def fibonacci(n):" 16 --context 512 --threads 8
+git worktree add --detach /tmp/ab/committed-src 0d4581a
+(cd /tmp/ab/committed-src && dotnet publish src/Satori.Console -c Release -o /tmp/ab/committed)
+dotnet publish src/Satori.Console -c Release -o /tmp/ab/current
+python3 tools/ab_decode.py --model <artifact> --a committed=/tmp/ab/committed --b current=/tmp/ab/current
 dotnet test tests/Satori.Numerics.Tests -c Release \
   --filter "FullyQualifiedName~BatchedMatVecThroughputTests" --logger 'console;verbosity=detailed'
-python3 tools/q8k_reference.py
-dotnet test tests/Satori.Numerics.Tests -c Release --filter FullyQualifiedName~Q8KCodecTests
 ```
 
 ## Limits
 
-- One host, one artifact, one repetition per end-to-end figure; the isolated figures are single runs after
-  one warm-up call.
-- Isolated figures use synthetic payloads with uniform scales, so they bound a kernel's own cost and not a
-  real tensor's distribution.
-- The 0.95 tok/s ceiling is the projection subset only and assumes the matrices are read from memory once.
-- The Q8_K path is lossy, so its results differ from the floating-point path in the last bits; the tests
-  bound that difference and the Q4_K codec has separate exact tests against the independent reference.
+- One host, one artifact. The absolute rates are this machine's; the ratios are more portable but
+  are not a general claim.
+- The within-configuration spread is 1.22x, so any ratio inside that is unresolved. Reaching
+  tighter resolution needs either more rounds or a quieter host, and neither was attempted.
+- Per-token figures are generation only: the harness subtracts process start and model validation
+  by reading the console's own counters.
+- The synthetic figures use uniform scales in the payload, so they do not represent a real
+  tensor's distribution, and they are in-cache.
+- The Q8_K integer path is lossy by construction; its difference from the floating-point path is
+  bounded by a test, not eliminated.

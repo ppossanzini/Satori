@@ -1,8 +1,21 @@
 # Batched Prefill Measurement 2026-10-14
 
-Status: DW06.6 (P04). The Satori CPU path's prefill, measured against its own previous design and against
-the DW04 reference on the same host. This is the evidence behind the DW06.6 verdict: the structure is
-correct and a real gain, but the TTFT threshold is **not** met.
+Status: DW06.6 (P04). **Corrected 2026-10-14.** The isolated projection figures below were taken
+with single runs and are superseded by the repeated measurements in
+[decode-2026-10-14](../decode-2026-10-14/README.md); the corrected values are stated here and the
+method is in [measurement-method.md](../../measurement-method.md). The end-to-end prefill figure
+stands: it is a wall-clock measurement of one process and is not affected by the repetition error.
+
+## What the correction changed
+
+| Claim | Corrected |
+|---|---|
+| batched 74.6 ms, AVX2 per position 207.0 ms, scalar 759.2 ms (1 thread) | the ratios hold; the absolute rates were understated by up to 4.5x because a single run at cold turbo is slower than the sustained rate |
+| "the batched path is 2.77x the shipped AVX2 path" | direction correct, magnitude from repeated runs: 4.5x to 8.8x depending on the shape |
+| "the remaining gap is inside the dot kernel" | half right: the integer dot is worth about 30%, the rest is the batched structure and constant hoisting. DW06.6 was the prefill structure and it was the larger half |
+
+The end-to-end prefill figure this report exists for is unchanged in substance: the criterion is
+**not met**.
 
 ## Environment
 

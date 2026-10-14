@@ -5,16 +5,44 @@ using Xunit.Abstractions;
 namespace Satori.Numerics.Tests;
 
 /// <summary>
-/// DW06.6 measurement guard: the batched projection exists to be faster than one projection per position on
-/// the same bytes. This asserts that ratio on a synthetic Q4_K matrix shaped like a real projection, and
-/// prints both rates, so a change that makes the batched path slower fails here instead of only in a
-/// benchmark report. It carries no numerical claim; correctness is in <see cref="BatchedMatVecTests"/>.
+/// Measurement guard for the projection kernels: the batched projection exists to be faster than one
+/// projection per position on the same bytes, and this asserts that ratio on synthetic Q4_K matrices shaped
+/// like the real ones. It carries no numerical claim; correctness is in <see cref="BatchedMatVecTests"/>.
 /// </summary>
+/// <remarks>
+/// Every figure is the **minimum** of several repetitions, not a single run. A projection of one or ten
+/// milliseconds on a turbo-boosting laptop is not reproducible from one run: an early version of this class
+/// took single measurements and reported a 3.8x swing on the same code between runs, which is enough to
+/// invert a conclusion. The minimum is the repetition least disturbed by scheduling and frequency changes,
+/// and the spread is printed beside it so a reader can see how much to trust the number. The tests assert
+/// only inequalities that hold across the whole spread, never a ratio the machine cannot guarantee.
+/// </remarks>
 public sealed class BatchedMatVecThroughputTests
 {
     private readonly ITestOutputHelper _output;
 
     public BatchedMatVecThroughputTests(ITestOutputHelper output) => _output = output;
+
+    /// <summary>Repetitions per measurement: one warm-up plus this many timed runs.</summary>
+    private const int Repetitions = 9;
+
+    /// <summary>Runs <paramref name="body"/> repeatedly and returns the minimum and median milliseconds.</summary>
+    private static (double Minimum, double Median) Time(Action body)
+    {
+        body();
+        double[] samples = new double[Repetitions];
+        for (int i = 0; i < Repetitions; i++)
+        {
+            var watch = Stopwatch.StartNew();
+            body();
+            samples[i] = watch.Elapsed.TotalMilliseconds;
+        }
+        Array.Sort(samples);
+        return (samples[0], samples[samples.Length / 2]);
+    }
+
+    private static string Rate(double milliseconds, long macs) =>
+        $"{macs / milliseconds / 1e3,6:F1} GMAC/s";
 
     /// <summary>Realistic coding-model projection: 3584 columns in, 3584 rows out.</summary>
     private static (byte[] Payload, QuantizedMatrixShape Shape) Matrix(int rows, int columns)
@@ -44,8 +72,8 @@ public sealed class BatchedMatVecThroughputTests
 
     /// <summary>
     /// The shapes one decode token actually projects, at one position. This is the breakdown that decides
-    /// where the remaining decode time goes: if a real shape is far off the rate of the square projection, the
-    /// per-call cost dominates and the call count is the problem.
+    /// where decode time goes: a real shape far off the rate of the square projection means the per-call cost
+    /// dominates and the call count is the problem.
     /// </summary>
     [Theory]
     [InlineData("q/k/v/o", 3584, 3584)]
@@ -59,19 +87,15 @@ public sealed class BatchedMatVecThroughputTests
         float[] input = Input(1, columns);
         float[] output = new float[rows];
 
-        QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 8);
-        var watch = Stopwatch.StartNew();
-        QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 8);
-        double batchedMs = watch.Elapsed.TotalMilliseconds;
+        (double batchedMs, double batchedMedian) = Time(() =>
+            QuantizedMatVec.ExecuteBatch(payload, shape, input, 1, output, threads: 8));
+        (double perPositionMs, double perPositionMedian) = Time(() =>
+            QuantizedMatVec.Execute(payload, shape, input, output));
 
-        QuantizedMatVec.Execute(payload, shape, input, output);
-        watch.Restart();
-        QuantizedMatVec.Execute(payload, shape, input, output);
-        double perPositionMs = watch.Elapsed.TotalMilliseconds;
-
-        double gmac = (double)rows * columns / 1e9;
-        _output.WriteLine($"{name,-10} {rows,6}x{columns}: batched {batchedMs,7:F3} ms ({gmac * 1000 / batchedMs,5:F1} GMAC/s), " +
-            $"per-position {perPositionMs,7:F3} ms ({gmac * 1000 / perPositionMs,5:F1} GMAC/s), ratio {perPositionMs / batchedMs:F2}x");
+        long macs = (long)rows * columns;
+        _output.WriteLine($"{name,-10} {rows,6}x{columns}: batched {batchedMs,7:F3} ms (median {batchedMedian,7:F3}, {Rate(batchedMs, macs)}), " +
+            $"per-position {perPositionMs,7:F3} ms (median {perPositionMedian,7:F3}, {Rate(perPositionMs, macs)}), " +
+            $"ratio {perPositionMs / batchedMs:F2}x");
         Assert.True(batchedMs > 0 && perPositionMs > 0);
     }
 
@@ -86,27 +110,24 @@ public sealed class BatchedMatVecThroughputTests
             (18944, 3584), (18944, 3584), (3584, 18944)];
         var matrices = perLayer.Select(s => Matrix(s.Rows, s.Columns)).ToArray();
         float[] input = Input(1, 3584);
-        var watch = Stopwatch.StartNew();
-        double totalMacs = 0;
-        for (int layer = 0; layer < 28; layer++)
-        {
-            for (int index = 0; index < perLayer.Length; index++)
-            {
-                var (payload, shape) = matrices[index];
-                var source = index >= 4 ? Input(1, shape.Columns) : input;
-                float[] output = new float[shape.Rows];
-                QuantizedMatVec.ExecuteBatch(payload, shape, source, 1, output, threads: 8);
-                totalMacs += (double)shape.Rows * shape.Columns;
-            }
-        }
-        double milliseconds = watch.Elapsed.TotalMilliseconds;
+        var sources = perLayer.Select(s => Input(1, s.Columns)).ToArray();
+        var outputs = perLayer.Select(s => new float[s.Rows]).ToArray();
         var (outPayload, outShape) = Matrix(152064, 3584);
         float[] logits = new float[outShape.Rows];
-        QuantizedMatVec.ExecuteBatch(outPayload, outShape, input, 1, logits, threads: 8);
-        totalMacs += (double)outShape.Rows * outShape.Columns;
-        milliseconds = watch.Elapsed.TotalMilliseconds;
-        _output.WriteLine($"one token of projections: {milliseconds:F1} ms, {totalMacs / 1e9:F2} GMAC, " +
-            $"{totalMacs / 1e9 / (milliseconds / 1000):F1} GMAC/s, {1000 / milliseconds:F2} tok/s ceiling");
+        long totalMacs = 0;
+        foreach (var s in perLayer) totalMacs += (long)s.Rows * s.Columns * 28;
+        totalMacs += (long)outShape.Rows * outShape.Columns;
+
+        (double milliseconds, double median) = Time(() =>
+        {
+            for (int layer = 0; layer < 28; layer++)
+                for (int index = 0; index < perLayer.Length; index++)
+                    QuantizedMatVec.ExecuteBatch(matrices[index].Payload, matrices[index].Shape,
+                        sources[index], 1, outputs[index], threads: 8);
+            QuantizedMatVec.ExecuteBatch(outPayload, outShape, input, 1, logits, threads: 8);
+        });
+        _output.WriteLine($"one token of projections: {milliseconds:F1} ms (median {median:F1}), {totalMacs / 1e9:F2} GMAC, " +
+            $"{Rate(milliseconds, totalMacs)}, {1000 / milliseconds:F2} tok/s ceiling");
         Assert.True(milliseconds > 0);
     }
 
@@ -127,19 +148,17 @@ public sealed class BatchedMatVecThroughputTests
         float[] batched = new float[positions * rows];
         float[] single = new float[rows];
 
-        QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads: 8);
-        var watch = Stopwatch.StartNew();
-        QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads: 8);
-        double batchedMs = watch.Elapsed.TotalMilliseconds;
+        (double batchedMs, double batchedMedian) = Time(() =>
+            QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads: 8));
+        (double perPositionMs, double perPositionMedian) = Time(() =>
+        {
+            for (int position = 0; position < positions; position++)
+                QuantizedMatVec.Execute(payload, shape, input.AsSpan(position * columns, columns), single);
+        });
 
-        watch.Restart();
-        for (int position = 0; position < positions; position++)
-            QuantizedMatVec.Execute(payload, shape, input.AsSpan(position * columns, columns), single);
-        double perPositionMs = watch.Elapsed.TotalMilliseconds;
-
-        double macs = (double)rows * columns * positions;
-        _output.WriteLine($"positions={positions,3}: batched {batchedMs,7:F2} ms ({macs / batchedMs / 1e6,5:F1} GMAC/s), " +
-            $"per-position {perPositionMs,7:F2} ms ({macs / perPositionMs / 1e6,5:F1} GMAC/s), " +
+        long macs = (long)rows * columns * positions;
+        _output.WriteLine($"positions={positions,3}: batched {batchedMs,7:F2} ms (median {batchedMedian,7:F2}, {Rate(batchedMs, macs)}), " +
+            $"per-position {perPositionMs,7:F2} ms (median {perPositionMedian,7:F2}, {Rate(perPositionMs, macs)}), " +
             $"ratio {perPositionMs / batchedMs:F2}x");
         Assert.True(batchedMs > 0 && perPositionMs > 0);
     }
@@ -153,26 +172,23 @@ public sealed class BatchedMatVecThroughputTests
         float[] batched = new float[positions * rows];
         float[] single = new float[rows];
 
-        QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads: 1);
+        (double batchedMs, double batchedMedian) = Time(() =>
+            QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads: 1));
+        (double scalarMs, double scalarMedian) = Time(() =>
+        {
+            for (int position = 0; position < positions; position++)
+                QuantizedMatVec.ExecuteScalar(payload, shape, input.AsSpan(position * columns, columns), single);
+        });
+        (double avx2Ms, double avx2Median) = Time(() =>
+        {
+            for (int position = 0; position < positions; position++)
+                QuantizedMatVec.Execute(payload, shape, input.AsSpan(position * columns, columns), single);
+        });
 
-        var watch = Stopwatch.StartNew();
-        QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads: 1);
-        double batchedMs = watch.Elapsed.TotalMilliseconds;
-
-        watch.Restart();
-        for (int position = 0; position < positions; position++)
-            QuantizedMatVec.ExecuteScalar(payload, shape, input.AsSpan(position * columns, columns), single);
-        double scalarMs = watch.Elapsed.TotalMilliseconds;
-
-        watch.Restart();
-        for (int position = 0; position < positions; position++)
-            QuantizedMatVec.Execute(payload, shape, input.AsSpan(position * columns, columns), single);
-        double avx2Ms = watch.Elapsed.TotalMilliseconds;
-
-        double macs = (double)rows * columns * positions / 1e9;
-        _output.WriteLine($"batched   {batchedMs,8:F1} ms ({macs / (batchedMs / 1000),6:F1} GMAC/s)");
-        _output.WriteLine($"scalar    {scalarMs,8:F1} ms ({macs / (scalarMs / 1000),6:F1} GMAC/s)  speedup {scalarMs / batchedMs:F2}x");
-        _output.WriteLine($"avx2/pos  {avx2Ms,8:F1} ms ({macs / (avx2Ms / 1000),6:F1} GMAC/s)  speedup {avx2Ms / batchedMs:F2}x");
+        long macs = (long)rows * columns * positions;
+        _output.WriteLine($"batched   {batchedMs,8:F1} ms (median {batchedMedian,8:F1}, {Rate(batchedMs, macs)})");
+        _output.WriteLine($"scalar    {scalarMs,8:F1} ms (median {scalarMedian,8:F1}, {Rate(scalarMs, macs)})  speedup {scalarMs / batchedMs:F2}x");
+        _output.WriteLine($"avx2/pos  {avx2Ms,8:F1} ms (median {avx2Median,8:F1}, {Rate(avx2Ms, macs)})  speedup {avx2Ms / batchedMs:F2}x");
 
         Assert.True(batchedMs < scalarMs,
             $"Batched projection must beat {positions} scalar projections: {batchedMs:F1} ms vs {scalarMs:F1} ms.");
@@ -190,13 +206,11 @@ public sealed class BatchedMatVecThroughputTests
         float[] input = Input(positions, columns);
         float[] batched = new float[positions * rows];
 
-        QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads);
+        (double milliseconds, double median) = Time(() =>
+            QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads));
 
-        var watch = Stopwatch.StartNew();
-        QuantizedMatVec.ExecuteBatch(payload, shape, input, positions, batched, threads);
-        double milliseconds = watch.Elapsed.TotalMilliseconds;
-        double gmac = (double)rows * columns * positions / 1e9 / (milliseconds / 1000);
-        _output.WriteLine($"threads={threads}: {milliseconds:F1} ms ({gmac:F1} GMAC/s)");
-        Assert.True(gmac > 0);
+        long macs = (long)rows * columns * positions;
+        _output.WriteLine($"threads={threads}: {milliseconds,8:F2} ms (median {median,8:F2}, {Rate(milliseconds, macs)})");
+        Assert.True(milliseconds > 0);
     }
 }
